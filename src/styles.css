@@ -37,6 +37,13 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  /* Custom animations */
+  --animate-fade-in: fade-in 0.6s ease-out forwards;
+  --animate-fade-up: fade-up 0.6s ease-out forwards;
+  --animate-scale-in: scale-in 0.5s ease-out forwards;
+  --animate-shimmer: shimmer 2s infinite;
+  --animate-glow: glow 3s ease-in-out infinite;
 }
 
 :root {
@@ -75,32 +82,117 @@
 
   --shadow-soft: 0 1px 2px oklch(0.18 0.01 60 / 0.04), 0 8px 32px oklch(0.18 0.01 60 / 0.06);
   --shadow-lift: 0 4px 12px oklch(0.18 0.01 60 / 0.08), 0 24px 56px oklch(0.18 0.01 60 / 0.10);
+  --shadow-gold: 0 4px 20px oklch(0.68 0.12 75 / 0.2), 0 12px 40px oklch(0.68 0.12 75 / 0.1);
   --gradient-gold: linear-gradient(135deg, oklch(0.78 0.10 80), oklch(0.62 0.13 70));
+  --gradient-gold-reverse: linear-gradient(135deg, oklch(0.62 0.13 70), oklch(0.78 0.10 80));
   --gradient-ivory: linear-gradient(180deg, oklch(0.985 0.006 85), oklch(0.96 0.012 80));
 }
 
+/* ===== CUSTOM ANIMATIONS ===== */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 5px oklch(0.68 0.12 75 / 0.3); }
+  50% { box-shadow: 0 0 20px oklch(0.68 0.12 75 / 0.5); }
+}
+
+@keyframes gold-shimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.6s ease-out forwards;
+}
+
+.animate-fade-up {
+  animation: fade-up 0.6s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.5s ease-out forwards;
+}
+
+.animate-glow {
+  animation: glow 3s ease-in-out infinite;
+}
+
+/* Gold shimmer text */
+.gold-shimmer {
+  background: linear-gradient(90deg, oklch(0.68 0.12 75), oklch(0.85 0.08 85), oklch(0.68 0.12 75), oklch(0.58 0.15 70));
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gold-shimmer 4s linear infinite;
+}
+
+/* Card hover effect */
+.card-lift {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.card-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lift);
+}
+
+/* Staggered animation for grid items */
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+
+/* Gold border accent */
+.gold-border-bottom {
+  border-bottom: 2px solid transparent;
+  border-image: var(--gradient-gold);
+  border-image-slice: 1;
+}
+
+/* Image reveal on scroll */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 @layer base {
-  * {
-    border-color: var(--color-border);
-  }
-
-  html {
-    font-family: var(--font-sans);
-  }
-
+  * { border-color: var(--color-border); }
+  html { font-family: var(--font-sans); }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-feature-settings: "ss01", "cv01";
     -webkit-font-smoothing: antialiased;
   }
-
   h1, h2, h3, h4, .font-display {
     font-family: var(--font-display);
     font-weight: 400;
     letter-spacing: -0.01em;
   }
-
   .eyebrow {
     font-family: var(--font-sans);
     text-transform: uppercase;
@@ -109,16 +201,18 @@
     font-weight: 500;
     color: var(--color-muted-foreground);
   }
-
   .gold-text {
     background: var(--gradient-gold);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
   }
-
   .hairline {
     height: 1px;
     background: linear-gradient(90deg, transparent, var(--color-border), transparent);
+  }
+  .gold-hairline {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, oklch(0.68 0.12 75 / 0.5), transparent);
   }
 }

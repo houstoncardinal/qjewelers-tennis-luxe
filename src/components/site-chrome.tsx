@@ -13,6 +13,9 @@ export function Header() {
       <Link to="/shop" search={{ type: "necklace" }} className="hover:text-foreground transition-colors" onClick={() => setOpen(false)}>Chains</Link>
       <Link to="/shop" search={{ type: "bracelet" }} className="hover:text-foreground transition-colors" onClick={() => setOpen(false)}>Bracelets</Link>
       <Link to="/about" className="hover:text-foreground transition-colors" onClick={() => setOpen(false)}>Our Craft</Link>
+      <Link to="/moissanite-guide" className="hover:text-foreground transition-colors" onClick={() => setOpen(false)}>Moissanite Guide</Link>
+      <Link to="/size-guide" className="hover:text-foreground transition-colors" onClick={() => setOpen(false)}>Size Guide</Link>
+      <Link to="/faq" className="hover:text-foreground transition-colors" onClick={() => setOpen(false)}>FAQ</Link>
       <Link to="/contact" className="hover:text-foreground transition-colors" onClick={() => setOpen(false)}>Contact</Link>
     </>
   );
@@ -70,6 +73,15 @@ export function Footer() {
             <li><Link to="/shop" search={{ type: "necklace" }} className="hover:text-foreground">Tennis Chains</Link></li>
             <li><Link to="/shop" search={{ type: "bracelet" }} className="hover:text-foreground">Tennis Bracelets</Link></li>
             <li><Link to="/shop" className="hover:text-foreground">All Pieces</Link></li>
+          </ul>
+        </div>
+        <div>
+          <div className="eyebrow mb-4">Learn</div>
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            <li><Link to="/moissanite-guide" className="hover:text-foreground">Moissanite Guide</Link></li>
+            <li><Link to="/size-guide" className="hover:text-foreground">Size Guide</Link></li>
+            <li><Link to="/faq" className="hover:text-foreground">FAQ</Link></li>
+            <li><Link to="/about" className="hover:text-foreground">Our Craft</Link></li>
           </ul>
         </div>
         <div>

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { images } from "@/lib/product-images";
+import { images as img } from "@/lib/product-images";
 
 export const Route = createFileRoute("/about")({
   head: () => ({
@@ -31,7 +31,7 @@ function About() {
 
       <section className="mx-auto max-w-6xl px-6 lg:px-10 grid lg:grid-cols-2 gap-12 items-center">
         <div className="aspect-[4/5] overflow-hidden">
-          <img src={images.graCertificate} alt="GRA moissanite certificate" className="h-full w-full object-cover" />
+          <img src={img.graphic3} alt="GRA moissanite certificate" className="h-full w-full object-cover" />
         </div>
         <div>
           <p className="eyebrow">The Stones</p>
@@ -66,7 +66,7 @@ function About() {
             </ul>
           </div>
           <div className="order-1 lg:order-2 aspect-[4/5] overflow-hidden">
-            <img src={images.chainsDetail} alt="Detail of S925 tennis chains" className="h-full w-full object-cover" />
+            <img src={img.product4} alt="Detail of S925 tennis chains" className="h-full w-full object-cover" />
           </div>
         </div>
       </section>
