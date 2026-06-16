@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "build:netlify": "vite build && node_modules/.bin/esbuild dist/server/server.js --bundle --format=esm --platform=node --outfile=dist/server/bundle.js",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
