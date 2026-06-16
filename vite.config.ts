@@ -8,9 +8,9 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
 // On Netlify (NETLIFY=true), disable the Cloudflare Workers plugin so the build produces
-// a standard ES module compatible with Netlify Edge Functions.
+// a standard ES module compatible with Netlify Functions.
 export default defineConfig({
-  cloudflare: process.env.NETLIFY !== "true",
+  cloudflare: process.env.NETLIFY === "true" ? false : undefined,
   tanstackStart: {
     server: { entry: "server" },
   },
