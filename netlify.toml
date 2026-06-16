@@ -4,8 +4,9 @@
 
 [build.environment]
   NODE_VERSION = "20"
-  # RESEND_FROM_EMAIL is a sender address, not a secret — safe to have as a fallback in code
-  SECRETS_SCAN_OMIT_KEYS = "RESEND_FROM_EMAIL"
+  # These env vars have values that intentionally appear in source code as fallbacks or
+  # public-facing content (site URL, email addresses, analytics IDs). None are secrets.
+  SECRETS_SCAN_OMIT_KEYS = "VITE_SITE_URL,RESEND_FROM_EMAIL,VITE_SUPABASE_URL,VITE_SUPABASE_PROJECT_ID,VITE_SUPABASE_PUBLISHABLE_KEY,VITE_GA4_ID,VITE_META_PIXEL_ID,VITE_TIKTOK_PIXEL_ID,SUPABASE_URL"
 
 # All requests go through the SSR edge function.
 # Static assets (.js, .css, images, fonts) are passed through to Netlify CDN
