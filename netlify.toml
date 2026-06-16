@@ -4,13 +4,16 @@
 
 [build.environment]
   NODE_VERSION = "20"
-  # These env vars have values that intentionally appear in source code as fallbacks or
-  # public-facing content (site URL, email addresses, analytics IDs). None are secrets.
+  # These env vars have values that appear in source code as legitimate fallbacks
+  # or public-facing content (site URL, email addresses, analytics IDs) — not secrets.
   SECRETS_SCAN_OMIT_KEYS = "VITE_SITE_URL,RESEND_FROM_EMAIL,VITE_SUPABASE_URL,VITE_SUPABASE_PROJECT_ID,VITE_SUPABASE_PUBLISHABLE_KEY,VITE_GA4_ID,VITE_META_PIXEL_ID,VITE_TIKTOK_PIXEL_ID,SUPABASE_URL"
 
-# All requests go through the SSR edge function.
-# Static assets (.js, .css, images, fonts) are passed through to Netlify CDN
-# by the function itself via context.next().
-[[edge_functions]]
-  path = "/*"
-  function = "ssr"
+# Node.js Lambda function handles all SSR + server function RPC calls.
+# Static assets in dist/client/ are served by Netlify CDN before this function runs.
+[functions]
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/ssr"
+  status = 200
