@@ -85,15 +85,6 @@
   --gradient-gold: linear-gradient(135deg, oklch(0.72 0.085 76), oklch(0.52 0.100 64));
   --gradient-gold-h: linear-gradient(90deg, oklch(0.72 0.085 76), oklch(0.52 0.100 64));
   --gradient-ivory: linear-gradient(180deg, oklch(1.0 0 0), oklch(0.978 0.005 80));
-  --gradient-prism: linear-gradient(90deg,
-    oklch(0.64 0.19 25 / 0.80),
-    oklch(0.74 0.15 72 / 0.82),
-    oklch(0.70 0.17 155 / 0.78),
-    oklch(0.64 0.18 250 / 0.78),
-    oklch(0.65 0.17 315 / 0.70));
-  --prism-red: oklch(0.64 0.19 25);
-  --prism-green: oklch(0.70 0.17 155);
-  --prism-blue: oklch(0.64 0.18 250);
 }
 
 /* ===== KEYFRAMES ===== */
@@ -132,11 +123,6 @@
 @keyframes marquee {
   0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }
-}
-
-@keyframes prism-shift {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
 }
 
 /* ===== UTILITY CLASSES ===== */
@@ -225,36 +211,6 @@
 .gold-hairline {
   height: 1px;
   background: linear-gradient(90deg, transparent, oklch(0.67 0.115 74 / 0.45), transparent);
-}
-
-.prism-hairline {
-  height: 1px;
-  background: var(--gradient-prism);
-  background-size: 240% 100%;
-  animation: prism-shift 10s ease-in-out infinite;
-}
-
-.prism-border {
-  position: relative;
-}
-.prism-border::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  padding: 1px;
-  background: var(--gradient-prism);
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  pointer-events: none;
-  opacity: 0.55;
-}
-
-.diamond-refraction {
-  background:
-    linear-gradient(135deg, oklch(0.64 0.18 250 / 0.060), transparent 34%),
-    linear-gradient(225deg, oklch(0.70 0.17 155 / 0.055), transparent 36%),
-    linear-gradient(315deg, oklch(0.64 0.19 25 / 0.045), transparent 30%),
-    linear-gradient(180deg, oklch(1 0 0), oklch(0.978 0.005 80));
 }
 
 /* Thin ornamental divider with centred diamond */
@@ -419,76 +375,15 @@
   transition: box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1),
               transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.product-shadow::after {
-  content: '';
-  position: absolute;
-  inset: auto 0 0;
-  height: 2px;
-  background: var(--gradient-prism);
-  opacity: 0.42;
-  transform: scaleX(0.42);
-  transform-origin: left;
-  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.45s;
-}
 .product-shadow:hover {
   box-shadow: var(--shadow-lift);
   transform: translateY(-3px);
-}
-.product-shadow:hover::after {
-  opacity: 0.78;
-  transform: scaleX(1);
 }
 
 /* ===== SECTION DIVIDER ===== */
 .divider-gold {
   height: 1px;
   background: linear-gradient(90deg, transparent, oklch(0.60 0.092 68 / 0.35), transparent);
-}
-
-/* ===== DIAMOND REFLECTION COLOR ACCENTS ===== */
-/* Inspired by light passing through a diamond — red, green, blue spectral dispersion */
-
-.diamond-accent-bar {
-  height: 2px;
-  background: var(--gradient-prism);
-  background-size: 200% 100%;
-  animation: prism-shift 8s ease-in-out infinite;
-}
-
-.diamond-accent-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--prism-red);
-  box-shadow: 
-    0 0 4px var(--prism-red),
-    0 0 8px rgba(239,68,68,0.3);
-  animation: diamond-dot-shift 4s ease-in-out infinite;
-}
-
-@keyframes diamond-dot-shift {
-  0%, 100% { 
-    background: var(--prism-red);
-    box-shadow: 0 0 4px var(--prism-red), 0 0 8px rgba(239,68,68,0.3);
-  }
-  33% { 
-    background: var(--prism-green);
-    box-shadow: 0 0 4px var(--prism-green), 0 0 8px rgba(16,185,129,0.3);
-  }
-  66% { 
-    background: var(--prism-blue);
-    box-shadow: 0 0 4px var(--prism-blue), 0 0 8px rgba(59,130,246,0.3);
-  }
-}
-
-/* Diamond refraction background — subtle spectral wash */
-.diamond-refraction-deep {
-  background:
-    linear-gradient(135deg, oklch(0.64 0.19 25 / 0.080), transparent 34%),
-    linear-gradient(225deg, oklch(0.70 0.17 155 / 0.075), transparent 36%),
-    linear-gradient(315deg, oklch(0.64 0.18 250 / 0.065), transparent 30%),
-    linear-gradient(180deg, oklch(1 0 0), oklch(0.978 0.005 80));
 }
 
 /* Diamond sparkle effect on hover */
@@ -514,70 +409,6 @@
 }
 .diamond-sparkle:hover::after {
   transform: translateX(100%);
-}
-
-/* Diamond prismatic border — animated gradient border */
-.prism-border-animated {
-  position: relative;
-}
-.prism-border-animated::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  padding: 1px;
-  background: var(--gradient-prism);
-  background-size: 300% 100%;
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  pointer-events: none;
-  animation: prism-shift 6s ease-in-out infinite;
-  opacity: 0.6;
-}
-
-/* Spectral highlight strip — top of page accent */
-.spectral-strip {
-  height: 3px;
-  background: var(--gradient-prism);
-  background-size: 200% 100%;
-  animation: prism-shift 10s ease-in-out infinite;
-}
-
-/* Diamond facet card — cards with subtle prismatic shimmer */
-.diamond-facet-card {
-  position: relative;
-  overflow: hidden;
-}
-.diamond-facet-card::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg,
-    rgba(239,68,68,0.03) 30deg,
-    transparent 60deg,
-    rgba(16,185,129,0.03) 120deg,
-    transparent 150deg,
-    rgba(59,130,246,0.03) 210deg,
-    transparent 240deg,
-    rgba(251,191,36,0.03) 300deg,
-    transparent 330deg
-  );
-  animation: diamond-facet-rotate 20s linear infinite;
-  pointer-events: none;
-  z-index: 0;
-}
-.diamond-facet-card > * {
-  position: relative;
-  z-index: 1;
-}
-
-@keyframes diamond-facet-rotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
 }
 
 /* Product color swatch with diamond reflection */
@@ -607,66 +438,3 @@
   transform: rotate(-30deg);
 }
 
-/* Button with diamond accent */
-.btn-diamond {
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s;
-}
-.btn-diamond::before {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--gradient-prism);
-  background-size: 200% 100%;
-  animation: prism-shift 6s ease-in-out infinite;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-.btn-diamond:hover::before {
-  opacity: 1;
-}
-
-/* Diamond reflection on images */
-.img-diamond-reflection {
-  position: relative;
-  overflow: hidden;
-}
-.img-diamond-reflection::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    135deg,
-    rgba(239,68,68,0.04) 0%,
-    transparent 25%,
-    rgba(16,185,129,0.04) 50%,
-    transparent 75%,
-    rgba(59,130,246,0.04) 100%
-  );
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.4s;
-}
-.img-diamond-reflection:hover::after {
-  opacity: 1;
-}
-
-/* Improved selection styling with diamond accent */
-::selection {
-  background: oklch(0.67 0.115 74 / 0.18);
-}
-
-/* Scrollbar styling with diamond accent */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, 
-    var(--prism-red, #ef4444), 
-    var(--prism-green, #10b981), 
-    var(--prism-blue, #3b82f6));
-  border-radius: 99px;
-}

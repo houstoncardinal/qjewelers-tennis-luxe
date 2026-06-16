@@ -220,18 +220,6 @@ function CategoryTile({ image, label, shopType }: CategoryTileProps) {
   );
 }
 
-// ─── Diamond Spectral Accent Bar ──────────────────────────────────────────────
-
-function DiamondSpectralBar() {
-  return (
-    <div className="h-[3px] w-full" style={{
-      background: "linear-gradient(90deg, #ef4444, #f59e0b, #10b981, #3b82f6, #8b5cf6, #ef4444)",
-      backgroundSize: "200% 100%",
-      animation: "prism-shift 8s ease-in-out infinite",
-    }} />
-  );
-}
-
 // ─── Review Card ──────────────────────────────────────────────────────────────
 
 function ReviewCard({ name, text, rating, location }: { name: string; text: string; rating: number; location: string }) {
@@ -494,7 +482,7 @@ function Index() {
       {/* ════════════════════════════════════════════════════════
           SHOP BY CATEGORY — 4 portrait tiles (Brilliant Earth style)
       ════════════════════════════════════════════════════════ */}
-      <section className="diamond-refraction border-b border-border">
+      <section className="border-b border-border">
         <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-20 lg:py-28">
           <div className="text-center mb-14 reveal">
             <p className="eyebrow mb-3">Collections</p>
@@ -530,7 +518,7 @@ function Index() {
       {/* ════════════════════════════════════════════════════════
           OUR SIGNATURE — 4 product cards, white bg
       ════════════════════════════════════════════════════════ */}
-      <section className="diamond-refraction border-b border-border">
+      <section className="border-b border-border">
         <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-20 lg:py-28">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5 mb-14 reveal">
             <div>
@@ -559,7 +547,7 @@ function Index() {
       {/* ════════════════════════════════════════════════════════
           WHY MOISSANITE — comparison section (replaces "The Stone")
       ════════════════════════════════════════════════════════ */}
-      <section className="diamond-refraction border-b border-border">
+      <section className="border-b border-border">
         <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-24 lg:py-36">
           <div className="text-center mb-16 reveal">
             <p className="eyebrow mb-3">The Science of Brilliance</p>
@@ -637,7 +625,7 @@ function Index() {
       {/* ════════════════════════════════════════════════════════
           METAL FINISHES — white bg, refined circles
       ════════════════════════════════════════════════════════ */}
-      <section className="diamond-refraction border-b border-border">
+      <section className="border-b border-border">
         <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-24 lg:py-32">
           <div className="text-center mb-16 reveal">
             <p className="eyebrow mb-4">Every Piece, Every Finish</p>
@@ -678,7 +666,7 @@ function Index() {
       {/* ════════════════════════════════════════════════════════
           CERTIFICATION — GRA badge + trust signals
       ════════════════════════════════════════════════════════ */}
-      <section className="diamond-refraction border-b border-border">
+      <section className="border-b border-border">
         <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-24 lg:py-32">
           <div className="grid lg:grid-cols-2 gap-16 lg:gap-24 items-center">
             <div className="reveal">
@@ -739,7 +727,7 @@ function Index() {
       {/* ════════════════════════════════════════════════════════
           CUSTOMER REVIEWS — social proof
       ════════════════════════════════════════════════════════ */}
-      <section className="diamond-refraction border-b border-border">
+      <section className="border-b border-border">
         <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-24 lg:py-32">
           <div className="text-center mb-16 reveal">
             <p className="eyebrow mb-3">What Our Customers Say</p>

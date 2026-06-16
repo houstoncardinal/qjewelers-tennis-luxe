@@ -36,8 +36,6 @@ export function Header() {
 
   return (
     <header className={`sticky top-0 z-40 bg-background/92 backdrop-blur-xl transition-shadow duration-300 ${scrolled ? "shadow-[0_1px_0_oklch(0.932_0.004_75),0_4px_24px_oklch(0.14_0.006_50_/_0.04)]" : ""}`}>
-      <div className="prism-hairline" />
-
       <div className="mx-auto max-w-[1360px] px-5 lg:px-10 h-16 flex items-center justify-between gap-6">
         {/* Mobile hamburger */}
         <button
@@ -103,7 +101,7 @@ export function Header() {
       {open && (
         <div className="fixed inset-0 z-50 flex md:hidden" aria-modal="true">
           <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={close} />
-          <div className="relative w-[300px] h-full bg-background diamond-refraction flex flex-col shadow-2xl">
+          <div className="relative w-[300px] h-full bg-background flex flex-col shadow-2xl">
             <div className="flex items-center justify-between px-6 h-16 border-b border-border shrink-0">
               <img src="/QURESHIJEWELERSLOGO.png" alt="Qureshi Jewelers" className="h-8 w-auto" />
               <button onClick={close} className="p-1.5 text-muted-foreground hover:text-foreground transition-colors">
@@ -191,9 +189,7 @@ export function Footer() {
   };
 
   return (
-    <footer className="diamond-refraction border-t border-[#ece8e0]">
-      <div className="prism-hairline" />
-
+    <footer className="border-t border-[#ece8e0]">
       <div className="mx-auto max-w-[1360px] px-5 lg:px-10 pt-16 pb-12">
         <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-5">
 
@@ -212,7 +208,7 @@ export function Footer() {
               {["S925 Sterling", "VVS · D Color", "GRA Certified"].map(badge => (
                 <span
                   key={badge}
-                  className="prism-border px-3 py-1.5 text-[0.46rem] uppercase tracking-[0.22em] border border-[#e0dbd3] text-muted-foreground"
+                  className="px-3 py-1.5 text-[0.46rem] uppercase tracking-[0.22em] border border-[#e0dbd3] text-muted-foreground"
                 >
                   {badge}
                 </span>
