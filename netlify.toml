@@ -1,0 +1,13 @@
+[build]
+  command = "npm run build"
+  publish = "dist/client"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# All requests go through the SSR edge function.
+# Static assets (.js, .css, images, fonts) are passed through to Netlify CDN
+# by the function itself via context.next().
+[[edge_functions]]
+  path = "/*"
+  function = "ssr"
