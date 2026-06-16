@@ -4,6 +4,8 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  # RESEND_FROM_EMAIL is a sender address, not a secret — safe to have as a fallback in code
+  SECRETS_SCAN_OMIT_KEYS = "RESEND_FROM_EMAIL"
 
 # All requests go through the SSR edge function.
 # Static assets (.js, .css, images, fonts) are passed through to Netlify CDN

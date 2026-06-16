@@ -2,7 +2,6 @@
 -- Qureshi Jewelers — Complete Database Bootstrap
 -- Run this in the Supabase SQL Editor on a fresh project to initialize
 -- all tables, policies, and seed the full 92-product catalog.
--- Project: bstyuyzlhrkskeqpypka
 -- =============================================================================
 
 -- ─── Drop existing tables (clean slate) ──────────────────────────────────────

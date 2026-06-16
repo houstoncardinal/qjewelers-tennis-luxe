@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sendReturnConfirmation } from "@/lib/email";
 
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? "Samurai14@";
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? "";
 
 function requireAdmin(token: string) {
   if (!token || token !== ADMIN_TOKEN) throw new Error("Unauthorized");
