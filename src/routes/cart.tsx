@@ -2,8 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Minus, Plus, X, ArrowRight, ShoppingBag } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { formatUSD } from "@/lib/pricing";
+import { getShippingConfig } from "@/lib/products.functions";
 
 export const Route = createFileRoute("/cart")({
+  loader: async () => {
+    const config = await getShippingConfig();
+    return { shippingConfig: config };
+  },
   head: () => ({
     meta: [
       { title: "Your Bag — Qureshi Jewelers" },
@@ -15,8 +20,10 @@ export const Route = createFileRoute("/cart")({
 });
 
 function CartPage() {
+  const { shippingConfig } = Route.useLoaderData();
+  const { freeShippingThreshold, flatShippingRate } = shippingConfig;
   const { items, setQty, remove, subtotal } = useCart();
-  const shipping = subtotal === 0 ? 0 : subtotal >= 250 ? 0 : 15;
+  const shipping = subtotal === 0 ? 0 : subtotal >= freeShippingThreshold ? 0 : flatShippingRate;
 
   if (items.length === 0) {
     return (
@@ -73,7 +80,7 @@ function CartPage() {
             <dl className="mt-5 space-y-3 text-sm">
               <div className="flex justify-between"><dt>Subtotal</dt><dd>{formatUSD(subtotal)}</dd></div>
               <div className="flex justify-between"><dt>Shipping</dt><dd>{shipping === 0 ? "Free" : formatUSD(shipping)}</dd></div>
-              {subtotal < 250 && <p className="text-xs text-muted-foreground">Spend {formatUSD(250 - subtotal)} more for free shipping.</p>}
+              {subtotal > 0 && subtotal < freeShippingThreshold && <p className="text-xs text-muted-foreground">Spend {formatUSD(freeShippingThreshold - subtotal)} more for free shipping.</p>}
               <div className="hairline" />
               <div className="flex justify-between font-display text-xl"><dt>Total</dt><dd>{formatUSD(subtotal + shipping)}</dd></div>
             </dl>

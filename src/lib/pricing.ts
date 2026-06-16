@@ -1,11 +1,14 @@
 // Size and length pricing modifiers — applied on top of product base_price.
 export const SIZES_NECKLACE = ["2mm", "3mm", "4mm", "5mm", "6.5mm"] as const;
 export const SIZES_BRACELET = ["2mm", "3mm", "4mm", "5mm", "6.5mm"] as const;
+export const SIZES_EARRING = ["3mm", "4mm", "5mm", "6mm", "8mm"] as const;
 export const LENGTHS_NECKLACE = ['16"', '18"', '20"', '22"', '24"'] as const;
-export const LENGTH_BRACELET = '8"' as const;
+export const LENGTHS_BRACELET = ['6"', '7"', '8"', '9"'] as const;
+export const LENGTH_BRACELET_DEFAULT = '8"' as const;
 
 export type Size = (typeof SIZES_NECKLACE)[number];
-export type Length = (typeof LENGTHS_NECKLACE)[number] | typeof LENGTH_BRACELET;
+export type EarringSize = (typeof SIZES_EARRING)[number];
+export type Length = (typeof LENGTHS_NECKLACE)[number] | (typeof LENGTHS_BRACELET)[number];
 
 const SIZE_MULTIPLIER: Record<string, number> = {
   "2mm": 1,
@@ -15,25 +18,42 @@ const SIZE_MULTIPLIER: Record<string, number> = {
   "6.5mm": 3.45,
 };
 
+const EARRING_SIZE_MULTIPLIER: Record<string, number> = {
+  "3mm": 1,
+  "4mm": 1.17,
+  "5mm": 1.34,
+  "6mm": 1.85,
+  "8mm": 2.69,
+};
+
 const LENGTH_ADD: Record<string, number> = {
   '16"': -20,
   '18"': 0,
   '20"': 30,
   '22"': 50,
   '24"': 70,
+  '6"': -25,
+  '7"': -12,
   '8"': 0,
+  '9"': 18,
 };
 
 export function calculatePrice(basePrice: number, size: Size, length: Length): number {
-  const sized = basePrice * SIZE_MULTIPLIER[size];
+  const sized = basePrice * (SIZE_MULTIPLIER[size] ?? 1);
   return Math.max(99, Math.round(sized + (LENGTH_ADD[length] ?? 0)));
 }
 
+export function calculateEarringPrice(basePrice: number, size: EarringSize): number {
+  return Math.max(59, Math.round(basePrice * (EARRING_SIZE_MULTIPLIER[size] ?? 1)));
+}
+
 export function formatUSD(amount: number): string {
+  const hasCents = amount % 1 !== 0;
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: hasCents ? 2 : 0,
+    maximumFractionDigits: hasCents ? 2 : 0,
   }).format(amount);
 }
 
@@ -79,12 +99,27 @@ export const SIZE_DESCRIPTIONS: Record<string, string> = {
   "6.5mm": "Ultra · Heavy iced out",
 };
 
+export const EARRING_SIZE_DESCRIPTIONS: Record<string, string> = {
+  "3mm": "Subtle · Everyday sparkle",
+  "4mm": "Classic · The sweet spot",
+  "5mm": "Statement · Bold look",
+  "6mm": "Ultra · Maximum brilliance",
+  "8mm": "Showstopper · Iced out",
+};
+
 export const LENGTH_DESCRIPTIONS: Record<string, string> = {
-  '16"': "Choker · Snug fit",
-  '18"': "Princess · Collarbone",
-  '20"': "Matinee · Below collarbone (most popular)",
-  '22"': "Opera · Mid-chest",
-  '24"': "Long · Full chest",
+  '16"': 'Choker · Snug fit',
+  '18"': 'Princess · Collarbone',
+  '20"': 'Matinee · Below collarbone (most popular)',
+  '22"': 'Opera · Mid-chest',
+  '24"': 'Long · Full chest',
+};
+
+export const BRACELET_LENGTH_DESCRIPTIONS: Record<string, string> = {
+  '6"': 'Petite · Snug fit',
+  '7"': 'Standard · Classic fit',
+  '8"': 'Comfort · Relaxed fit (most popular)',
+  '9"': 'Loose · Extra room',
 };
 
 // Moissanite quality info
@@ -105,6 +140,69 @@ export const MOISSANITE_QUALITY = {
     label: "GRA Certified",
     description: "Every Qureshi piece ships with an independent GRA certificate of authenticity.",
   },
+};
+
+export const SIZES_RING = ["0.5ct", "1ct", "1.5ct", "2ct", "3ct"] as const;
+export type RingSize = (typeof SIZES_RING)[number];
+
+const RING_SIZE_MULTIPLIER: Record<string, number> = {
+  "0.5ct": 1.0,
+  "1ct": 2.0,
+  "1.5ct": 3.2,
+  "2ct": 4.8,
+  "3ct": 8.0,
+};
+
+export function calculateRingPrice(basePrice: number, stoneSize: RingSize): number {
+  return Math.max(299, Math.round(basePrice * (RING_SIZE_MULTIPLIER[stoneSize] ?? 1)));
+}
+
+export const RING_SIZE_DESCRIPTIONS: Record<string, string> = {
+  "0.5ct": "Delicate · 5mm · Everyday elegance",
+  "1ct": "Classic · 6.5mm · Most popular",
+  "1.5ct": "Stunning · 7.5mm center stone",
+  "2ct": "Luxurious · 8mm center stone",
+  "3ct": "Statement · 9mm · Maximum sparkle",
+};
+
+// ─── Tennis Bracelet ─────────────────────────────────────────────────────────
+
+export const SIZES_TENNIS_BRACELET = ["2mm", "3mm", "4mm", "5mm", "6mm"] as const;
+export type TennisBraceletSize = (typeof SIZES_TENNIS_BRACELET)[number];
+
+export const LENGTHS_TENNIS_BRACELET = ['6"', '6.5"', '7"', '7.5"', '8"', '8.5"', '9"'] as const;
+export type TennisBraceletLength = (typeof LENGTHS_TENNIS_BRACELET)[number];
+
+export const TENNIS_BRACELET_LENGTH_DEFAULT = '8"' as const;
+
+export const TENNIS_BRACELET_PRICES: Record<string, Record<string, number>> = {
+  "2mm": { '6"': 107.50, '6.5"': 116.68, '7"': 125.42, '7.5"': 134.60, '8"': 143.34, '8.5"': 152.08, '9"': 160.82 },
+  "3mm": { '6"': 149.46, '6.5"': 162.12, '7"': 174.36, '7.5"': 187.04, '8"': 199.28, '8.5"': 211.94, '9"': 224.18 },
+  "4mm": { '6"': 209.32, '6.5"': 226.80, '7"': 244.28, '7.5"': 261.32, '8"': 279.24, '8.5"': 295.84, '9"': 312.90 },
+  "5mm": { '6"': 224.62, '6.5"': 243.40, '7"': 261.76, '7.5"': 280.56, '8"': 299.34, '8.5"': 318.14, '9"': 333.86 },
+  "6mm": { '6"': 313.32, '6.5"': 339.98, '7"': 366.20, '7.5"': 397.24, '8"': 419.96, '8.5"': 446.18, '9"': 472.84 },
+};
+
+export function getTennisBraceletPrice(size: string, length: string): number {
+  return TENNIS_BRACELET_PRICES[size]?.[length] ?? 99;
+}
+
+export const TENNIS_BRACELET_SIZE_DESCRIPTIONS: Record<string, string> = {
+  "2mm": "Delicate · Subtle everyday ice",
+  "3mm": "Classic · Most popular",
+  "4mm": "Premium · Bold presence",
+  "5mm": "Statement · Fully iced",
+  "6mm": "Ultra · Maximum ice",
+};
+
+export const TENNIS_BRACELET_LENGTH_DESCRIPTIONS: Record<string, string> = {
+  '6"':   'Petite · Very snug fit',
+  '6.5"': 'Small · Snug fit',
+  '7"':   'Medium · Standard fit',
+  '7.5"': 'Standard · Relaxed fit',
+  '8"':   'Comfort · Most popular',
+  '8.5"': 'Large · Loose fit',
+  '9"':   'XL · Extra room',
 };
 
 export const MOISSANITE_VS_DIAMOND = [

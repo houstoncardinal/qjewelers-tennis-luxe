@@ -1,19 +1,25 @@
 import { useState } from "react";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { subscribeEmail } from "@/lib/products.functions";
 
 export function EmailCapture({ compact = false }: { compact?: boolean }) {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const subscribe = useServerFn(subscribeEmail);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !email.includes("@")) {
       toast.error("Please enter a valid email");
       return;
     }
+    try {
+      await subscribe({ data: { email, source: "email_capture" } });
+    } catch {}
     setSubmitted(true);
-    toast.success("You're in. Welcome to the Qureshi circle.");
+    toast.success("You're in. Welcome to The Inner Circle.");
     setEmail("");
   };
 
@@ -49,11 +55,11 @@ export function EmailCapture({ compact = false }: { compact?: boolean }) {
   return (
     <section className="bg-foreground text-background">
       <div className="mx-auto max-w-2xl px-6 py-20 text-center">
-        <p className="eyebrow" style={{ color: "oklch(0.7 0.1 75)" }}>The Qureshi Circle</p>
+        <p className="eyebrow" style={{ color: "oklch(0.7 0.1 75)" }}>The Inner Circle</p>
         <h2 className="mt-4 font-display text-4xl sm:text-5xl text-background">First access. Always.</h2>
         <p className="mt-4 text-background/70 max-w-md mx-auto leading-relaxed">
-          Be the first to know about new drops, limited finishes, and members-only pricing.
-          No spam — just the good stuff.
+          Join our private list. First to see new drops, limited finishes, and members-only pricing.
+          No noise — just the good stuff.
         </p>
         <form onSubmit={handleSubmit} className="mt-8 flex max-w-md mx-auto gap-3">
           <input
