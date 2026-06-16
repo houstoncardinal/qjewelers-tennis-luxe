@@ -2,7 +2,7 @@
 // Netlify Edge Function: wraps the TanStack Start SSR handler.
 // Runs at the edge (Deno runtime) for every request.
 // Static asset requests are passed through to Netlify's CDN via context.next().
-import serverModule from "../../dist/server/index.js";
+import serverModule from "../../dist/server/server.js";
 
 // Extensions that should be served as static files by Netlify CDN, not SSR
 const STATIC_EXT =
