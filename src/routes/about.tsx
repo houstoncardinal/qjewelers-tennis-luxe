@@ -1,6 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { images as img } from "@/lib/product-images";
 
+const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://qureshijewelers.com").replace(/\/$/, "");
+const PAGE_URL = `${SITE_URL}/about`;
+
 export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
@@ -8,9 +11,33 @@ export const Route = createFileRoute("/about")({
       { name: "description", content: "Inside the Qureshi workshop: how we hand-set VVS moissanite into solid S925 sterling silver, layered with five coats of e-coating for lifetime brilliance." },
       { property: "og:title", content: "Our Craft — Qureshi Jewelers" },
       { property: "og:description", content: "Hand-set VVS moissanite in S925 sterling silver. GRA certified. Lifetime brilliance." },
-      { property: "og:url", content: "/about" },
+      { property: "og:url", content: PAGE_URL },
     ],
-    links: [{ rel: "canonical", href: "/about" }],
+    links: [{ rel: "canonical", href: PAGE_URL }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "AboutPage",
+          name: "Our Craft — Qureshi Jewelers",
+          url: PAGE_URL,
+          about: { "@id": `${SITE_URL}/#organization` },
+          isPartOf: { "@id": `${SITE_URL}/#website` },
+        }),
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+            { "@type": "ListItem", position: 2, name: "Our Craft", item: PAGE_URL },
+          ],
+        }),
+      },
+    ],
   }),
   component: About,
 });

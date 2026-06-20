@@ -1,49 +1,306 @@
-import { createServerFn } from "@tanstack/react-start";
+import crypto from "node:crypto";
+import { createServerFn, createServerOnlyFn } from "@tanstack/react-start";
+import { getCookie, setCookie, deleteCookie } from "@tanstack/react-start/server";
+import { generateSecret as generateTotpSecret, generateURI as generateTotpURI, verify as verifyTotp } from "otplib";
+import QRCode from "qrcode";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sendShippingNotification } from "@/lib/email";
+import { checkRateLimit } from "@/lib/rate-limit";
+
+const db = supabaseAdmin as any; // admin_users / audit_logs not in generated types
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? "";
+const SESSION_SECRET = process.env.ADMIN_SESSION_SECRET ?? "";
+const SESSION_COOKIE = "qj_admin_session";
+const PENDING_2FA_COOKIE = "qj_admin_pending_2fa";
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 hours
+const PENDING_2FA_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-function requireAdmin(token: string) {
-  if (!token || token !== ADMIN_TOKEN) {
-    throw new Error("Unauthorized");
-  }
+// ─── Signed cookie values (HMAC-SHA256, hand-rolled, synchronous) ─────────────
+// Deliberately not TanStack's async `useSession` — every existing
+// `requireAdmin(...)` call site below is a bare synchronous statement, and
+// switching to an async session API would require threading `await` through
+// 60+ call sites across the admin routes, where a missed `await` fails
+// silently. This keeps every call site's signature unchanged.
+// Payload format is "<value>:<expiresAt>" — value never contains ":" (it's
+// either a UUID or empty), so verify() can split unambiguously.
+
+function signValue(value: string, expiresAt: number): string {
+  if (!SESSION_SECRET) throw new Error("ADMIN_SESSION_SECRET is not configured");
+  const payload = `${value}:${expiresAt}`;
+  const hmac = crypto.createHmac("sha256", SESSION_SECRET).update(payload).digest("hex");
+  return `${payload}.${hmac}`;
 }
 
-// ─── Rate limiter (in-memory, per server instance) ────────────────────────────
+function verifyValue(cookieValue: string | undefined): string | null {
+  if (!cookieValue || !SESSION_SECRET) return null;
+  const dotIdx = cookieValue.lastIndexOf(".");
+  if (dotIdx === -1) return null;
+  const payload = cookieValue.slice(0, dotIdx);
+  const hmac = cookieValue.slice(dotIdx + 1);
+  if (!payload || !hmac) return null;
 
-const _loginAttempts = new Map<string, { count: number; resetAt: number }>();
+  const expected = crypto.createHmac("sha256", SESSION_SECRET).update(payload).digest("hex");
+  const expectedBuf = Buffer.from(expected, "hex");
+  const actualBuf = Buffer.from(hmac, "hex");
+  if (expectedBuf.length !== actualBuf.length) return null;
+  if (!crypto.timingSafeEqual(expectedBuf, actualBuf)) return null;
 
-function checkLoginRateLimit(ip: string): void {
-  const now = Date.now();
-  const WINDOW_MS  = 15 * 60 * 1000; // 15 minutes
-  const MAX_TRIES  = 10;
+  const sepIdx = payload.lastIndexOf(":");
+  if (sepIdx === -1) return null;
+  const value = payload.slice(0, sepIdx);
+  const expiresAt = Number(payload.slice(sepIdx + 1));
+  if (!Number.isFinite(expiresAt) || Date.now() >= expiresAt) return null;
+  return value;
+}
 
-  let entry = _loginAttempts.get(ip);
-  if (!entry || now > entry.resetAt) {
-    entry = { count: 0, resetAt: now + WINDOW_MS };
-    _loginAttempts.set(ip, entry);
+// ─── Password hashing (Node's built-in crypto.scrypt, no new dependency) ─────
+
+function hashPassword(password: string): string {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.scryptSync(password, salt, 64).toString("hex");
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password: string, stored: string): boolean {
+  const [salt, hash] = stored.split(":");
+  if (!salt || !hash) return false;
+  const actual = crypto.scryptSync(password, salt, 64);
+  const expected = Buffer.from(hash, "hex");
+  if (actual.length !== expected.length) return false;
+  return crypto.timingSafeEqual(actual, expected);
+}
+
+// createServerOnlyFn (not a plain function) so TanStack's compiler swaps these
+// out for throwing stubs in the client bundle — bare functions here would
+// leave the literal getCookie() calls (and the @tanstack/react-start/server
+// import they need) reachable from the client graph, since every call site is
+// inside other createServerFn handlers, none of which is one of these macros.
+export const requireAdmin = createServerOnlyFn((_token: string) => {
+  if (!verifyValue(getCookie(SESSION_COOKIE))) {
+    throw new Error("Unauthorized");
   }
-  entry.count++;
-  if (entry.count > MAX_TRIES) {
-    const waitMin = Math.ceil((entry.resetAt - now) / 60_000);
-    throw new Error(`Too many login attempts. Try again in ${waitMin} minute${waitMin !== 1 ? "s" : ""}.`);
+});
+
+// Resolves the acting admin's user id from the session cookie — call only
+// after requireAdmin() has already confirmed the session is valid.
+export const getCurrentAdminId = createServerOnlyFn((): string => {
+  const id = verifyValue(getCookie(SESSION_COOKIE));
+  if (!id) throw new Error("Unauthorized");
+  return id;
+});
+
+// ─── Audit log ────────────────────────────────────────────────────────────────
+// Plain async function (not a createServerFn) — called only from within other
+// handlers' closures, so it never touches cookies directly and needs no
+// createServerOnlyFn wrapping.
+export async function writeAuditLog(params: {
+  adminUserId: string;
+  action: string;
+  targetType?: string;
+  targetId?: string;
+  details?: Record<string, unknown>;
+}): Promise<void> {
+  try {
+    await db.from("audit_logs").insert({
+      admin_user_id: params.adminUserId,
+      action: params.action,
+      target_type: params.targetType ?? null,
+      target_id: params.targetId ?? null,
+      details: params.details ?? null,
+    });
+  } catch (e) {
+    console.warn("[AuditLog] Failed to write entry:", e);
   }
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export const adminAuth = createServerFn({ method: "POST" })
-  .inputValidator((d: { password: string; _ip?: string }) => d)
+  .inputValidator((d: { username: string; password: string }) => d)
   .handler(async ({ data }) => {
-    const ip = data._ip ?? "unknown";
-    checkLoginRateLimit(ip);
-    if (!data.password || data.password !== ADMIN_TOKEN) {
+    checkRateLimit("admin-login", { windowMs: 15 * 60 * 1000, max: 10 });
+
+    const username = data.username.trim().toLowerCase();
+    if (!username || !data.password) throw new Error("Unauthorized");
+
+    let { data: user } = await db.from("admin_users").select("*").eq("username", username).maybeSingle();
+
+    // Lazy bootstrap: the very first login after this table was introduced
+    // migrates the legacy single-password login into a real admin_users row,
+    // so the existing solo-founder credential keeps working with no manual step.
+    if (!user) {
+      const { count } = await db.from("admin_users").select("id", { count: "exact", head: true });
+      if (count === 0 && username === "admin" && ADMIN_TOKEN && data.password === ADMIN_TOKEN) {
+        const { data: created, error } = await db
+          .from("admin_users")
+          .insert({ username: "admin", password_hash: hashPassword(data.password), role: "admin" })
+          .select("*")
+          .single();
+        if (error) throw new Error(error.message);
+        user = created;
+      } else {
+        throw new Error("Unauthorized");
+      }
+    } else if (!verifyPassword(data.password, user.password_hash)) {
       throw new Error("Unauthorized");
     }
-    // Clear rate limit on success
-    _loginAttempts.delete(ip);
-    return { token: ADMIN_TOKEN };
+
+    if (user.totp_enabled) {
+      setCookie(PENDING_2FA_COOKIE, signValue(user.id, Date.now() + PENDING_2FA_TTL_MS), {
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax",
+        path: "/",
+        maxAge: PENDING_2FA_TTL_MS / 1000,
+      });
+      return { success: true, requiresTotp: true };
+    }
+
+    setCookie(SESSION_COOKIE, signValue(user.id, Date.now() + SESSION_TTL_MS), {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: SESSION_TTL_MS / 1000,
+    });
+    return { success: true, requiresTotp: false };
+  });
+
+export const verifyTotpLogin = createServerFn({ method: "POST" })
+  .inputValidator((d: { code: string }) => d)
+  .handler(async ({ data }) => {
+    checkRateLimit("admin-login-2fa", { windowMs: 15 * 60 * 1000, max: 10 });
+
+    const adminUserId = verifyValue(getCookie(PENDING_2FA_COOKIE));
+    if (!adminUserId) throw new Error("Login expired — please sign in again");
+
+    const { data: user } = await db.from("admin_users").select("*").eq("id", adminUserId).maybeSingle();
+    if (!user?.totp_enabled || !user.totp_secret) throw new Error("Unauthorized");
+
+    const result = await verifyTotp({ secret: user.totp_secret, token: data.code.trim() });
+    if (!result.valid) {
+      throw new Error("Invalid code");
+    }
+
+    deleteCookie(PENDING_2FA_COOKIE, { path: "/" });
+    setCookie(SESSION_COOKIE, signValue(user.id, Date.now() + SESSION_TTL_MS), {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: SESSION_TTL_MS / 1000,
+    });
+    return { success: true };
+  });
+
+export const adminLogout = createServerFn({ method: "POST" }).handler(async () => {
+  deleteCookie(SESSION_COOKIE, { path: "/" });
+  deleteCookie(PENDING_2FA_COOKIE, { path: "/" });
+  return { success: true };
+});
+
+export const checkAdminSession = createServerFn({ method: "GET" }).handler(async () => {
+  return { authenticated: !!verifyValue(getCookie(SESSION_COOKIE)) };
+});
+
+// ─── TOTP Enrollment ────────────────────────────────────────────────────────
+
+export const enrollTotp = createServerFn({ method: "POST" })
+  .inputValidator((d: { token: string }) => d)
+  .handler(async ({ data }) => {
+    requireAdmin(data.token);
+    const adminUserId = getCurrentAdminId();
+
+    const { data: user, error } = await db.from("admin_users").select("username").eq("id", adminUserId).single();
+    if (error || !user) throw new Error("Admin user not found");
+
+    const secret = generateTotpSecret();
+    await db.from("admin_users").update({ totp_secret: secret }).eq("id", adminUserId);
+
+    const otpauthUrl = generateTotpURI({ issuer: "Qureshi Jewelers Admin", label: user.username, secret });
+    const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
+
+    return { secret, qrCodeDataUrl };
+  });
+
+export const confirmTotpEnrollment = createServerFn({ method: "POST" })
+  .inputValidator((d: { token: string; code: string }) => d)
+  .handler(async ({ data }) => {
+    requireAdmin(data.token);
+    const adminUserId = getCurrentAdminId();
+
+    const { data: user, error } = await db.from("admin_users").select("totp_secret").eq("id", adminUserId).single();
+    if (error || !user?.totp_secret) throw new Error("No pending TOTP enrollment");
+
+    const result = await verifyTotp({ secret: user.totp_secret, token: data.code.trim() });
+    if (!result.valid) {
+      throw new Error("Invalid code");
+    }
+
+    await db.from("admin_users").update({ totp_enabled: true }).eq("id", adminUserId);
+    await writeAuditLog({ adminUserId, action: "totp_enrolled" });
+    return { success: true };
+  });
+
+export const disableTotp = createServerFn({ method: "POST" })
+  .inputValidator((d: { token: string }) => d)
+  .handler(async ({ data }) => {
+    requireAdmin(data.token);
+    const adminUserId = getCurrentAdminId();
+    await db.from("admin_users").update({ totp_enabled: false, totp_secret: null }).eq("id", adminUserId);
+    await writeAuditLog({ adminUserId, action: "totp_disabled" });
+    return { success: true };
+  });
+
+// ─── Staff Management (admin role only) ───────────────────────────────────────
+
+export const listAdminUsers = createServerFn({ method: "GET" })
+  .inputValidator((d: { token: string }) => d)
+  .handler(async ({ data }) => {
+    requireAdmin(data.token);
+    const { data: users, error } = await db
+      .from("admin_users")
+      .select("id, username, role, totp_enabled, created_at")
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return { users: users ?? [] };
+  });
+
+export const createAdminUser = createServerFn({ method: "POST" })
+  .inputValidator((d: { token: string; username: string; password: string; role: "admin" | "staff" }) => d)
+  .handler(async ({ data }) => {
+    requireAdmin(data.token);
+    const actingId = getCurrentAdminId();
+
+    const { data: acting } = await db.from("admin_users").select("role").eq("id", actingId).single();
+    if (acting?.role !== "admin") throw new Error("Only admins can create staff accounts");
+
+    const username = data.username.trim().toLowerCase();
+    if (!username || !data.password) throw new Error("Username and password are required");
+
+    const { data: created, error } = await db
+      .from("admin_users")
+      .insert({ username, password_hash: hashPassword(data.password), role: data.role })
+      .select("id, username, role")
+      .single();
+    if (error) throw new Error(error.message);
+
+    await writeAuditLog({ adminUserId: actingId, action: "admin_user_created", targetType: "admin_users", targetId: created.id, details: { username, role: data.role } });
+    return { user: created };
+  });
+
+export const getAuditLog = createServerFn({ method: "GET" })
+  .inputValidator((d: { token: string; limit?: number }) => d)
+  .handler(async ({ data }) => {
+    requireAdmin(data.token);
+    const { data: logs, error } = await db
+      .from("audit_logs")
+      .select("*, admin_users(username)")
+      .order("created_at", { ascending: false })
+      .limit(data.limit ?? 100);
+    if (error) throw new Error(error.message);
+    return { logs: logs ?? [] };
   });
 
 // ─── Dashboard Stats ──────────────────────────────────────────────────────────
@@ -138,6 +395,14 @@ export const updateAdminOrder = createServerFn({ method: "POST" })
       .eq("id", data.orderId);
 
     if (error) throw new Error(error.message);
+
+    writeAuditLog({
+      adminUserId: getCurrentAdminId(),
+      action: "order_updated",
+      targetType: "orders",
+      targetId: data.orderId,
+      details: { status: data.status, tracking_number: data.tracking_number },
+    }).catch((e) => console.warn("[AuditLog] order_updated failed:", e));
 
     // Send shipping notification when status changes to "shipped"
     if (data.status === "shipped") {

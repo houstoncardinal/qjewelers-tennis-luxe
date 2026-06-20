@@ -40,7 +40,6 @@ function AdminReturns() {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["admin-returns", token],
     queryFn: () => fetchReturns({ data: { token } }),
-    enabled: !!token,
     refetchInterval: 60_000,
   });
 

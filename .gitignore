@@ -25,6 +25,9 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Local dev image uploads — production uploads go to Supabase Storage instead
+public/uploads/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

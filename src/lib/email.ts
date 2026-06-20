@@ -348,3 +348,38 @@ export async function sendReviewRequest(data: ReviewRequestEmailData): Promise<v
     html,
   });
 }
+
+// ─── 5. Contact Form Notification (sent to the store, not the customer) ──────
+
+export interface ContactEmailData {
+  name:    string;
+  email:   string;
+  message: string;
+}
+
+export async function sendContactNotification(data: ContactEmailData): Promise<void> {
+  if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY.startsWith("re_your")) {
+    console.warn("[Email] RESEND_API_KEY not configured — skipping contact notification");
+    return;
+  }
+
+  const notifyTo = process.env.RESEND_FROM_EMAIL ?? FROM;
+
+  const html = wrap(`
+    ${eyebrow("New Contact Message")}
+    ${h1(data.name)}
+    ${p(`<a href="mailto:${data.email}" style="color:#C9A84C;">${data.email}</a>`)}
+
+    ${divider()}
+
+    ${p(data.message.replace(/\n/g, "<br/>"))}
+  `);
+
+  await resend.emails.send({
+    from:    FROM,
+    to:      notifyTo,
+    replyTo: data.email,
+    subject: `New Contact Message from ${data.name}`,
+    html,
+  });
+}

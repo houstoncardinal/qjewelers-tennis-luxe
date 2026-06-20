@@ -39,7 +39,6 @@ function AdminReviews() {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["admin-reviews", token, filter],
     queryFn: () => fetchReviews({ data: { token, filter } }),
-    enabled: !!token,
   });
 
   const reviews = data?.reviews ?? [];

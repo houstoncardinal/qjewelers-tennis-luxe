@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect } from "react";
 import { ArrowLeft, Save, Copy, Check, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-import { getReturn, updateReturn } from "@/lib/admin-extended.functions";
+import { getReturn, updateReturn, executeReturnRefund } from "@/lib/admin-extended.functions";
 import { useAdminToken } from "@/lib/admin-context";
 import { formatUSD } from "@/lib/pricing";
 
@@ -96,11 +96,12 @@ function AdminReturnDetail() {
   const queryClient = useQueryClient();
   const fetchReturn  = useServerFn(getReturn);
   const updateFn     = useServerFn(updateReturn);
+  const refundFn      = useServerFn(executeReturnRefund);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin-return", token, returnId],
     queryFn: () => fetchReturn({ data: { token, returnId } }),
-    enabled: !!token && !!returnId,
+    enabled: !!returnId,
   });
 
   const [status,         setStatus]         = useState<string>("pending");
@@ -108,6 +109,8 @@ function AdminReturnDetail() {
   const [trackingNumber, setTrackingNumber]  = useState("");
   const [adminNotes,     setAdminNotes]      = useState("");
   const [saving,         setSaving]          = useState(false);
+  const [refunding,      setRefunding]       = useState(false);
+  const [refundError,    setRefundError]     = useState<string | null>(null);
 
   const ret = (data as any)?.return as any;
 
@@ -141,6 +144,23 @@ function AdminReturnDetail() {
       toast.error(err?.message ?? "Failed to update");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const processRefund = async () => {
+    setRefunding(true);
+    setRefundError(null);
+    try {
+      await refundFn({ data: { token, returnId } });
+      await queryClient.invalidateQueries({ queryKey: ["admin-return", token, returnId] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-returns", token] });
+      toast.success("Refund processed");
+    } catch (err: any) {
+      const msg = err?.message ?? "Refund failed";
+      setRefundError(msg);
+      toast.error(msg);
+    } finally {
+      setRefunding(false);
     }
   };
 
@@ -223,11 +243,29 @@ function AdminReturnDetail() {
           </button>
         </div>
       )}
-      {ret.status === "shipped_back" && (
-        <div className="flex gap-2 mb-6">
-          <button onClick={() => save("refunded")} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-[0.65rem] uppercase tracking-[0.14em] hover:bg-emerald-700 transition-colors disabled:opacity-40">
-            Mark Refunded
-          </button>
+      {ret.status === "shipped_back" && ret.refund_status !== "succeeded" && (
+        <div className="mb-6">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={processRefund}
+              disabled={refunding || !ret.refund_amount}
+              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-[0.65rem] uppercase tracking-[0.14em] hover:bg-emerald-700 transition-colors disabled:opacity-40"
+            >
+              {refunding ? "Processing…" : `Process Refund${ret.refund_amount ? ` ($${Number(ret.refund_amount).toFixed(2)})` : ""}`}
+            </button>
+            {!ret.refund_amount && (
+              <span className="text-[0.65rem] text-gray-400">Set a refund amount below first</span>
+            )}
+          </div>
+          {refundError && (
+            <p className="mt-2 text-[0.7rem] text-red-600">{refundError} — no money was moved. Fix the issue and retry, or refund manually outside the system.</p>
+          )}
+        </div>
+      )}
+      {ret.refund_status === "succeeded" && (
+        <div className="mb-6 bg-emerald-50 border border-emerald-200 px-4 py-3 text-[0.72rem] text-emerald-700">
+          Refunded {ret.refunded_at ? new Date(ret.refunded_at).toLocaleString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
+          {ret.refund_reference && <> — ref <span className="font-mono">{ret.refund_reference}</span></>}
         </div>
       )}
 

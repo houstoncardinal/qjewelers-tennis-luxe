@@ -1,23 +1,41 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState, useMemo } from "react";
-import { ArrowRight, ShieldCheck, Gem, Award, Truck, Star, Check, Sparkles, Eye } from "lucide-react";
+import { useEffect, useState, useMemo, useRef } from "react";
+import { ArrowRight, ShieldCheck, Gem, Award, Truck, Star, Check, Sparkles, Eye, Diamond, X, Leaf, Crown } from "lucide-react";
 import { listProducts } from "@/lib/products.functions";
 import { images, getProductThumb } from "@/lib/product-images";
 import { formatUSD, COLOR_MAP, COLOR_SHORT, getTennisBraceletPrice } from "@/lib/pricing";
 import { EmailCapture } from "@/components/marketing/email-capture";
 
+const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://qureshijewelers.com").replace(/\/$/, "");
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Qureshi Jewelers — S925 VVS Moissanite · GRA Certified" },
-      { name: "description", content: "Hand-set VVS moissanite tennis chains, bracelets, stud earrings and engagement rings in solid S925 sterling silver. GRA certified. Free US shipping over $250." },
-      { property: "og:title", content: "Qureshi Jewelers — VVS Moissanite Jewelry" },
-      { property: "og:image", content: "/hero.jpg" },
-      { property: "og:url", content: "/" },
+      { title: "Moissanite Jewelry — Tennis Chains, Bracelets & Rings | Qureshi Jewelers" },
+      { name: "description", content: "Shop VVS moissanite jewelry: tennis chains, tennis bracelets, stud earrings, and engagement rings in solid S925 sterling silver. GRA certified. Free US shipping over $250." },
+      { property: "og:title", content: "Moissanite Jewelry — Tennis Chains, Bracelets & Rings | Qureshi Jewelers" },
+      { property: "og:description", content: "VVS moissanite tennis chains, bracelets, stud earrings, and engagement rings, hand-set in solid S925 sterling silver. GRA certified." },
+      { property: "og:image", content: `${SITE_URL}/hero.jpg` },
+      { property: "og:url", content: SITE_URL },
+      { property: "og:type", content: "website" },
     ],
-    links: [{ rel: "canonical", href: "/" }],
+    links: [{ rel: "canonical", href: SITE_URL }],
+    scripts: [{
+      type: "application/ld+json",
+      children: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        name: "Moissanite Jewelry Categories",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Moissanite Tennis Chains", url: `${SITE_URL}/shop?type=necklace` },
+          { "@type": "ListItem", position: 2, name: "Moissanite Tennis Bracelets", url: `${SITE_URL}/shop?type=bracelet` },
+          { "@type": "ListItem", position: 3, name: "Moissanite Stud Earrings", url: `${SITE_URL}/shop?type=earring` },
+          { "@type": "ListItem", position: 4, name: "Moissanite Engagement Rings", url: `${SITE_URL}/shop?type=ring` },
+        ],
+      }),
+    }],
   }),
   component: Index,
 });
@@ -224,15 +242,24 @@ function CategoryTile({ image, label, shopType }: CategoryTileProps) {
 
 function ReviewCard({ name, text, rating, location }: { name: string; text: string; rating: number; location: string }) {
   return (
-    <div className="bg-white border border-border p-6 rounded-lg hover:shadow-lg transition-shadow duration-300">
-      <div className="flex items-center gap-1 mb-3">
+    <div className="qj-premium-card bg-white border border-border p-7 rounded-xl relative overflow-hidden">
+      <span
+        className="font-display italic absolute top-2 right-5 text-[3.5rem] leading-none select-none pointer-events-none"
+        style={{ color: "oklch(0.60 0.092 68 / 0.10)" }}
+      >
+        "
+      </span>
+      <div className="flex items-center gap-1 mb-3 relative z-10">
         {[...Array(5)].map((_, i) => (
           <Star key={i} className={`h-3.5 w-3.5 ${i < rating ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
         ))}
       </div>
-      <p className="text-[0.82rem] text-foreground leading-[1.75] mb-4">{text}</p>
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center text-[0.65rem] font-semibold text-amber-800">
+      <p className="text-[0.82rem] text-foreground leading-[1.75] mb-5 relative z-10">{text}</p>
+      <div className="flex items-center gap-2.5 relative z-10">
+        <div
+          className="qj-icon-ring w-9 h-9 rounded-full bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center text-[0.68rem] font-semibold text-amber-800 shrink-0"
+          style={{ boxShadow: "0 0 0 1px oklch(0.60 0.092 68 / 0.15)" }}
+        >
           {name.charAt(0)}
         </div>
         <div>
@@ -240,6 +267,71 @@ function ReviewCard({ name, text, rating, location }: { name: string; text: stri
           <p className="text-[0.55rem] text-muted-foreground">{location}</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Eyebrow — flanking-line micro-label, used site-wide for a consistent premium header system ──
+
+function Eyebrow({ children, center = true }: { children: React.ReactNode; center?: boolean }) {
+  return (
+    <div className={`flex items-center gap-3 mb-4 ${center ? "justify-center" : ""}`}>
+      <span className="h-px w-7 sm:w-9 shrink-0" style={{ background: "linear-gradient(to right, transparent, oklch(0.60 0.092 68))" }} />
+      <span className="text-[0.46rem] uppercase tracking-[0.40em] text-foreground/65 font-semibold whitespace-nowrap">
+        {children}
+      </span>
+      <span className="h-px w-7 sm:w-9 shrink-0" style={{ background: "linear-gradient(to left, transparent, oklch(0.60 0.092 68))" }} />
+    </div>
+  );
+}
+
+// ─── Count-up stat tile — animates from 0 once scrolled into view ─────────────
+
+function useCountUp(target: number, active: boolean, duration = 1400) {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    let raf: number;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(target * eased));
+      if (progress < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [active, target, duration]);
+  return value;
+}
+
+function StatTile({ icon: Icon, stat, label }: { icon: React.ElementType; stat: string; label: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(false);
+  const match = /^(\d+)(.*)$/.exec(stat);
+  const target = match ? Number(match[1]) : 0;
+  const suffix = match ? match[2] : "";
+  const value = useCountUp(target, active);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setActive(true); obs.disconnect(); } },
+      { threshold: 0.5 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} className="qj-stat-tile bg-white px-6 py-7 text-center rounded-xl border border-border/70 relative overflow-hidden">
+      <span className="qj-stat-topline absolute top-0 left-0 right-0 h-[2px] origin-left" style={{ background: "var(--gradient-gold-h)" }} />
+      <Icon className="qj-stat-icon h-4 w-4 mx-auto mb-3 text-gold/70" />
+      <p className="font-display text-[1.9rem] leading-none mb-1.5 gold-text tabular-nums">
+        {value}{suffix}
+      </p>
+      <p className="text-[0.46rem] uppercase tracking-[0.20em] text-muted-foreground">{label}</p>
     </div>
   );
 }
@@ -256,6 +348,26 @@ function Index() {
   useReveal();
 
   const sig = (data?.products ?? []).filter((p: any) => p.is_active);
+
+  // Mouse-parallax for the ambient glow behind the "Ethically Created" section —
+  // mutates transform directly via refs (no React state) to avoid re-render churn on every mousemove.
+  const glow1Ref = useRef<HTMLDivElement>(null);
+  const glow2Ref = useRef<HTMLDivElement>(null);
+  const glowFrame = useRef<number | undefined>(undefined);
+  const handleGlowMouseMove = (e: React.MouseEvent<HTMLElement>) => {
+    if (glowFrame.current) return;
+    const target = e.currentTarget;
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+    glowFrame.current = requestAnimationFrame(() => {
+      const rect = target.getBoundingClientRect();
+      const px = (clientX - rect.left) / rect.width - 0.5;
+      const py = (clientY - rect.top) / rect.height - 0.5;
+      if (glow1Ref.current) glow1Ref.current.style.transform = `translate(calc(-50% + ${px * 50}px), calc(-33% + ${py * 36}px))`;
+      if (glow2Ref.current) glow2Ref.current.style.transform = `translate(calc(33% + ${px * -36}px), calc(33% + ${py * -28}px))`;
+      glowFrame.current = undefined;
+    });
+  };
 
   const [heroType, setHeroType] = useState("all");
   const heroProducts = useMemo(() => {
@@ -290,21 +402,36 @@ function Index() {
 
         {/* ── Photo zone: fills all remaining height ─────────── */}
         <div className="relative flex-1 min-h-0 overflow-hidden">
-          <img
-            src={images.hero}
-            alt="VVS moissanite tennis jewelry — Qureshi Jewelers"
-            loading="eager"
-            decoding="sync"
-            fetchPriority="high"
-            className="absolute inset-0 h-full w-full object-cover object-center"
-          />
+          {images.heroVideo ? (
+            <video
+              src={images.heroVideo}
+              poster={images.hero}
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="auto"
+              className="absolute inset-0 h-full w-full object-cover object-center"
+            />
+          ) : (
+            <img
+              src={images.hero}
+              alt="VVS moissanite tennis jewelry — Qureshi Jewelers"
+              loading="eager"
+              decoding="sync"
+              fetchPriority="high"
+              className="absolute inset-0 h-full w-full object-cover object-center"
+            />
+          )}
 
           {/* Light frosted overlay — left-to-right white gradient */}
           <div className="absolute inset-0 bg-white/20" />
-          {/* Left-to-right: warm white → translucent → transparent (reveals image on right) */}
+          {/* Left-to-right: warm white → translucent → transparent (reveals image on right).
+              Solid through ~55% guarantees a clean, fully-opaque ground under the text
+              column at every breakpoint so copy contrast never depends on what's behind it. */}
           <div
             className="absolute inset-0"
-            style={{ background: "linear-gradient(to right, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0.90) 28%, rgba(255,255,255,0.65) 48%, rgba(255,255,255,0.22) 67%, transparent 84%)" }}
+            style={{ background: "linear-gradient(to right, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0.94) 40%, rgba(255,255,255,0.65) 55%, rgba(255,255,255,0.22) 70%, transparent 86%)" }}
           />
           {/* Bottom gradient for dock transition */}
           <div
@@ -316,15 +443,18 @@ function Index() {
           <div className="absolute inset-0 flex items-center px-5 sm:px-8 lg:px-14 xl:px-20">
             <div className="max-w-lg">
 
-              {/* Eyebrow */}
+              {/* Eyebrow / certification micro-banner */}
               <div className="flex items-center gap-3 mb-3 sm:mb-4 animate-fade-in" style={{ animationDelay: "0.1s" }}>
-                <div className="h-px w-6 shrink-0" style={{ background: "linear-gradient(to right, oklch(0.72 0.10 80), transparent)" }} />
-                <span className="text-[0.44rem] uppercase tracking-[0.40em] text-black/38 font-medium">
+                <div className="h-px w-6 shrink-0" style={{ background: "linear-gradient(to right, oklch(0.60 0.092 68), transparent)" }} />
+                <span className="text-[0.44rem] uppercase tracking-[0.40em] text-black/70 font-semibold">
                   VVS1 · D Color · GRA Certified
                 </span>
               </div>
 
-              {/* Headline — 2 lines guaranteed (whitespace-nowrap + safe clamp for Cormorant Garamond) */}
+              {/* Headline — 2 lines guaranteed (whitespace-nowrap + safe clamp for Cormorant Garamond).
+                  Deliberately not a ch-based max-width: with a fixed 2-line marketing headline,
+                  hard-splitting + clamp() guarantees the exact break point at every viewport —
+                  a ch-width wrap point can't promise that and risks an orphaned word. */}
               <h1 className="font-display leading-[0.90] mb-4 sm:mb-5">
                 <span
                   className="block text-black animate-fade-up whitespace-nowrap"
@@ -340,19 +470,19 @@ function Index() {
                 </span>
               </h1>
 
-              {/* Description — 2 lines on mobile to keep hero compact */}
+              {/* Description — 2 lines on mobile to keep hero compact. max-w caps line length to ~45ch. */}
               <p
-                className="text-black/48 text-[0.79rem] leading-[1.70] max-w-[380px] mb-5 sm:mb-7 animate-fade-up line-clamp-2 sm:line-clamp-none"
+                className="text-black/72 text-[0.79rem] leading-[1.70] max-w-[45ch] sm:max-w-[380px] mb-5 sm:mb-7 animate-fade-up line-clamp-2 sm:line-clamp-none"
                 style={{ animationDelay: "0.50s" }}
               >
                 D Colorless moissanite with more fire than diamond — hand-set in 18K gold-plated sterling silver. Every piece independently GRA certified.
               </p>
 
               {/* CTAs */}
-              <div className="flex items-center gap-2.5 animate-fade-up" style={{ animationDelay: "0.62s" }}>
+              <div className="flex items-center gap-5 animate-fade-up" style={{ animationDelay: "0.62s" }}>
                 <Link
                   to="/shop"
-                  className="group relative overflow-hidden bg-black text-white px-7 sm:px-9 py-3 sm:py-3.5 text-[0.57rem] uppercase tracking-[0.26em] font-semibold hover:bg-black/90 transition-all duration-300 shadow-[0_4px_18px_rgba(0,0,0,0.14)]"
+                  className="group relative overflow-hidden bg-black text-white px-7 sm:px-9 py-3 sm:py-3.5 text-[0.57rem] uppercase tracking-[0.26em] font-semibold transition-all duration-300 shadow-[0_4px_18px_rgba(0,0,0,0.14)] hover:shadow-[inset_0_0_0_1px_oklch(0.60_0.092_68),0_4px_18px_rgba(0,0,0,0.14)]"
                 >
                   <span className="relative z-10 flex items-center gap-2">
                     Shop Collection
@@ -360,27 +490,35 @@ function Index() {
                   </span>
                   <div className="absolute inset-0 translate-x-[-110%] group-hover:translate-x-[110%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                 </Link>
+                {/* Editorial text link, not a ghost button — a light border on this background
+                    reads as invisible/disabled, an underline + arrow reads as intentional. */}
                 <Link
                   to="/moissanite-guide"
-                  className="border border-black/20 text-black/55 px-7 sm:px-9 py-3 sm:py-3.5 text-[0.57rem] uppercase tracking-[0.26em] font-medium hover:border-black/40 hover:text-black transition-all duration-300"
+                  className="group flex items-center gap-1.5 text-black/70 text-[0.57rem] uppercase tracking-[0.26em] font-medium transition-colors duration-300 hover:text-black"
                 >
-                  Our Stone
+                  <span className="border-b border-black/30 pb-0.5 transition-colors duration-300 group-hover:border-black/70">
+                    Our Stone
+                  </span>
+                  <ArrowRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-1" />
                 </Link>
               </div>
 
               {/* Trust row — hidden on mobile to keep hero height compact */}
               <div
-                className="hidden sm:flex items-center gap-6 mt-7 animate-fade-in"
+                className="hidden sm:flex items-center gap-5 mt-7 animate-fade-in"
                 style={{ animationDelay: "0.85s" }}
               >
                 {[
                   { icon: ShieldCheck, text: "GRA Certified" },
                   { icon: Gem,         text: "VVS1 D Color" },
                   { icon: Truck,       text: "Free US Shipping" },
-                ].map(({ icon: Icon, text }) => (
-                  <span key={text} className="flex items-center gap-1.5">
-                    <Icon className="h-3 w-3 text-black/25" />
-                    <span className="text-[0.44rem] uppercase tracking-[0.16em] text-black/35 font-medium">{text}</span>
+                ].map(({ icon: Icon, text }, i) => (
+                  <span key={text} className="flex items-center gap-5">
+                    {i > 0 && <span className="h-3 w-px bg-black/15" />}
+                    <span className="flex items-center gap-1.5">
+                      <Icon className="h-3 w-3 text-black/45" />
+                      <span className="text-[0.44rem] uppercase tracking-[0.16em] text-black/65 font-medium">{text}</span>
+                    </span>
                   </span>
                 ))}
               </div>
@@ -483,9 +621,9 @@ function Index() {
           SHOP BY CATEGORY — 4 portrait tiles (Brilliant Earth style)
       ════════════════════════════════════════════════════════ */}
       <section className="border-b border-border">
-        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-20 lg:py-28">
-          <div className="text-center mb-14 reveal">
-            <p className="eyebrow mb-3">Collections</p>
+        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-14 lg:py-20">
+          <div className="text-center mb-9 reveal">
+            <Eyebrow>Collections</Eyebrow>
             <h2 className="font-display" style={{ fontSize: "clamp(2.2rem, 4.5vw, 4rem)" }}>
               Shop by Category
             </h2>
@@ -519,10 +657,10 @@ function Index() {
           OUR SIGNATURE — 4 product cards, white bg
       ════════════════════════════════════════════════════════ */}
       <section className="border-b border-border">
-        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-20 lg:py-28">
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5 mb-14 reveal">
+        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-14 lg:py-20">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5 mb-9 reveal">
             <div>
-              <p className="eyebrow mb-3">Signature Pieces</p>
+              <Eyebrow center={false}>Signature Pieces</Eyebrow>
               <h2 className="font-display" style={{ fontSize: "clamp(2.2rem, 4.5vw, 4rem)" }}>
                 Our Signature
               </h2>
@@ -548,9 +686,9 @@ function Index() {
           WHY MOISSANITE — comparison section (replaces "The Stone")
       ════════════════════════════════════════════════════════ */}
       <section className="border-b border-border">
-        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-24 lg:py-36">
-          <div className="text-center mb-16 reveal">
-            <p className="eyebrow mb-3">The Science of Brilliance</p>
+        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-16 lg:py-24">
+          <div className="text-center mb-11 reveal">
+            <Eyebrow>The Science of Brilliance</Eyebrow>
             <h2 className="font-display leading-[0.95]" style={{ fontSize: "clamp(2.2rem, 4.5vw, 4rem)" }}>
               Why Moissanite?
             </h2>
@@ -585,23 +723,15 @@ function Index() {
             ].map(({ icon: Icon, title, desc, stat, statLabel }) => (
               <div
                 key={title}
-                className="bg-white border border-border p-8 rounded-lg hover:shadow-lg transition-all duration-300 group"
+                className="qj-premium-card bg-white border border-border p-8 rounded-xl group"
               >
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <div className="qj-icon-ring w-12 h-12 rounded-full bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center mb-6">
                   <Icon className="h-5 w-5 text-amber-600" />
                 </div>
                 <h3 className="font-display text-[1.5rem] mb-3">{title}</h3>
                 <p className="text-[0.82rem] text-muted-foreground leading-[1.75] mb-6">{desc}</p>
                 <div className="pt-4 border-t border-border">
-                  <div
-                    className="font-display text-[2rem] leading-none mb-1"
-                    style={{
-                      background: "var(--gradient-gold)",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                      backgroundClip: "text",
-                    }}
-                  >
+                  <div className="font-display text-[2rem] leading-none mb-1 gold-text">
                     {stat}
                   </div>
                   <div className="text-[0.46rem] uppercase tracking-[0.20em] text-muted-foreground">{statLabel}</div>
@@ -610,7 +740,7 @@ function Index() {
             ))}
           </div>
 
-          <div className="text-center mt-12 reveal" style={{ transitionDelay: "0.2s" }}>
+          <div className="text-center mt-8 reveal" style={{ transitionDelay: "0.2s" }}>
             <Link
               to="/moissanite-guide"
               className="inline-flex items-center gap-2 text-[0.6rem] uppercase tracking-[0.28em] lux-link text-muted-foreground hover:text-foreground transition-colors duration-350"
@@ -626,9 +756,9 @@ function Index() {
           METAL FINISHES — white bg, refined circles
       ════════════════════════════════════════════════════════ */}
       <section className="border-b border-border">
-        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-24 lg:py-32">
-          <div className="text-center mb-16 reveal">
-            <p className="eyebrow mb-4">Every Piece, Every Finish</p>
+        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-16 lg:py-22">
+          <div className="text-center mb-11 reveal">
+            <Eyebrow>Every Piece, Every Finish</Eyebrow>
             <h2 className="font-display leading-[1.03]" style={{ fontSize: "clamp(2.2rem, 4.5vw, 4rem)" }}>
               Four precious metals.
             </h2>
@@ -667,10 +797,10 @@ function Index() {
           CERTIFICATION — GRA badge + trust signals
       ════════════════════════════════════════════════════════ */}
       <section className="border-b border-border">
-        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-24 lg:py-32">
+        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-16 lg:py-22">
           <div className="grid lg:grid-cols-2 gap-16 lg:gap-24 items-center">
             <div className="reveal">
-              <p className="eyebrow mb-6">Certified Authenticity</p>
+              <Eyebrow center={false}>Certified Authenticity</Eyebrow>
               <h2 className="font-display leading-[0.95]" style={{ fontSize: "clamp(2.2rem, 4.5vw, 4rem)" }}>
                 Every stone,
                 <br />
@@ -725,12 +855,181 @@ function Index() {
       </section>
 
       {/* ════════════════════════════════════════════════════════
+          CRUELTY-FREE — moissanite vs mined diamond, visual comparison
+      ════════════════════════════════════════════════════════ */}
+      <section
+        className="relative border-b border-border bg-[oklch(0.978_0.005_80)] overflow-hidden"
+        onMouseMove={handleGlowMouseMove}
+      >
+        {/* Ambient gold glow — drifts gently toward the cursor */}
+        <div
+          ref={glow1Ref}
+          className="absolute top-0 left-1/2 w-[900px] h-[900px] rounded-full pointer-events-none"
+          style={{
+            background: "radial-gradient(circle, oklch(0.85 0.09 80 / 0.14) 0%, transparent 65%)",
+            transform: "translate(-50%, -33%)",
+            transition: "transform 0.5s cubic-bezier(0.16,1,0.3,1)",
+            willChange: "transform",
+          }}
+        />
+        <div
+          ref={glow2Ref}
+          className="absolute bottom-0 right-0 w-[500px] h-[500px] rounded-full pointer-events-none"
+          style={{
+            background: "radial-gradient(circle, oklch(0.85 0.09 80 / 0.10) 0%, transparent 70%)",
+            transform: "translate(33%, 33%)",
+            transition: "transform 0.5s cubic-bezier(0.16,1,0.3,1)",
+            willChange: "transform",
+          }}
+        />
+
+        <div className="relative mx-auto max-w-[1360px] px-5 lg:px-10 py-16 lg:py-24">
+          <div className="text-center mb-10 lg:mb-12 reveal">
+            <Eyebrow>Ethically Created</Eyebrow>
+            <h2 className="font-display leading-[0.95]" style={{ fontSize: "clamp(2.4rem, 5.5vw, 4.75rem)" }}>
+              Brilliance that never costs
+              <br className="hidden sm:block" />{" "}
+              <em className="italic gold-shimmer">the earth.</em>
+            </h2>
+            <p className="mt-5 text-muted-foreground text-[0.85rem] leading-[1.75] max-w-2xl mx-auto">
+              Every Qureshi moissanite is grown in a lab — never blasted from the earth, never linked to
+              conflict financing, never touched by exploitative labor. Mined diamonds carry an industry
+              tainted by displaced communities and scarred landscapes; moissanite carries none of it.
+              The same fire. The same brilliance. A conscience built into every carat.
+            </p>
+          </div>
+
+          {/* Visual comparison: Moissanite vs Mined Diamond */}
+          <div className="relative reveal max-w-4xl mx-auto" style={{ transitionDelay: "0.1s" }}>
+            {/* VS emblem — desktop, centered between cards */}
+            <div className="hidden md:flex absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 items-center justify-center">
+              <div
+                className="w-14 h-14 rounded-full bg-white flex items-center justify-center animate-glow"
+                style={{ border: "1.5px solid oklch(0.60 0.092 68 / 0.45)" }}
+              >
+                <span className="font-display italic text-[1rem] gold-text">vs</span>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-5 lg:gap-8">
+              {/* Moissanite — highlighted winner */}
+              <div className="group qj-compare-card qj-compare-card--winner relative bg-white p-7 lg:p-9 rounded-2xl">
+                {/* Sweep + certificate-style corner frame — own clipped layer, so nothing inside ever overflows it */}
+                <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
+                  <div className="qj-sweep" />
+                  <span className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 rounded-tl-md" style={{ borderColor: "oklch(0.60 0.092 68 / 0.5)" }} />
+                  <span className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 rounded-tr-md" style={{ borderColor: "oklch(0.60 0.092 68 / 0.5)" }} />
+                  <span className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 rounded-bl-md" style={{ borderColor: "oklch(0.60 0.092 68 / 0.5)" }} />
+                  <span className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 rounded-br-md" style={{ borderColor: "oklch(0.60 0.092 68 / 0.5)" }} />
+                </div>
+
+                <div className="relative z-10 flex items-center justify-between mb-5">
+                  <div className="qj-icon-ring w-12 h-12 rounded-full bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center">
+                    <Sparkles className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <span
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[0.48rem] uppercase tracking-[0.16em] font-semibold text-white rounded-full"
+                    style={{ background: "var(--gradient-gold)", boxShadow: "0 4px 14px oklch(0.60 0.092 68 / 0.35)" }}
+                  >
+                    <Crown className="h-2.5 w-2.5" /> Our Stone
+                  </span>
+                </div>
+                <h3 className="font-display text-2xl mb-1 relative z-10">Moissanite</h3>
+                <p className="text-[0.72rem] text-muted-foreground mb-5 relative z-10">Lab-created. Cruelty-free by design.</p>
+                <ul className="space-y-1 relative z-10">
+                  {[
+                    { label: "Origin", value: "Grown in a lab" },
+                    { label: "Land Disturbed", value: "None" },
+                    { label: "Conflict Risk", value: "Zero — fully traceable" },
+                    { label: "Labor", value: "Ethical, controlled facility" },
+                    { label: "Carbon Footprint", value: "Low" },
+                  ].map((row) => (
+                    <li key={row.label} className="qj-compare-row flex items-center justify-between gap-3 px-2.5 py-2.5 border-b border-border/60 last:border-0">
+                      <span className="flex items-center gap-2 text-[0.78rem] text-foreground">
+                        <Check className="qj-row-icon h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                        {row.label}
+                      </span>
+                      <span className="text-[0.72rem] font-semibold text-foreground text-right">{row.value}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Mobile-only divider */}
+              <div className="md:hidden flex items-center justify-center gap-3 -my-1">
+                <span className="h-px flex-1" style={{ background: "linear-gradient(to right, transparent, var(--color-border))" }} />
+                <span className="font-display italic text-sm gold-text shrink-0">vs</span>
+                <span className="h-px flex-1" style={{ background: "linear-gradient(to left, transparent, var(--color-border))" }} />
+              </div>
+
+              {/* Mined Diamond — muted */}
+              <div className="group qj-compare-card qj-compare-card--muted bg-background p-7 lg:p-9 rounded-2xl">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="qj-icon-ring w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                    <Diamond className="h-5 w-5 text-muted-foreground group-hover:text-foreground/60 transition-colors duration-500" />
+                  </div>
+                  <span className="inline-flex items-center px-3 py-1.5 text-[0.48rem] uppercase tracking-[0.16em] font-semibold text-muted-foreground bg-muted rounded-full">
+                    Industry Standard
+                  </span>
+                </div>
+                <h3 className="font-display text-2xl mb-1 text-muted-foreground">Mined Diamond</h3>
+                <p className="text-[0.72rem] text-muted-foreground mb-5">Extracted from the earth.</p>
+                <ul className="space-y-1">
+                  {[
+                    { label: "Origin", value: "Mined from the earth" },
+                    { label: "Land Disturbed", value: "Significant excavation" },
+                    { label: "Conflict Risk", value: "Varies by source" },
+                    { label: "Labor", value: "Often opaque supply chain" },
+                    { label: "Carbon Footprint", value: "High" },
+                  ].map((row) => (
+                    <li key={row.label} className="qj-compare-row flex items-center justify-between gap-3 px-2.5 py-2.5 border-b border-border/60 last:border-0">
+                      <span className="flex items-center gap-2 text-[0.78rem] text-muted-foreground">
+                        <X className="qj-row-icon h-3.5 w-3.5 text-red-400/70 shrink-0" />
+                        {row.label}
+                      </span>
+                      <span className="text-[0.72rem] text-muted-foreground text-right">{row.value}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Eco/ethics callout strip — counts up once scrolled into view */}
+          <div className="grid sm:grid-cols-3 gap-4 mt-9 max-w-4xl mx-auto reveal" style={{ transitionDelay: "0.18s" }}>
+            {[
+              { icon: Leaf, stat: "0", label: "Acres Mined" },
+              { icon: ShieldCheck, stat: "100%", label: "Conflict-Free" },
+              { icon: Gem, stat: "1", label: "Lab, Start to Finish" },
+            ].map(({ icon: Icon, stat, label }) => (
+              <StatTile key={label} icon={Icon} stat={stat} label={label} />
+            ))}
+          </div>
+
+          <div className="text-center mt-9 reveal" style={{ transitionDelay: "0.26s" }}>
+            <Link
+              to="/moissanite-guide"
+              className="group/cta relative inline-flex items-center gap-2.5 overflow-hidden rounded-full px-7 py-3 text-[0.58rem] uppercase tracking-[0.26em] font-semibold transition-colors duration-500"
+              style={{ border: "1.5px solid oklch(0.60 0.092 68 / 0.55)", color: "oklch(0.45 0.085 60)" }}
+            >
+              <span
+                className="absolute inset-0 z-0 translate-x-[-101%] group-hover/cta:translate-x-0 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                style={{ background: "var(--gradient-gold)" }}
+              />
+              <span className="relative z-10 group-hover/cta:text-white transition-colors duration-500">See the full comparison</span>
+              <ArrowRight className="relative z-10 h-3 w-3 transition-all duration-500 group-hover/cta:translate-x-1 group-hover/cta:text-white" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════════════
           CUSTOMER REVIEWS — social proof
       ════════════════════════════════════════════════════════ */}
       <section className="border-b border-border">
-        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-24 lg:py-32">
-          <div className="text-center mb-16 reveal">
-            <p className="eyebrow mb-3">What Our Customers Say</p>
+        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-16 lg:py-22">
+          <div className="text-center mb-11 reveal">
+            <Eyebrow>What Our Customers Say</Eyebrow>
             <h2 className="font-display" style={{ fontSize: "clamp(2.2rem, 4.5vw, 4rem)" }}>
               Trusted by thousands.
             </h2>
@@ -760,7 +1059,7 @@ function Index() {
             />
           </div>
 
-          <div className="text-center mt-12 reveal" style={{ transitionDelay: "0.2s" }}>
+          <div className="text-center mt-8 reveal" style={{ transitionDelay: "0.2s" }}>
             <Link
               to="/shop"
               className="inline-flex items-center gap-2 text-[0.6rem] uppercase tracking-[0.28em] lux-link text-muted-foreground hover:text-foreground transition-colors duration-350"
@@ -775,7 +1074,7 @@ function Index() {
           TRUST STRIP — light, white background
       ════════════════════════════════════════════════════════ */}
       <section className="bg-background border-b border-border">
-        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-16">
+        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-10">
           <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-border">
             {[
               { icon: ShieldCheck, label: "GRA Certified",      sub: "Every stone, every piece" },
@@ -783,8 +1082,10 @@ function Index() {
               { icon: Award,       label: "RI 2.65",            sub: "Highest of any gemstone" },
               { icon: Truck,       label: "Free Shipping $250+", sub: "Continental US" },
             ].map(({ icon: Icon, label, sub }) => (
-              <div key={label} className="flex flex-col items-center text-center px-6 py-10 gap-3">
-                <Icon className="h-5 w-5 text-gold/70" />
+              <div key={label} className="group flex flex-col items-center text-center px-6 py-7 gap-3">
+                <div className="qj-icon-ring w-10 h-10 rounded-full bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">
+                  <Icon className="h-4 w-4 text-amber-600" />
+                </div>
                 <p className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-foreground">{label}</p>
                 <p className="text-[0.58rem] uppercase tracking-[0.12em] text-muted-foreground">{sub}</p>
               </div>

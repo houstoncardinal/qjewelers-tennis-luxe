@@ -8,7 +8,7 @@ import {
   Ruler, Hash, FileText, Package, Search, ChevronDown, ChevronUp, RefreshCw,
   Copy, CheckCheck, AlertCircle, MoveUp, MoveDown, Pen, Layers, Maximize2,
   Minimize2, Link2, Link2Off, Scan, Wand2, FileImage, ImageOff, SlidersHorizontal,
-  BarChart2,
+  BarChart2, ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -18,7 +18,7 @@ import {
   getVariants, upsertVariantsBulk, updateVariant, deleteVariant,
   deleteVariantsBulk, toggleVariantsBulk, updateVariantsPriceBulk,
   updateVariantsStockBulk, deleteAllVariants, importProductFromUrl,
-  listPublicImages, duplicateProduct,
+  listPublicImages, duplicateProduct, uploadAdminImage,
   type ProductVariant,
 } from "@/lib/admin-extended.functions";
 import { useAdminToken } from "@/lib/admin-context";
@@ -29,6 +29,13 @@ import {
   LENGTHS_TENNIS_BRACELET,
   TENNIS_BRACELET_LENGTH_DEFAULT,
   getTennisBraceletPrice,
+  AVAILABLE_SIZES,
+  AVAILABLE_LENGTHS,
+  AVAILABLE_COLORS,
+  COLOR_LABELS,
+  COLOR_HEX,
+  TYPE_LABELS,
+  isTennisBraceletSlug,
 } from "@/lib/pricing";
 import { getProductThumb } from "@/lib/product-images";
 
@@ -36,26 +43,14 @@ export const Route = createFileRoute("/admin/products/$slug")({
   component: AdminProductEditor,
 });
 
-const COLOR_LABELS: Record<string, string> = {
-  silver:     "Sterling Silver",
-  gold:       "18K Yellow Gold",
-  rose_gold:  "18K Rose Gold",
-  white_gold: "18K White Gold",
-};
-
-const COLOR_HEX: Record<string, string> = {
-  silver:     "#C0C0C0",
-  gold:       "#D4AF37",
-  rose_gold:  "#B76E79",
-  white_gold: "#E8E8F4",
-};
-
-const TYPE_LABELS: Record<string, string> = {
-  necklace: "Chain / Necklace",
-  bracelet: "Bracelet",
-  earring:  "Earring",
-  ring:     "Ring",
-};
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
 
 // ─── Tag Input ────────────────────────────────────────────────────────────────
 
@@ -193,10 +188,14 @@ function ImageGalleryManager({
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const addFn = useServerFn(addProductImage);
   const updateFn = useServerFn(updateProductImage);
   const deleteFn = useServerFn(deleteProductImage);
   const reorderFn = useServerFn(reorderProductImages);
+  const uploadFn = useServerFn(uploadAdminImage);
 
   useEffect(() => { setImages(initialImages); }, [initialImages]);
 
@@ -335,6 +334,42 @@ function ImageGalleryManager({
     } finally { setSaving(false); }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+
+    const tooLarge = files.filter(f => f.size > 10 * 1024 * 1024);
+    const toUpload = files.filter(f => f.size <= 10 * 1024 * 1024);
+    if (tooLarge.length > 0) {
+      toast.error(`${tooLarge.length} image${tooLarge.length !== 1 ? "s" : ""} over 10MB skipped`);
+    }
+
+    setUploading(true);
+    let succeeded = 0;
+    try {
+      for (let i = 0; i < toUpload.length; i++) {
+        const file = toUpload[i];
+        setUploadProgress({ done: i, total: toUpload.length });
+        try {
+          const dataUrl = await readFileAsDataUrl(file);
+          const res = await uploadFn({ data: { token, fileName: file.name, dataUrl } });
+          await addFn({ data: { token, product_slug: slug, url: res.path, alt_text: file.name } });
+          succeeded++;
+        } catch (err: any) {
+          toast.error(`${file.name}: ${err?.message ?? "Upload failed"}`);
+        }
+      }
+      if (succeeded > 0) {
+        toast.success(`Uploaded ${succeeded} image${succeeded !== 1 ? "s" : ""}`);
+        await refresh();
+      }
+    } finally {
+      setUploading(false);
+      setUploadProgress(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const [bulkUrls, setBulkUrls] = useState("");
   const [showBulk, setShowBulk] = useState(false);
 
@@ -350,6 +385,28 @@ function ImageGalleryManager({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleFileUpload}
+            className="hidden"
+            id={`gallery-upload-${slug}`}
+          />
+          <label
+            htmlFor={`gallery-upload-${slug}`}
+            className={`text-[0.58rem] uppercase tracking-[0.10em] transition-colors flex items-center gap-1.5 px-2 py-1.5 border cursor-pointer ${
+              uploading ? "text-gray-300 border-gray-100" : "text-white bg-gray-900 border-gray-900 hover:bg-gray-700"
+            }`}
+          >
+            {uploading
+              ? <Loader2 className="h-3 w-3 animate-spin" />
+              : <Upload className="h-3 w-3" />}
+            {uploading
+              ? `Uploading ${uploadProgress ? uploadProgress.done + 1 : 1}/${uploadProgress?.total ?? 1}…`
+              : "Upload from Device"}
+          </label>
           <button
             onClick={() => setShowBulk(v => !v)}
             className="text-[0.58rem] uppercase tracking-[0.10em] text-gray-400 hover:text-gray-700 transition-colors flex items-center gap-1.5 px-2 py-1.5 border border-gray-200"
@@ -360,7 +417,7 @@ function ImageGalleryManager({
             onClick={() => setShowAddForm(v => !v)}
             className="text-[0.58rem] uppercase tracking-[0.10em] text-gray-600 hover:text-gray-900 transition-colors flex items-center gap-1.5 px-2 py-1.5 bg-gray-50 border border-gray-200 hover:bg-gray-100"
           >
-            <ImagePlus className="h-3 w-3" /> Add Image
+            <ImagePlus className="h-3 w-3" /> Add by URL
           </button>
         </div>
       </div>
@@ -592,11 +649,6 @@ function ImageGalleryManager({
 
 // ─── Advanced Variants Manager ────────────────────────────────────────────────
 
-const AVAILABLE_SIZES = ["2mm", "3mm", "4mm", "5mm", "6mm", "6.5mm", "8mm"];
-const AVAILABLE_LENGTHS = ['6"', '6.5"', '7"', '7.5"', '8"', '8.5"', '9"', '16"', '18"', '20"', '22"', '24"'];
-const AVAILABLE_COLORS = ["silver", "gold", "rose_gold", "white_gold"];
-
-const isTennisBraceletSlug = (slug: string) => slug.includes("tennis") && slug.includes("bracelet");
 const tennisMatrixValues = SIZES_TENNIS_BRACELET.flatMap(size =>
   LENGTHS_TENNIS_BRACELET.map(length => getTennisBraceletPrice(size, length))
 );
@@ -1731,18 +1783,38 @@ function AdminProductEditor() {
   const deleteFn     = useServerFn(deleteProduct);
   const addImageFn   = useServerFn(addProductImage);
   const duplicateFn  = useServerFn(duplicateProduct);
+  const uploadImageFn = useServerFn(uploadAdminImage);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin-product", token, slug],
     queryFn: () => fetchProduct({ data: { token, slug } }),
-    enabled: !!token && !!slug,
+    enabled: !!slug,
+    // This page holds unsaved edits in local state. A background refetch
+    // (e.g. React Query's default refetch-on-window-focus, which fires every
+    // time this tab regains focus) would silently re-seed every field below
+    // back to the last-saved server value — including toggles/selects, which
+    // give no visual cue they were just reset — making the Save button look
+    // "stuck" until a text field is touched and registers as dirty again.
+    refetchOnWindowFocus: false,
+    staleTime: 60_000,
   });
 
   const { data: imagesData, isLoading: imagesLoading } = useQuery({
     queryKey: ["admin-product-images", token, slug],
     queryFn: () => fetchImages({ data: { token, slug } }),
-    enabled: !!token && !!slug,
+    enabled: !!slug,
   });
+
+  // Lightweight variant count — drives the "single price vs. variant pricing" guidance in the Pricing tab
+  const fetchVariantsCount = useServerFn(getVariants);
+  const { data: variantCountData } = useQuery({
+    queryKey: ["admin-product-variant-count", token, slug],
+    queryFn: () => fetchVariantsCount({ data: { token, slug } }),
+    enabled: !!slug,
+  });
+  const variants = variantCountData?.variants ?? [];
+  const variantCount = variants.length;
+  const activeVariantCount = variants.filter(v => v.is_active).length;
 
   const fetchPublicImages = useServerFn(listPublicImages);
 
@@ -1753,6 +1825,8 @@ function AdminProductEditor() {
   const [description,   setDescription]   = useState("");
   const [imageUrl,      setImageUrl]      = useState("");
   const [imageErr,      setImageErr]      = useState(false);
+  const [primaryUploading, setPrimaryUploading] = useState(false);
+  const primaryFileInputRef = useRef<HTMLInputElement>(null);
 
   // Type & Color
   const [productType,   setProductType]   = useState("bracelet");
@@ -1787,6 +1861,11 @@ function AdminProductEditor() {
 
   // Original values for dirty tracking (updated on load + after successful save)
   const origRef = useRef<Record<string, any>>({});
+  // Tracks which product slug local state was last seeded from — guards the
+  // effect below against re-seeding (and silently discarding unsaved edits)
+  // on every query refetch, only re-seeding when actually navigating to a
+  // different product.
+  const seededSlugRef = useRef<string | null>(null);
 
   // UI
   const [saving,        setSaving]        = useState(false);
@@ -1802,7 +1881,7 @@ function AdminProductEditor() {
   const { data: publicMediaData } = useQuery({
     queryKey: ["admin-public-images", token],
     queryFn: () => fetchPublicImages({ data: { token } }),
-    enabled: !!token && activeTab === "media",
+    enabled: activeTab === "media",
     staleTime: 5 * 60 * 1000,
   });
 
@@ -1810,7 +1889,8 @@ function AdminProductEditor() {
   const galleryImages = imagesData?.images ?? [];
 
   useEffect(() => {
-    if (product) {
+    if (product && seededSlugRef.current !== product.slug) {
+      seededSlugRef.current = product.slug;
       const n    = product.name ?? "";
       const sd   = product.short_description ?? "";
       const desc = product.description ?? "";
@@ -2024,6 +2104,25 @@ function AdminProductEditor() {
   const labelCls  = "block text-[0.60rem] uppercase tracking-[0.16em] text-gray-500 mb-1.5 font-semibold";
   const cardCls   = "rounded-xl p-5";
   const thumbSrc  = imageUrl || getProductThumb(slug);
+
+  const handlePrimaryImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { toast.error("Image exceeds 10MB limit"); return; }
+    setPrimaryUploading(true);
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const res = await uploadImageFn({ data: { token, fileName: file.name, dataUrl } });
+      setImageUrl(res.path);
+      setImageErr(false);
+      toast.success("Image uploaded");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Upload failed");
+    } finally {
+      setPrimaryUploading(false);
+      if (primaryFileInputRef.current) primaryFileInputRef.current.value = "";
+    }
+  };
   const effectivePrice = saleActive && salePrice !== "" ? Number(salePrice) : Number(basePrice);
 
   const tabs = [
@@ -2305,6 +2404,7 @@ function AdminProductEditor() {
                 onColorChange={setProductColor}
                 onSaved={() => {
                   queryClient.invalidateQueries({ queryKey: ["admin-product", token, slug] });
+                  queryClient.invalidateQueries({ queryKey: ["admin-product-variant-count", token, slug] });
                 }}
               />
             </>
@@ -2313,8 +2413,88 @@ function AdminProductEditor() {
           {/* ═══ PRICING TAB ═══ */}
           {activeTab === "pricing" && (
             <>
+              {/* Pricing Mode Guide — explains base price vs. variant pricing */}
               <div className={`${cardCls} admin-surface`}>
-                <p className="text-[0.58rem] uppercase tracking-[0.18em] admin-muted mb-5">Pricing</p>
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-[0.58rem] uppercase tracking-[0.18em] admin-muted">How Pricing Works</p>
+                  {variantCount > 0 && (
+                    <button
+                      onClick={() => setActiveTab("variants")}
+                      className="text-[0.58rem] font-medium flex items-center gap-1 admin-muted hover:opacity-70 transition-opacity"
+                    >
+                      Manage variants <ArrowRight className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Single Price */}
+                  <div
+                    className="rounded-xl p-4 transition-all"
+                    style={{
+                      border: variantCount === 0 ? "1.5px solid rgba(16,185,129,0.40)" : "1.5px solid var(--at-tile-border)",
+                      background: variantCount === 0 ? "rgba(16,185,129,0.07)" : "var(--at-tile-bg)",
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="p-1.5 rounded-lg" style={{ background: variantCount === 0 ? "rgba(16,185,129,0.16)" : "var(--at-card-bg)" }}>
+                          <Tag className="h-3.5 w-3.5" style={{ color: variantCount === 0 ? "#10b981" : "var(--at-text-muted)" }} />
+                        </span>
+                        <p className="text-xs font-semibold admin-heading">Single Price</p>
+                      </div>
+                      {variantCount === 0 && (
+                        <span className="text-[0.48rem] uppercase tracking-[0.10em] font-bold px-2 py-0.5 rounded-full text-white" style={{ background: "#10b981" }}>
+                          In Use
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[0.62rem] admin-muted leading-relaxed">
+                      One product, one price — no size, color, or shape choices. The <strong>Base Price</strong> below is exactly what customers pay.
+                    </p>
+                  </div>
+
+                  {/* Multiple Variations */}
+                  <div
+                    onClick={() => setActiveTab("variants")}
+                    className="rounded-xl p-4 transition-all cursor-pointer"
+                    style={{
+                      border: variantCount > 0 ? "1.5px solid rgba(99,102,241,0.40)" : "1.5px solid var(--at-tile-border)",
+                      background: variantCount > 0 ? "rgba(99,102,241,0.07)" : "var(--at-tile-bg)",
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="p-1.5 rounded-lg" style={{ background: variantCount > 0 ? "rgba(99,102,241,0.16)" : "var(--at-card-bg)" }}>
+                          <Layers className="h-3.5 w-3.5" style={{ color: variantCount > 0 ? "#6366f1" : "var(--at-text-muted)" }} />
+                        </span>
+                        <p className="text-xs font-semibold admin-heading">Multiple Variations</p>
+                      </div>
+                      {variantCount > 0 ? (
+                        <span className="text-[0.48rem] uppercase tracking-[0.10em] font-bold px-2 py-0.5 rounded-full text-white" style={{ background: "#6366f1" }}>
+                          {activeVariantCount} Active
+                        </span>
+                      ) : (
+                        <span className="text-[0.48rem] uppercase tracking-[0.10em] font-semibold px-2 py-0.5 rounded-full flex items-center gap-0.5" style={{ color: "#6366f1", background: "rgba(99,102,241,0.12)" }}>
+                          Set up <ArrowRight className="h-2.5 w-2.5" />
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[0.62rem] admin-muted leading-relaxed">
+                      Comes in different sizes, colors, or shapes — each priced differently? Generate every combination in the <strong>Variants</strong> tab and set a price per variant.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className={`${cardCls} admin-surface`}>
+                <div className="flex items-center justify-between mb-5">
+                  <p className="text-[0.58rem] uppercase tracking-[0.18em] admin-muted">
+                    {variantCount > 0 ? "Base Price · Fallback" : "Pricing"}
+                  </p>
+                  {variantCount > 0 && !isTennisBraceletSlug(slug) && (
+                    <span className="text-[0.52rem] admin-muted">Used only when no variant is selected</span>
+                  )}
+                </div>
                 <div className="space-y-5">
                   <div>
                     <label className={labelCls}>Base Price ($) *</label>
@@ -2329,7 +2509,9 @@ function AdminProductEditor() {
                     <p className="mt-1 text-[0.58rem] admin-muted">
                       {isTennisBraceletSlug(slug)
                         ? `For tennis bracelets, live prices come from the synced table below. Base price fallback starts at ${formatUSD(TENNIS_MATRIX_MIN)}.`
-                        : "Starting price before size/length modifiers."}
+                        : variantCount > 0
+                          ? `This product has ${variantCount} variant${variantCount !== 1 ? "s" : ""} with their own price${variantCount !== 1 ? "s" : ""} (${activeVariantCount} active). This base price is only a fallback before a variant is chosen.`
+                          : "This is the exact price customers pay at checkout — no variants are set up for this product."}
                     </p>
                   </div>
 
@@ -2393,7 +2575,12 @@ function AdminProductEditor() {
                   </div>
                 </div>
                 <p className="mt-3 text-[0.55rem] admin-muted flex items-center gap-1.5">
-                  <AlertCircle className="h-3 w-3" /> Price shown is the base. Final price varies by size/length selection.
+                  <AlertCircle className="h-3 w-3" />
+                  {isTennisBraceletSlug(slug)
+                    ? "Price shown is the base fallback. Live prices come from the synced matrix below."
+                    : variantCount > 0
+                      ? `Price shown is the base fallback. ${activeVariantCount} active variant${activeVariantCount !== 1 ? "s" : ""} have their own price — see the Variants tab.`
+                      : "This is the final price customers pay — no variants are configured for this product."}
                 </p>
               </div>
 
@@ -2441,14 +2628,33 @@ function AdminProductEditor() {
                   </div>
                   <div className="flex-1">
                     <label className={labelCls}>Image URL</label>
-                    <input
-                      value={imageUrl}
-                      onChange={e => { setImageUrl(e.target.value); setImageErr(false); }}
-                      placeholder="/images/product.jpg or https://…"
-                      className={inputCls}
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        value={imageUrl}
+                        onChange={e => { setImageUrl(e.target.value); setImageErr(false); }}
+                        placeholder="/images/product.jpg or https://…"
+                        className={inputCls}
+                      />
+                      <input
+                        ref={primaryFileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePrimaryImageUpload}
+                        className="hidden"
+                        id="primary-image-upload"
+                      />
+                      <label
+                        htmlFor="primary-image-upload"
+                        className={`shrink-0 flex items-center gap-1.5 px-4 text-[0.6rem] uppercase tracking-[0.10em] border cursor-pointer transition-colors rounded-lg ${
+                          primaryUploading ? "text-gray-300 border-gray-100" : "text-white bg-gray-900 border-gray-900 hover:bg-gray-700"
+                        }`}
+                      >
+                        {primaryUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+                        {primaryUploading ? "Uploading…" : "Upload"}
+                      </label>
+                    </div>
                     <p className="mt-1.5 text-[0.58rem] text-gray-400">
-                      Relative path from /public (e.g. /TennisBracelet/yellowgoldmain.jpg) or full URL.
+                      Upload from your device, or paste a relative path from /public (e.g. /TennisBracelet/yellowgoldmain.jpg) or full URL.
                     </p>
                   </div>
                 </div>

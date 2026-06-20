@@ -6,7 +6,7 @@
   NODE_VERSION = "22"
   # These env vars have values that appear in source code as legitimate fallbacks
   # or public-facing content (site URL, email addresses, analytics IDs) — not secrets.
-  SECRETS_SCAN_OMIT_KEYS = "VITE_SITE_URL,RESEND_FROM_EMAIL,VITE_SUPABASE_URL,VITE_SUPABASE_PROJECT_ID,VITE_SUPABASE_PUBLISHABLE_KEY,VITE_GA4_ID,VITE_META_PIXEL_ID,VITE_TIKTOK_PIXEL_ID,SUPABASE_URL"
+  SECRETS_SCAN_OMIT_KEYS = "VITE_SITE_URL,RESEND_FROM_EMAIL,VITE_SUPABASE_URL,VITE_SUPABASE_PROJECT_ID,VITE_SUPABASE_PUBLISHABLE_KEY,VITE_GA4_ID,VITE_META_PIXEL_ID,VITE_TIKTOK_PIXEL_ID,SUPABASE_URL,VITE_STRIPE_PUBLISHABLE_KEY,VITE_PAYPAL_CLIENT_ID"
 
 # Node.js Lambda function handles all SSR + server function RPC calls.
 # Static assets in dist/client/ are served by Netlify CDN before this function runs.
@@ -17,3 +17,18 @@
   from = "/*"
   to = "/.netlify/functions/ssr"
   status = 200
+
+# script-src/style-src require 'unsafe-inline' because analytics scripts are
+# injected as inline <script> tags and the app uses inline style={{...}} props
+# extensively — a static headers block can't issue per-request nonces. This
+# still blocks loading any script from a non-allowlisted domain, which is CSP's
+# main defense against injected-script XSS.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(self)"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://js.stripe.com https://www.paypal.com https://www.paypalobjects.com https://www.sandbox.paypal.com https://www.googletagmanager.com https://www.google-analytics.com https://connect.facebook.net https://analytics.tiktok.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://www.facebook.com https://www.google-analytics.com https://*.supabase.co; connect-src 'self' https://*.supabase.co https://api.stripe.com https://api-m.paypal.com https://api-m.sandbox.paypal.com https://www.google-analytics.com https://analytics.google.com https://analytics.tiktok.com; frame-src https://js.stripe.com https://hooks.stripe.com https://www.paypal.com https://www.sandbox.paypal.com; object-src 'none'; base-uri 'self'"

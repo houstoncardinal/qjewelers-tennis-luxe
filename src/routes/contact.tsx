@@ -3,6 +3,11 @@ import { useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Mail, Clock, MapPin } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { submitContactMessage } from "@/lib/contact.functions";
+
+const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://qureshijewelers.com").replace(/\/$/, "");
+const PAGE_URL = `${SITE_URL}/contact`;
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
@@ -10,9 +15,32 @@ export const Route = createFileRoute("/contact")({
       { title: "Contact — Qureshi Jewelers | Custom Lengths & Concierge" },
       { name: "description", content: "Reach the Qureshi Jewelers concierge for custom lengths, order help, or wholesale inquiries on S925 moissanite tennis chains." },
       { property: "og:title", content: "Contact — Qureshi Jewelers" },
-      { property: "og:url", content: "/contact" },
+      { property: "og:url", content: PAGE_URL },
     ],
-    links: [{ rel: "canonical", href: "/contact" }],
+    links: [{ rel: "canonical", href: PAGE_URL }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "ContactPage",
+          name: "Contact — Qureshi Jewelers",
+          url: PAGE_URL,
+          about: { "@id": `${SITE_URL}/#organization` },
+        }),
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+            { "@type": "ListItem", position: 2, name: "Contact", item: PAGE_URL },
+          ],
+        }),
+      },
+    ],
   }),
   component: Contact,
 });
@@ -24,10 +52,12 @@ const schema = z.object({
 });
 
 function Contact() {
-  const [form, setForm] = useState({ name: "", email: "", message: "" });
+  const [form, setForm] = useState({ name: "", email: "", message: "", _hp: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const doSubmit = useServerFn(submitContactMessage);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsed = schema.safeParse(form);
     if (!parsed.success) {
@@ -37,8 +67,16 @@ function Contact() {
       return;
     }
     setErrors({});
-    toast.success("Message received. We'll reply within one business day.");
-    setForm({ name: "", email: "", message: "" });
+    setSubmitting(true);
+    try {
+      await doSubmit({ data: { ...parsed.data, _hp: form._hp } });
+      toast.success("Message received. We'll reply within one business day.");
+      setForm({ name: "", email: "", message: "", _hp: "" });
+    } catch (err: any) {
+      toast.error(err?.message ?? "Could not send your message — please try again");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const inputCls = "w-full border-0 border-b border-border bg-transparent py-3 text-sm focus:outline-none focus:border-foreground transition-colors placeholder:text-muted-foreground/60";
@@ -59,6 +97,16 @@ function Contact() {
         </ul>
       </div>
       <form onSubmit={submit} className="space-y-6 lg:pt-10">
+        <input
+          type="text"
+          name="company"
+          value={form._hp}
+          onChange={(e) => setForm((f) => ({ ...f, _hp: e.target.value }))}
+          tabIndex={-1}
+          autoComplete="off"
+          className="absolute -left-[9999px] w-px h-px opacity-0"
+          aria-hidden="true"
+        />
         <div>
           <input placeholder="Your name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className={inputCls} />
           {errors.name && <p className="text-xs text-destructive mt-1">{errors.name}</p>}
@@ -71,8 +119,12 @@ function Contact() {
           <textarea placeholder="How can we help?" rows={6} value={form.message} onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))} className={`${inputCls} resize-none`} />
           {errors.message && <p className="text-xs text-destructive mt-1">{errors.message}</p>}
         </div>
-        <button type="submit" className="bg-foreground text-background px-8 py-4 text-xs uppercase tracking-[0.22em]">
-          Send message
+        <button
+          type="submit"
+          disabled={submitting}
+          className="bg-foreground text-background px-8 py-4 text-xs uppercase tracking-[0.22em] disabled:opacity-60"
+        >
+          {submitting ? "Sending…" : "Send message"}
         </button>
       </form>
     </section>

@@ -13,18 +13,85 @@ const search = z.object({
   size: z.enum(["2mm", "3mm", "4mm", "5mm", "6.5mm", "0.5ct", "1ct", "1.5ct", "2ct", "3ct"]).optional(),
 });
 
+const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://qureshijewelers.com").replace(/\/$/, "");
+
+// Per-category SEO copy — each of these is a distinct, deliberately
+// keyword-matched landing page for a top search intent (e.g. "moissanite
+// engagement rings"), not just a UI filter label. Canonical/og:url below
+// point at this exact query string so each gets indexed as its own page
+// rather than collapsing into the generic /shop canonical.
+const CATEGORY_SEO: Record<string, { title: string; description: string; h1Keyword: string }> = {
+  necklace: {
+    title: "Moissanite Tennis Chains — S925 Sterling Silver | Qureshi Jewelers",
+    description: "Shop VVS moissanite tennis chains in solid S925 sterling silver, 18K gold, rose gold, or white gold. GRA certified, 2mm-5mm widths, 16\"-24\" lengths. Free US shipping over $250.",
+    h1Keyword: "Moissanite Tennis Chains",
+  },
+  bracelet: {
+    title: "Moissanite Tennis Bracelets — S925 Sterling Silver | Qureshi Jewelers",
+    description: "Shop VVS moissanite tennis bracelets hand-set in solid S925 sterling silver with a double-lock clasp. GRA certified, 4 finishes. Free US shipping over $250.",
+    h1Keyword: "Moissanite Tennis Bracelets",
+  },
+  earring: {
+    title: "Moissanite Stud Earrings — VVS1 D Color | Qureshi Jewelers",
+    description: "Shop VVS1 D Colorless moissanite stud earrings in S925 sterling silver, 18K gold, rose gold, or white gold. GRA certified, screw-back closure. Free US shipping over $250.",
+    h1Keyword: "Moissanite Stud Earrings",
+  },
+  ring: {
+    title: "Moissanite Engagement Rings — VVS1 GRA Certified | Qureshi Jewelers",
+    description: "Shop moissanite engagement rings with VVS1 clarity and D color grading, hand-set in solid S925 sterling silver or 18K gold. GRA certified. Free US shipping over $250.",
+    h1Keyword: "Moissanite Engagement Rings",
+  },
+};
+
 export const Route = createFileRoute("/shop")({
   validateSearch: search,
-  head: () => ({
-    meta: [
-      { title: "Shop S925 Moissanite Jewelry | Qureshi Jewelers" },
-      { name: "description", content: "Browse S925 sterling silver VVS moissanite tennis chains, bracelets, stud earrings, and engagement rings. GRA certified. Free US shipping over $250." },
-      { property: "og:title", content: "Shop the Collection | Qureshi Jewelers" },
-      { property: "og:description", content: "S925 VVS moissanite jewelry. GRA certified. 4 finishes, multiple sizes." },
-      { property: "og:url", content: "/shop" },
-    ],
-    links: [{ rel: "canonical", href: "/shop" }],
-  }),
+  head: ({ match }) => {
+    const type = match.search?.type as string | undefined;
+    const cat = type ? CATEGORY_SEO[type] : undefined;
+    const pageUrl = `${SITE_URL}/shop${type ? `?type=${type}` : ""}`;
+
+    const title = cat?.title ?? "Moissanite Jewelry — Tennis Chains, Bracelets & Rings | Qureshi Jewelers";
+    const description = cat?.description ?? "Browse S925 sterling silver VVS moissanite tennis chains, tennis bracelets, stud earrings, and engagement rings. GRA certified. Free US shipping over $250.";
+
+    const breadcrumbItems: any[] = [
+      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+      { "@type": "ListItem", position: 2, name: "Shop", item: `${SITE_URL}/shop` },
+    ];
+    if (cat) breadcrumbItems.push({ "@type": "ListItem", position: 3, name: cat.h1Keyword, item: pageUrl });
+
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:url", content: pageUrl },
+        { property: "og:type", content: "website" },
+      ],
+      links: [{ rel: "canonical", href: pageUrl }],
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            name: cat?.h1Keyword ?? "Moissanite Jewelry Collection",
+            description,
+            url: pageUrl,
+            isPartOf: { "@id": `${SITE_URL}/#website` },
+          }),
+        },
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: breadcrumbItems,
+          }),
+        },
+      ],
+    };
+  },
   component: Shop,
 });
 

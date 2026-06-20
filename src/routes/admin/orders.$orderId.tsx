@@ -232,7 +232,7 @@ function AdminOrderDetail() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin-order", token, orderId],
     queryFn: () => fetchOrder({ data: { token, orderId } }),
-    enabled: !!token && !!orderId,
+    enabled: !!orderId,
   });
 
   const [status, setStatus] = useState<typeof STATUSES[number]>("pending");

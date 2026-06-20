@@ -15,12 +15,10 @@ import { X } from "lucide-react";
 import appCss from "../styles.css?url";
 import { CartProvider } from "@/lib/cart";
 import { Header, Footer } from "@/components/site-chrome";
+import { CookieConsent } from "@/components/cookie-consent";
 import { getAnnouncementBar } from "@/lib/products.functions";
 
 const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://qureshijewelers.com").replace(/\/$/, "");
-const GA4_ID      = import.meta.env.VITE_GA4_ID ?? "";
-const META_ID     = import.meta.env.VITE_META_PIXEL_ID ?? "";
-const TIKTOK_ID   = import.meta.env.VITE_TIKTOK_PIXEL_ID ?? "";
 
 function NotFoundComponent() {
   return (
@@ -85,32 +83,8 @@ function AnnouncementBar({ text }: { text: string }) {
   );
 }
 
-// ─── Analytics head scripts ───────────────────────────────────────────────────
-
-function buildAnalyticsScripts() {
-  const scripts: Array<{ src?: string; async?: boolean; children?: string }> = [];
-
-  if (GA4_ID && !GA4_ID.startsWith("G-YOUR")) {
-    scripts.push(
-      { src: `https://www.googletagmanager.com/gtag/js?id=${GA4_ID}`, async: true },
-      { children: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA4_ID}');` },
-    );
-  }
-
-  if (META_ID && !META_ID.startsWith("YOUR")) {
-    scripts.push({
-      children: `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${META_ID}');fbq('track','PageView');`,
-    });
-  }
-
-  if (TIKTOK_ID && !TIKTOK_ID.startsWith("YOUR")) {
-    scripts.push({
-      children: `!function(w,d,t){w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"];ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e};ttq.load=function(e,n){var i="https://analytics.tiktok.com/i18n/pixel/events.js";ttq._i=ttq._i||{};ttq._i[e]=[];ttq._i[e]._u=i;ttq._t=ttq._t||{};ttq._t[e]=+new Date;ttq._o=ttq._o||{};ttq._o[e]=n||{};var o=document.createElement("script");o.type="text/javascript";o.async=!0;o.src=i+"?sdkid="+e+"&lib="+t;var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(o,a)};ttq.load('${TIKTOK_ID}');ttq.page();}(window,document,'ttq');`,
-    });
-  }
-
-  return scripts;
-}
+// Analytics scripts (GA4/Meta/TikTok) are no longer injected here — they're
+// gated behind cookie consent and injected client-side by <CookieConsent />.
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   loader: async () => {
@@ -140,18 +114,54 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [{ rel: "stylesheet", href: appCss }],
     scripts: [
+      // JewelryStore (extends Organization) — the entity identity Google
+      // attaches to every page on the site via the Knowledge Graph. Only
+      // real, verifiable facts go here: no fabricated street address or
+      // phone number, since this is an online-only store with neither.
       {
         type: "application/ld+json",
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "JewelryStore",
+          "@id": `${SITE_URL}/#organization`,
           name: "Qureshi Jewelers",
-          description: "S925 sterling silver VVS moissanite tennis chains and bracelets, GRA certified.",
+          alternateName: "QJ Moissanite",
+          description: "America's premier source for S925 sterling silver VVS moissanite jewelry — tennis chains, tennis bracelets, stud earrings, and engagement rings. Every stone GRA certified.",
           url: SITE_URL,
+          logo: `${SITE_URL}/QURESHIJEWELERSLOGO.png`,
+          image: `${SITE_URL}/QURESHIJEWELERSLOGO.png`,
           areaServed: "US",
+          priceRange: "$59-$1200",
+          currenciesAccepted: "USD",
+          paymentAccepted: "Credit Card, Apple Pay, Google Pay, PayPal",
+          contactPoint: {
+            "@type": "ContactPoint",
+            email: "concierge@qureshijewelers.com",
+            contactType: "customer service",
+            areaServed: "US",
+            availableLanguage: "English",
+          },
+          makesOffer: [
+            { "@type": "Offer", itemOffered: { "@type": "Product", name: "Moissanite Tennis Chains" } },
+            { "@type": "Offer", itemOffered: { "@type": "Product", name: "Moissanite Tennis Bracelets" } },
+            { "@type": "Offer", itemOffered: { "@type": "Product", name: "Moissanite Stud Earrings" } },
+            { "@type": "Offer", itemOffered: { "@type": "Product", name: "Moissanite Engagement Rings" } },
+          ],
         }),
       },
-      ...buildAnalyticsScripts(),
+      // WebSite entity — lets Google associate the site name with the
+      // domain independent of any single page's title.
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "@id": `${SITE_URL}/#website`,
+          name: "Qureshi Jewelers",
+          url: SITE_URL,
+          publisher: { "@id": `${SITE_URL}/#organization` },
+        }),
+      },
     ],
   }),
   shellComponent: RootShell,
@@ -199,6 +209,7 @@ function RootComponent() {
           <Footer />
         </div>
         <Toaster position="top-center" richColors />
+        <CookieConsent />
       </CartProvider>
     </QueryClientProvider>
   );

@@ -47,7 +47,6 @@ function AdminCustomers() {
   const { data, isLoading } = useQuery({
     queryKey: ["admin-orders-customers", token],
     queryFn: () => fetchOrders({ data: { token } }),
-    enabled: !!token,
     staleTime: 5 * 60 * 1000,
   });
 

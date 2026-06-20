@@ -3,13 +3,14 @@ import { useState, useEffect, useCallback } from "react";
 import {
   LayoutDashboard, ShoppingBag, Package, LogOut, Store, ChevronRight,
   Menu, X, BarChart2, Users, RotateCcw, Tag, Settings, Gem,
-  ArrowUpRight, Star, Mail,
+  ArrowUpRight, Star, Mail, User, Lock, Eye, EyeOff, ShieldCheck,
+  ClipboardList, ArrowLeft,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { AdminTokenCtx, AdminThemeCtx, useAdminTheme } from "@/lib/admin-context";
 import { THEMES, themeCSS } from "@/lib/admin-themes";
-import { adminAuth } from "@/lib/admin.functions";
+import { adminAuth, adminLogout, checkAdminSession, verifyTotpLogin } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/admin")({
   component: AdminRoot,
@@ -17,92 +18,268 @@ export const Route = createFileRoute("/admin")({
 
 // ─── Login ───────────────────────────────────────────────────────────────────
 
-function AdminLogin({ onLogin }: { onLogin: (t: string) => void }) {
+const GRID_BG = {
+  backgroundImage:
+    "linear-gradient(rgba(255,255,255,.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.5) 1px,transparent 1px)",
+  backgroundSize: "44px 44px",
+};
+
+const BRAND_FEATURES = [
+  { icon: ShieldCheck, text: "TOTP two-factor authentication" },
+  { icon: Lock, text: "Encrypted, HttpOnly session cookies" },
+  { icon: ClipboardList, text: "Full audit trail on every action" },
+];
+
+function AdminLogin({ onLogin }: { onLogin: () => void }) {
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [needsTotp, setNeedsTotp] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const auth = useServerFn(adminAuth);
+  const verifyTotp = useServerFn(verifyTotpLogin);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!password) return;
     setLoading(true);
     setError("");
     try {
-      const { token } = await auth({ data: { password } });
-      localStorage.setItem("qj_admin_token", token);
-      onLogin(token);
-    } catch {
-      setError("Incorrect password. Try again.");
+      if (needsTotp) {
+        if (!code) return;
+        await verifyTotp({ data: { code } });
+        onLogin();
+        return;
+      }
+      if (!username || !password) return;
+      const result = await auth({ data: { username, password } });
+      if (result.requiresTotp) {
+        setNeedsTotp(true);
+      } else {
+        onLogin();
+      }
+    } catch (err: any) {
+      setError(err?.message?.includes("Too many") ? err.message : needsTotp ? "Invalid code. Try again." : "Incorrect username or password.");
     } finally {
       setLoading(false);
     }
   };
 
+  const backToLogin = () => { setNeedsTotp(false); setCode(""); setError(""); };
+
   return (
-    <div
-      className="min-h-screen flex items-center justify-center p-6"
-      style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #141414 50%, #0c0c0c 100%)" }}
-    >
-      <div className="absolute inset-0 opacity-[0.03]"
-        style={{ backgroundImage: "linear-gradient(rgba(255,255,255,.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.5) 1px,transparent 1px)", backgroundSize: "48px 48px" }}
-      />
-      <div className="w-full max-w-sm relative z-10">
-        <div className="mb-10 flex flex-col items-center gap-5">
-          <div className="relative">
-            <div className="w-14 h-14 flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg, rgba(251,191,36,0.15) 0%, rgba(251,191,36,0.06) 100%)", border: "1px solid rgba(251,191,36,0.25)", borderRadius: "2px" }}
-            >
-              <Gem className="h-6 w-6" style={{ color: "#fbbf24" }} />
-            </div>
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-[#0a0a0a]" />
-          </div>
-          <div className="text-center">
-            <p className="text-[0.46rem] uppercase tracking-[0.44em] text-white/30 mb-1.5">Admin Console</p>
-            <h1 className="text-xl font-semibold text-white tracking-tight">Qureshi Jewelers</h1>
+    <div className="min-h-screen flex" style={{ background: "#0a0a0a" }}>
+      {/* ── Brand panel (desktop only) ───────────────────────────────────── */}
+      <div
+        className="hidden lg:flex lg:w-[44%] relative overflow-hidden flex-col justify-between p-14"
+        style={{ background: "linear-gradient(160deg, #0a0a0a 0%, #161410 55%, #0d0c0a 100%)" }}
+      >
+        <div className="absolute inset-0 opacity-[0.035]" style={GRID_BG} />
+        <div
+          className="absolute -top-40 -left-32 w-[480px] h-[480px] rounded-full pointer-events-none"
+          style={{ background: "radial-gradient(circle, rgba(251,191,36,0.18) 0%, transparent 70%)" }}
+        />
+        <div
+          className="absolute bottom-0 right-0 w-[420px] h-[420px] rounded-full pointer-events-none"
+          style={{ background: "radial-gradient(circle, rgba(251,191,36,0.08) 0%, transparent 70%)" }}
+        />
+
+        <div className="relative z-10">
+          <img
+            src="/QURESHIJEWELERSLOGO.png"
+            alt="Qureshi Jewelers"
+            className="h-11 w-auto mb-3"
+            style={{ filter: "brightness(0) invert(1)" }}
+          />
+          <p className="text-[0.5rem] uppercase tracking-[0.5em] text-white/30">Enterprise Admin Console</p>
+        </div>
+
+        <div className="relative z-10 max-w-md">
+          <h2 className="text-3xl leading-tight mb-4 text-white" style={{ fontFamily: "Georgia, serif" }}>
+            Command center for <span style={{ color: "#fbbf24" }}>fine jewelry</span> operations.
+          </h2>
+          <p className="text-sm text-white/40 leading-relaxed mb-9">
+            Manage your entire catalog, orders, and clientele from one secure, GRA-grade console.
+          </p>
+          <div className="space-y-3.5">
+            {BRAND_FEATURES.map(({ icon: Icon, text }) => (
+              <div key={text} className="flex items-center gap-3">
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: "rgba(251,191,36,0.10)", border: "1px solid rgba(251,191,36,0.20)" }}
+                >
+                  <Icon className="h-3.5 w-3.5" style={{ color: "#fbbf24" }} />
+                </div>
+                <span className="text-xs text-white/55">{text}</span>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="p-8 space-y-5"
-          style={{ background: "rgba(255,255,255,0.96)", border: "1px solid rgba(0,0,0,0.1)", boxShadow: "0 25px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08) inset" }}
-        >
-          <div>
-            <label className="block text-[0.56rem] uppercase tracking-[0.20em] text-gray-400 mb-2">Admin Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && submit(e)}
-              className="w-full border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:border-gray-500 transition-colors bg-white"
-              placeholder="Enter password"
-              autoFocus
-            />
+        <div className="relative z-10 flex items-center gap-2 text-[0.58rem] text-white/25">
+          <span>© {new Date().getFullYear()} Qureshi Jewelers</span>
+          <span className="w-1 h-1 rounded-full bg-white/20" />
+          <span>All rights reserved</span>
+        </div>
+      </div>
+
+      {/* ── Form panel ───────────────────────────────────────────────────── */}
+      <div className="flex-1 flex items-center justify-center p-6 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-[0.03] lg:hidden" style={GRID_BG} />
+        <div className="w-full max-w-sm relative z-10">
+          {/* Mobile-only logo */}
+          <div className="lg:hidden mb-9 flex flex-col items-center gap-4">
+            <div className="relative">
+              <img
+                src="/QURESHIJEWELERSLOGO.png"
+                alt="Qureshi Jewelers"
+                className="h-9 w-auto"
+                style={{ filter: "brightness(0) invert(1)" }}
+              />
+              <span className="absolute -top-1 -right-2 w-2 h-2 bg-emerald-400 rounded-full border-2 border-[#0a0a0a]" />
+            </div>
+            <p className="text-[0.46rem] uppercase tracking-[0.4em] text-white/30">Admin Console</p>
           </div>
-          {error && (
-            <p className="text-xs text-red-600 bg-red-50 border border-red-100 px-3 py-2.5 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
-              {error}
+
+          <div className="mb-7">
+            <h1 className="text-xl font-semibold text-white tracking-tight mb-1.5">
+              {needsTotp ? "Verify your identity" : "Welcome back"}
+            </h1>
+            <p className="text-xs text-white/35">
+              {needsTotp ? "Enter the 6-digit code from your authenticator app" : "Sign in to access the admin console"}
+            </p>
+          </div>
+
+          <div
+            className="p-8 rounded-2xl space-y-5"
+            style={{
+              background: "rgba(255,255,255,0.035)",
+              border: "1px solid rgba(255,255,255,0.09)",
+              backdropFilter: "blur(20px)",
+              boxShadow: "0 25px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04) inset",
+            }}
+          >
+            {needsTotp ? (
+              <div>
+                <div className="flex items-center justify-center mb-6">
+                  <div
+                    className="w-12 h-12 rounded-full flex items-center justify-center"
+                    style={{ background: "rgba(251,191,36,0.10)", border: "1px solid rgba(251,191,36,0.25)" }}
+                  >
+                    <ShieldCheck className="h-5 w-5" style={{ color: "#fbbf24" }} />
+                  </div>
+                </div>
+                <label className="block text-[0.56rem] uppercase tracking-[0.20em] text-white/40 mb-2 text-center">
+                  Authenticator Code
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={code}
+                  onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  onKeyDown={e => e.key === "Enter" && submit(e)}
+                  className="w-full border px-4 py-3.5 text-lg text-center tracking-[0.5em] font-semibold rounded-lg focus:outline-none transition-colors text-white"
+                  style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.12)" }}
+                  placeholder="······"
+                  autoFocus
+                  maxLength={6}
+                />
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-[0.56rem] uppercase tracking-[0.20em] text-white/40 mb-2">Username</label>
+                  <div className="relative">
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/25" />
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={e => setUsername(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && submit(e)}
+                      className="w-full border pl-10 pr-4 py-3 text-sm rounded-lg focus:outline-none transition-colors text-white placeholder:text-white/25"
+                      style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.12)" }}
+                      placeholder="Enter username"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[0.56rem] uppercase tracking-[0.20em] text-white/40 mb-2">Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/25" />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && submit(e)}
+                      className="w-full border pl-10 pr-10 py-3 text-sm rounded-lg focus:outline-none transition-colors text-white placeholder:text-white/25"
+                      style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.12)" }}
+                      placeholder="Enter password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(s => !s)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/50 transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {error && (
+              <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2.5 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                {error}
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={submit}
+              disabled={loading || (needsTotp ? code.length !== 6 : !username || !password)}
+              className="w-full text-[#0a0a0a] py-3.5 text-[0.62rem] font-bold uppercase tracking-[0.22em] rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110"
+              style={{ background: "linear-gradient(135deg, #fde68a 0%, #fbbf24 50%, #d97706 100%)", boxShadow: "0 8px 24px rgba(251,191,36,0.25)" }}
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-3 h-3 border border-[#0a0a0a]/30 border-t-[#0a0a0a] rounded-full animate-spin" />
+                  Verifying…
+                </span>
+              ) : needsTotp ? "Verify Code" : "Sign In"}
+            </button>
+
+            {needsTotp && (
+              <button
+                onClick={backToLogin}
+                className="w-full flex items-center justify-center gap-1.5 text-[0.60rem] uppercase tracking-[0.14em] text-white/30 hover:text-white/55 transition-colors"
+              >
+                <ArrowLeft className="h-3 w-3" /> Back to login
+              </button>
+            )}
+
+            {!needsTotp && (
+              <div className="flex items-center justify-center gap-4 pt-1">
+                <span className="flex items-center gap-1.5 text-[0.56rem] text-white/25">
+                  <Lock className="h-3 w-3" /> 256-bit encrypted
+                </span>
+                <span className="w-1 h-1 rounded-full bg-white/15" />
+                <span className="flex items-center gap-1.5 text-[0.56rem] text-white/25">
+                  <ShieldCheck className="h-3 w-3" /> 2FA protected
+                </span>
+              </div>
+            )}
+          </div>
+
+          {!needsTotp && (
+            <p className="mt-6 text-center text-[0.62rem] text-white/25">
+              <Link to="/" className="hover:text-white/50 transition-colors">← Back to storefront</Link>
             </p>
           )}
-          <button
-            type="button"
-            onClick={submit}
-            disabled={loading || !password}
-            className="w-full text-white py-3.5 text-[0.62rem] uppercase tracking-[0.22em] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ background: "linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)" }}
-          >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />
-                Verifying…
-              </span>
-            ) : "Sign In"}
-          </button>
         </div>
-
-        <p className="mt-6 text-center text-[0.62rem] text-white/25">
-          <Link to="/" className="hover:text-white/50 transition-colors">← Back to storefront</Link>
-        </p>
       </div>
     </div>
   );
@@ -178,7 +355,7 @@ function NavItem({
     >
       {isActive && (
         <span
-          className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-[20px]"
+          className="admin-active-bar absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-[20px]"
           style={{
             background: s.activeBarBg,
             borderRadius: "0 2px 2px 0",
@@ -193,11 +370,20 @@ function NavItem({
           transform: hov ? "scale(1.22)" : "scale(1)",
           filter: isActive
             ? `drop-shadow(0 0 5px ${s.navIconActive}90)`
-            : hov ? "drop-shadow(0 0 4px rgba(255,255,255,0.28))" : "none",
+            : hov ? "drop-shadow(0 0 4px rgba(255,255,255,0.28))" : `drop-shadow(0 0 3px ${s.navIconInactive}50)`,
           transition: "transform 0.15s ease, filter 0.15s ease, color 0.15s ease",
         }}
       />
-      <span style={{ fontWeight: isActive ? 600 : 500, letterSpacing: isActive ? "0.10em" : "0.12em", transition: "all 0.15s" }}>
+      <span
+        style={{
+          fontWeight: isActive ? 600 : 500,
+          letterSpacing: isActive ? "0.10em" : "0.12em",
+          textShadow: isActive
+            ? `0 0 12px ${s.navIconActive}80, 0 0 2px ${s.navIconActive}60`
+            : hov ? `0 0 10px rgba(255,255,255,0.45)` : `0 0 6px ${s.navIconInactive}40`,
+          transition: "all 0.15s",
+        }}
+      >
         {label}
       </span>
       {isActive && (
@@ -248,7 +434,7 @@ function BottomNavLink({
       }}
     >
       <Icon className="h-3.5 w-3.5 shrink-0" style={{ transition: "transform 0.15s", transform: hov ? "scale(1.18)" : "scale(1)" }} />
-      <span className="flex-1">{label}</span>
+      <span className="flex-1" style={{ textShadow: hov ? "0 0 10px rgba(255,255,255,0.40)" : "none", transition: "text-shadow 0.18s" }}>{label}</span>
       {RightIcon && (
         <RightIcon className="h-3 w-3" style={{ opacity: hov ? 0.7 : 0, transition: "opacity 0.18s" }} />
       )}
@@ -291,7 +477,7 @@ function BottomNavButton({
         className="h-3.5 w-3.5 shrink-0"
         style={{ transition: "transform 0.15s", transform: hov ? "scale(1.18)" : "scale(1)" }}
       />
-      <span>{label}</span>
+      <span style={{ textShadow: hov ? (danger ? "0 0 10px rgba(248,113,113,0.45)" : "0 0 10px rgba(255,255,255,0.40)") : "none", transition: "text-shadow 0.18s" }}>{label}</span>
     </button>
   );
 }
@@ -476,17 +662,18 @@ function MobileOverlay({ open, onClose, onLogout }: { open: boolean; onClose: ()
 // ─── Root Guard ──────────────────────────────────────────────────────────────
 
 function AdminRoot() {
-  const [token, setToken]       = useState<string | null>(null);
-  const [hydrated, setHydrated] = useState(false);
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [themeId, setThemeIdState] = useState("dark-noir");
+  const checkSession = useServerFn(checkAdminSession);
+  const doLogout = useServerFn(adminLogout);
 
   useEffect(() => {
-    const stored = localStorage.getItem("qj_admin_token");
     const storedTheme = localStorage.getItem("qj_admin_theme");
-    setToken(stored);
     if (storedTheme) setThemeIdState(storedTheme);
-    setHydrated(true);
+    checkSession()
+      .then(({ authenticated: ok }) => setAuthenticated(ok))
+      .catch(() => setAuthenticated(false));
   }, []);
 
   const setThemeId = useCallback((id: string) => {
@@ -497,13 +684,13 @@ function AdminRoot() {
   const theme = THEMES.find(t => t.id === themeId) ?? THEMES[0];
 
   const logout = () => {
-    localStorage.removeItem("qj_admin_token");
-    setToken(null);
+    doLogout().catch(() => {});
+    setAuthenticated(false);
     setMobileOpen(false);
     toast.success("Signed out");
   };
 
-  if (!hydrated) {
+  if (authenticated === null) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "#0c0c0c" }}>
         <div className="flex flex-col items-center gap-4">
@@ -514,12 +701,12 @@ function AdminRoot() {
     );
   }
 
-  if (!token) {
-    return <AdminLogin onLogin={t => setToken(t)} />;
+  if (!authenticated) {
+    return <AdminLogin onLogin={() => setAuthenticated(true)} />;
   }
 
   return (
-    <AdminTokenCtx.Provider value={token}>
+    <AdminTokenCtx.Provider value="">
       <AdminThemeCtx.Provider value={{ theme, setThemeId }}>
         <style>{themeCSS(theme)}</style>
         <div

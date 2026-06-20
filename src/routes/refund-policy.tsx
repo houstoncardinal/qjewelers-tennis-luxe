@@ -1,11 +1,27 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 
+const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://qureshijewelers.com").replace(/\/$/, "");
+const PAGE_URL = `${SITE_URL}/refund-policy`;
+
 export const Route = createFileRoute("/refund-policy")({
   head: () => ({
     meta: [
       { title: "Refund Policy — Qureshi Jewelers" },
       { name: "description", content: "14-day return and refund policy for Qureshi Jewelers moissanite jewelry." },
+      { property: "og:url", content: PAGE_URL },
     ],
+    links: [{ rel: "canonical", href: PAGE_URL }],
+    scripts: [{
+      type: "application/ld+json",
+      children: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+          { "@type": "ListItem", position: 2, name: "Refund Policy", item: PAGE_URL },
+        ],
+      }),
+    }],
   }),
   component: RefundPolicy,
 });

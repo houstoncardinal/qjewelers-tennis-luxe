@@ -14,6 +14,7 @@ export const Route = createFileRoute("/track-order")({
     meta: [
       { title: "Track Your Order — Qureshi Jewelers" },
       { name: "description", content: "Look up your Qureshi Jewelers order status using your email and order number." },
+      { name: "robots", content: "noindex" },
     ],
   }),
 });

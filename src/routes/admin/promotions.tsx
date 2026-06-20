@@ -173,7 +173,6 @@ function AdminPromotions() {
   const { data, isLoading } = useQuery({
     queryKey: ["admin-promo-codes", token],
     queryFn: () => fetchCodes({ data: { token } }),
-    enabled: !!token,
   });
 
   const codes = data?.codes ?? [];

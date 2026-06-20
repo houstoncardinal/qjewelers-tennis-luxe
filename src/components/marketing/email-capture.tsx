@@ -6,6 +6,7 @@ import { subscribeEmail } from "@/lib/products.functions";
 
 export function EmailCapture({ compact = false }: { compact?: boolean }) {
   const [email, setEmail] = useState("");
+  const [hp, setHp] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const subscribe = useServerFn(subscribeEmail);
 
@@ -16,12 +17,25 @@ export function EmailCapture({ compact = false }: { compact?: boolean }) {
       return;
     }
     try {
-      await subscribe({ data: { email, source: "email_capture" } });
+      await subscribe({ data: { email, source: "email_capture", _hp: hp } });
     } catch {}
     setSubmitted(true);
     toast.success("You're in. Welcome to The Inner Circle.");
     setEmail("");
   };
+
+  const honeypot = (
+    <input
+      type="text"
+      name="company"
+      value={hp}
+      onChange={(e) => setHp(e.target.value)}
+      tabIndex={-1}
+      autoComplete="off"
+      className="absolute -left-[9999px] w-px h-px opacity-0"
+      aria-hidden="true"
+    />
+  );
 
   if (submitted) {
     return (
@@ -35,6 +49,7 @@ export function EmailCapture({ compact = false }: { compact?: boolean }) {
   if (compact) {
     return (
       <form onSubmit={handleSubmit} className="flex gap-2">
+        {honeypot}
         <input
           type="email"
           placeholder="Email for exclusives"
@@ -62,6 +77,7 @@ export function EmailCapture({ compact = false }: { compact?: boolean }) {
           No noise — just the good stuff.
         </p>
         <form onSubmit={handleSubmit} className="mt-8 flex max-w-md mx-auto gap-3">
+          {honeypot}
           <input
             type="email"
             placeholder="Your email address"

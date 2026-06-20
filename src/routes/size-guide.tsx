@@ -1,6 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Ruler, HelpCircle, ArrowRight } from "lucide-react";
 
+const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://qureshijewelers.com").replace(/\/$/, "");
+const PAGE_URL = `${SITE_URL}/size-guide`;
+
 export const Route = createFileRoute("/size-guide")({
   head: () => ({
     meta: [
@@ -8,9 +11,20 @@ export const Route = createFileRoute("/size-guide")({
       { name: "description", content: "Find your perfect fit. Tennis chain and bracelet size guide for 2mm, 3mm, 4mm, 5mm widths. Necklace lengths: 18, 20, 24 inches. Printable size guide included." },
       { property: "og:title", content: "Size Guide — Qureshi Jewelers" },
       { property: "og:description", content: "Find your perfect tennis chain or bracelet fit. Widths, lengths, and sizing tips." },
-      { property: "og:url", content: "/size-guide" },
+      { property: "og:url", content: PAGE_URL },
     ],
-    links: [{ rel: "canonical", href: "/size-guide" }],
+    links: [{ rel: "canonical", href: PAGE_URL }],
+    scripts: [{
+      type: "application/ld+json",
+      children: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+          { "@type": "ListItem", position: 2, name: "Size Guide", item: PAGE_URL },
+        ],
+      }),
+    }],
   }),
   component: SizeGuide,
 });

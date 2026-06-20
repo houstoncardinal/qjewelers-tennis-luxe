@@ -1,21 +1,32 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import {
   Check, Tag, X, Lock, CreditCard, Truck,
   ShieldCheck, RotateCcw, Package, ChevronLeft,
 } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { formatUSD } from "@/lib/pricing";
-import { createOrder, getShippingConfig } from "@/lib/products.functions";
+import {
+  getShippingConfig,
+  getPaymentMethodsAvailable,
+  initiateCheckout,
+  finalizeOrder,
+} from "@/lib/products.functions";
 import { validatePromoCode } from "@/lib/admin-extended.functions";
 
 export const Route = createFileRoute("/checkout")({
   loader: async () => {
-    const config = await getShippingConfig();
-    return { shippingConfig: config };
+    const [shippingConfig, paymentMethods] = await Promise.all([
+      getShippingConfig(),
+      getPaymentMethodsAvailable(),
+    ]);
+    return { shippingConfig, paymentMethods };
   },
   head: () => ({
     meta: [
@@ -40,25 +51,20 @@ const schema = z.object({
 });
 
 type ShipMethod = "standard" | "express" | "overnight";
+type Provider = "stripe" | "paypal";
 
-function formatCard(v: string) {
-  const d = v.replace(/\D/g, "").slice(0, 16);
-  return d.replace(/(\d{4})(?=\d)/g, "$1 ");
+interface CheckoutData {
+  provider: Provider;
+  reservationToken: string;
+  total: number;
+  clientSecret?: string;
+  paypalOrderId?: string;
 }
 
-function formatExpiry(v: string) {
-  const d = v.replace(/\D/g, "").slice(0, 4);
-  if (d.length > 2) return `${d.slice(0, 2)} / ${d.slice(2)}`;
-  return d;
-}
-
-function detectCardType(num: string): string | null {
-  const n = num.replace(/\s/g, "");
-  if (/^4/.test(n)) return "VISA";
-  if (/^5[1-5]|^2[2-7]/.test(n)) return "MC";
-  if (/^3[47]/.test(n)) return "AMEX";
-  return null;
-}
+const stripePromise =
+  typeof window !== "undefined" && import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
+    ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
+    : null;
 
 function SectionHeader({
   num, title, right,
@@ -98,11 +104,90 @@ function firePurchaseEvents(orderNumber: string, total: number, items: Array<{ n
   } catch {}
 }
 
+function StripePaymentForm({
+  total, onSuccess, onBack, onError,
+}: {
+  total: number;
+  onSuccess: () => void;
+  onBack: () => void;
+  onError: (msg: string) => void;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [submitting, setSubmitting] = useState(false);
+
+  const handlePay = async () => {
+    if (!stripe || !elements) return;
+    setSubmitting(true);
+    const { error } = await stripe.confirmPayment({ elements, redirect: "if_required" });
+    if (error) {
+      onError(error.message ?? "Payment failed");
+      setSubmitting(false);
+      return;
+    }
+    onSuccess();
+  };
+
+  return (
+    <div className="space-y-4">
+      <PaymentElement />
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={onBack}
+          disabled={submitting}
+          className="border border-[#ddd8d0] px-4 py-3 text-xs uppercase tracking-[0.16em] text-muted-foreground hover:border-foreground hover:text-foreground transition-colors disabled:opacity-50"
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          onClick={handlePay}
+          disabled={submitting || !stripe || !elements}
+          className="flex-1 bg-foreground text-background py-3 text-xs uppercase tracking-[0.2em] hover:bg-foreground/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+        >
+          {submitting && <span className="w-3.5 h-3.5 border-2 border-background/30 border-t-background rounded-full animate-spin" />}
+          {submitting ? "Processing…" : `Pay ${formatUSD(total)}`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PaypalPaymentSection({
+  paypalOrderId, onSuccess, onBack, onError,
+}: {
+  paypalOrderId: string;
+  onSuccess: () => void;
+  onBack: () => void;
+  onError: (msg: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <PayPalButtons
+        style={{ layout: "vertical" }}
+        createOrder={() => Promise.resolve(paypalOrderId)}
+        onApprove={async () => onSuccess()}
+        onError={() => onError("PayPal payment failed")}
+        onCancel={() => onError("PayPal payment was cancelled")}
+      />
+      <button
+        type="button"
+        onClick={onBack}
+        className="w-full border border-[#ddd8d0] px-4 py-3 text-xs uppercase tracking-[0.16em] text-muted-foreground hover:border-foreground hover:text-foreground transition-colors"
+      >
+        Back
+      </button>
+    </div>
+  );
+}
+
 function Checkout() {
-  const { shippingConfig } = Route.useLoaderData();
+  const { shippingConfig, paymentMethods } = Route.useLoaderData();
   const { freeShippingThreshold, flatShippingRate, taxRate } = shippingConfig;
   const { items, subtotal, clear } = useCart();
-  const submit = useServerFn(createOrder);
+  const initiate = useServerFn(initiateCheckout);
+  const finalize = useServerFn(finalizeOrder);
   const validatePromo = useServerFn(validatePromoCode);
 
   const [form, setForm] = useState({
@@ -111,15 +196,20 @@ function Checkout() {
     shipping_city: "", shipping_state: "", shipping_zip: "",
     shipping_country: "United States", notes: "",
     shipping_method: "standard" as ShipMethod,
+    _hp: "",
   });
 
-  const [payment, setPayment] = useState({
-    card_number: "", card_expiry: "", card_cvv: "", card_name: "",
-  });
+  const [selectedMethod, setSelectedMethod] = useState<Provider | null>(
+    paymentMethods.stripe ? "stripe" : paymentMethods.paypal ? "paypal" : null
+  );
+  const [step, setStep] = useState<"details" | "payment">("details");
+  const [checkoutData, setCheckoutData] = useState<CheckoutData | null>(null);
+  const [pendingItems, setPendingItems] = useState<Array<{ name: string; unitPrice: number; quantity: number }>>([]);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [paymentErrors, setPaymentErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
   const [done, setDone] = useState<{
     orderNumber: string;
     total: number;
@@ -171,8 +261,29 @@ function Checkout() {
   const fieldErr = (k: string, map = errors) =>
     map[k] ? <p className="text-xs text-red-500 mt-1.5">{map[k]}</p> : null;
 
+  const handlePaymentSuccess = async () => {
+    if (!checkoutData) return;
+    setFinalizing(true);
+    setPaymentError(null);
+    try {
+      const res = await finalize({ data: { reservationToken: checkoutData.reservationToken } });
+      firePurchaseEvents(res.orderNumber, res.total, pendingItems);
+      setDone({
+        orderNumber: res.orderNumber, total: res.total, tax: res.tax,
+        shipping_method: form.shipping_method, customer_name: form.customer_name,
+      });
+      clear();
+    } catch (err) {
+      setPaymentError(err instanceof Error ? err.message : "Could not finalize your order — please contact us if you were charged.");
+    } finally {
+      setFinalizing(false);
+    }
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (step === "payment") return;
+
     const parsed = schema.safeParse(form);
     if (!parsed.success) {
       const errs: Record<string, string> = {};
@@ -181,41 +292,35 @@ function Checkout() {
       toast.error("Please fill in all required fields");
       return;
     }
-
-    const pErrs: Record<string, string> = {};
-    const digits = payment.card_number.replace(/\s/g, "");
-    if (digits.length < 13) pErrs.card_number = "Enter a valid card number";
-    if (!/^\d{2} \/ \d{2}$/.test(payment.card_expiry)) pErrs.card_expiry = "Enter MM / YY";
-    if (payment.card_cvv.length < 3) pErrs.card_cvv = "Enter CVV";
-    if (!payment.card_name.trim()) pErrs.card_name = "Required";
-    if (Object.keys(pErrs).length) {
-      setPaymentErrors(pErrs);
-      toast.error("Please enter your payment details");
+    if (!selectedMethod) {
+      toast.error("Please select a payment method");
       return;
     }
 
     setErrors({});
-    setPaymentErrors({});
     setSubmitting(true);
     try {
       const orderItems = items.map((i) => ({
         productId: i.productId, slug: i.slug, name: i.name, color: i.color,
         size: i.size, length: i.length, unitPrice: i.unitPrice, quantity: i.quantity,
       }));
-      const res = await submit({
+      const res = await initiate({
         data: {
           ...parsed.data,
           shipping_method: form.shipping_method,
           items: orderItems,
           promo_code: promoApplied?.code ?? "",
           discount_amount: discount,
+          payment_method: selectedMethod,
+          _hp: form._hp,
         },
       });
-      firePurchaseEvents(res.orderNumber, res.total, orderItems);
-      setDone({ ...res, shipping_method: form.shipping_method, customer_name: form.customer_name });
-      clear();
+      setPendingItems(orderItems);
+      setCheckoutData(res as CheckoutData);
+      setPaymentError(null);
+      setStep("payment");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not place order");
+      toast.error(err instanceof Error ? err.message : "Could not start checkout");
     } finally {
       setSubmitting(false);
     }
@@ -232,6 +337,10 @@ function Checkout() {
   const labelCls = "block text-[0.6rem] uppercase tracking-[0.2em] font-medium text-muted-foreground mb-1.5";
   const inputCls = (hasErr: boolean) =>
     `w-full border ${hasErr ? "border-red-400" : "border-[#ddd8d0]"} bg-white px-4 py-3.5 text-sm text-foreground placeholder:text-[#bbb] focus:outline-none focus:border-foreground transition-colors duration-150`;
+  const methodCls = (active: boolean) =>
+    `flex items-center gap-3 px-4 sm:px-5 py-4 border cursor-pointer transition-all ${
+      active ? "border-foreground bg-[#f7f5f2]" : "border-[#e5e1d9] bg-white hover:border-[#c5bdb3]"
+    }`;
 
   // ── Empty cart ──
   if (items.length === 0 && !done) {
@@ -365,6 +474,18 @@ function Checkout() {
           noValidate
           className="grid lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px] gap-6 lg:gap-8 items-start"
         >
+          {/* honeypot — hidden from real users, bots that autofill every field will trip it */}
+          <input
+            type="text"
+            name="company"
+            tabIndex={-1}
+            autoComplete="off"
+            value={form._hp}
+            onChange={update("_hp")}
+            className="absolute left-[-9999px] w-px h-px opacity-0"
+            aria-hidden="true"
+          />
+
           {/* ── Left: form sections ── */}
           <div className="space-y-4">
 
@@ -379,6 +500,7 @@ function Checkout() {
                       placeholder="Jane Smith"
                       value={form.customer_name}
                       onChange={update("customer_name")}
+                      disabled={step === "payment"}
                       className={inputCls(!!errors.customer_name)}
                     />
                     {fieldErr("customer_name")}
@@ -390,6 +512,7 @@ function Checkout() {
                       placeholder="jane@example.com"
                       value={form.customer_email}
                       onChange={update("customer_email")}
+                      disabled={step === "payment"}
                       className={inputCls(!!errors.customer_email)}
                     />
                     {fieldErr("customer_email")}
@@ -405,6 +528,7 @@ function Checkout() {
                       placeholder="+1 (555) 000-0000"
                       value={form.customer_phone}
                       onChange={update("customer_phone")}
+                      disabled={step === "payment"}
                       className={inputCls(false)}
                     />
                   </div>
@@ -423,6 +547,7 @@ function Checkout() {
                       placeholder="123 Maple Street"
                       value={form.shipping_address_line1}
                       onChange={update("shipping_address_line1")}
+                      disabled={step === "payment"}
                       className={inputCls(!!errors.shipping_address_line1)}
                     />
                     {fieldErr("shipping_address_line1")}
@@ -438,6 +563,7 @@ function Checkout() {
                       placeholder="Apt 4B"
                       value={form.shipping_address_line2}
                       onChange={update("shipping_address_line2")}
+                      disabled={step === "payment"}
                       className={inputCls(false)}
                     />
                   </div>
@@ -447,6 +573,7 @@ function Checkout() {
                       placeholder="New York"
                       value={form.shipping_city}
                       onChange={update("shipping_city")}
+                      disabled={step === "payment"}
                       className={inputCls(!!errors.shipping_city)}
                     />
                     {fieldErr("shipping_city")}
@@ -457,6 +584,7 @@ function Checkout() {
                       placeholder="NY"
                       value={form.shipping_state}
                       onChange={update("shipping_state")}
+                      disabled={step === "payment"}
                       className={inputCls(!!errors.shipping_state)}
                     />
                     {fieldErr("shipping_state")}
@@ -467,6 +595,7 @@ function Checkout() {
                       placeholder="10001"
                       value={form.shipping_zip}
                       onChange={update("shipping_zip")}
+                      disabled={step === "payment"}
                       className={inputCls(!!errors.shipping_zip)}
                     />
                     {fieldErr("shipping_zip")}
@@ -476,6 +605,7 @@ function Checkout() {
                     <input
                       value={form.shipping_country}
                       onChange={update("shipping_country")}
+                      disabled={step === "payment"}
                       className={inputCls(false)}
                     />
                   </div>
@@ -495,7 +625,7 @@ function Checkout() {
                         form.shipping_method === m.id
                           ? "border-foreground bg-[#f7f5f2]"
                           : "border-[#e5e1d9] bg-white hover:border-[#c5bdb3]"
-                      }`}
+                      } ${step === "payment" ? "pointer-events-none opacity-60" : ""}`}
                     >
                       <input
                         type="radio"
@@ -503,6 +633,7 @@ function Checkout() {
                         value={m.id}
                         checked={form.shipping_method === m.id}
                         onChange={() => setForm((f) => ({ ...f, shipping_method: m.id }))}
+                        disabled={step === "payment"}
                         className="sr-only"
                       />
                       <div
@@ -561,85 +692,83 @@ function Checkout() {
                 }
               />
               <div className="px-6 sm:px-8 py-5 sm:py-6 space-y-4">
-                <div>
-                  <label className={labelCls}>Card Number *</label>
-                  <div className="relative">
-                    <input
-                      value={payment.card_number}
-                      onChange={(e) =>
-                        setPayment((p) => ({ ...p, card_number: formatCard(e.target.value) }))
-                      }
-                      placeholder="1234  5678  9012  3456"
-                      maxLength={19}
-                      inputMode="numeric"
-                      className={`${inputCls(!!paymentErrors.card_number)} pr-16 font-mono tracking-widest`}
-                    />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                      {detectCardType(payment.card_number) ? (
-                        <span className="text-[0.6rem] font-semibold uppercase tracking-wider text-muted-foreground">
-                          {detectCardType(payment.card_number)}
-                        </span>
-                      ) : (
-                        <CreditCard className="w-4 h-4 text-muted-foreground/30" />
-                      )}
-                    </div>
-                  </div>
-                  {fieldErr("card_number", paymentErrors)}
-                </div>
+                {!paymentMethods.stripe && !paymentMethods.paypal && (
+                  <p className="text-sm text-muted-foreground">
+                    Online payment is being configured for this store. Please check back soon.
+                  </p>
+                )}
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className={labelCls}>Expiry Date *</label>
-                    <input
-                      value={payment.card_expiry}
-                      onChange={(e) =>
-                        setPayment((p) => ({ ...p, card_expiry: formatExpiry(e.target.value) }))
-                      }
-                      placeholder="MM / YY"
-                      maxLength={7}
-                      inputMode="numeric"
-                      className={`${inputCls(!!paymentErrors.card_expiry)} font-mono`}
-                    />
-                    {fieldErr("card_expiry", paymentErrors)}
+                {(paymentMethods.stripe || paymentMethods.paypal) && step === "details" && (
+                  <div className="space-y-2.5">
+                    {paymentMethods.stripe && (
+                      <label className={methodCls(selectedMethod === "stripe")}>
+                        <input
+                          type="radio"
+                          name="payment_method"
+                          checked={selectedMethod === "stripe"}
+                          onChange={() => setSelectedMethod("stripe")}
+                          className="sr-only"
+                        />
+                        <CreditCard className="w-4 h-4 shrink-0" />
+                        <span className="text-sm font-medium">Credit / Debit Card</span>
+                      </label>
+                    )}
+                    {paymentMethods.paypal && (
+                      <label className={methodCls(selectedMethod === "paypal")}>
+                        <input
+                          type="radio"
+                          name="payment_method"
+                          checked={selectedMethod === "paypal"}
+                          onChange={() => setSelectedMethod("paypal")}
+                          className="sr-only"
+                        />
+                        <span className="text-sm font-medium">PayPal</span>
+                      </label>
+                    )}
                   </div>
-                  <div>
-                    <label className={labelCls}>CVV *</label>
-                    <input
-                      value={payment.card_cvv}
-                      onChange={(e) =>
-                        setPayment((p) => ({
-                          ...p,
-                          card_cvv: e.target.value.replace(/\D/g, "").slice(0, 4),
-                        }))
-                      }
-                      placeholder="•••"
-                      maxLength={4}
-                      inputMode="numeric"
-                      type="password"
-                      className={`${inputCls(!!paymentErrors.card_cvv)} font-mono`}
+                )}
+
+                {step === "payment" && checkoutData?.provider === "stripe" && stripePromise && checkoutData.clientSecret && (
+                  <Elements stripe={stripePromise} options={{ clientSecret: checkoutData.clientSecret }}>
+                    <StripePaymentForm
+                      total={checkoutData.total}
+                      onSuccess={handlePaymentSuccess}
+                      onBack={() => { setStep("details"); setPaymentError(null); }}
+                      onError={setPaymentError}
                     />
-                    {fieldErr("card_cvv", paymentErrors)}
-                  </div>
-                </div>
+                  </Elements>
+                )}
 
-                <div>
-                  <label className={labelCls}>Name on Card *</label>
-                  <input
-                    value={payment.card_name}
-                    onChange={(e) =>
-                      setPayment((p) => ({ ...p, card_name: e.target.value }))
-                    }
-                    placeholder="JANE SMITH"
-                    className={`${inputCls(!!paymentErrors.card_name)} uppercase placeholder:normal-case`}
-                  />
-                  {fieldErr("card_name", paymentErrors)}
-                </div>
+                {step === "payment" && checkoutData?.provider === "paypal" && checkoutData.paypalOrderId && (
+                  <PayPalScriptProvider
+                    options={{ clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID ?? "", currency: "USD" }}
+                  >
+                    <PaypalPaymentSection
+                      paypalOrderId={checkoutData.paypalOrderId}
+                      onSuccess={handlePaymentSuccess}
+                      onBack={() => { setStep("details"); setPaymentError(null); }}
+                      onError={setPaymentError}
+                    />
+                  </PayPalScriptProvider>
+                )}
 
-                <p className="text-xs text-muted-foreground flex items-start gap-2 pt-1 leading-relaxed">
-                  <Lock className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                  Your payment information is encrypted with 256-bit SSL. Card details are never stored on
-                  our servers and will be processed securely via Stripe when your order is confirmed.
-                </p>
+                {step === "payment" && finalizing && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-2">
+                    <span className="w-3 h-3 border-2 border-foreground/30 border-t-foreground rounded-full animate-spin" />
+                    Confirming your order…
+                  </p>
+                )}
+
+                {paymentError && (
+                  <p className="text-xs text-red-500">{paymentError}</p>
+                )}
+
+                {step === "details" && (paymentMethods.stripe || paymentMethods.paypal) && (
+                  <p className="text-xs text-muted-foreground flex items-start gap-2 pt-1 leading-relaxed">
+                    <Lock className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    Your payment is processed securely by {selectedMethod === "paypal" ? "PayPal" : "Stripe"}. We never see or store your card details.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -658,6 +787,7 @@ function Checkout() {
                   value={form.notes}
                   onChange={update("notes")}
                   rows={3}
+                  disabled={step === "payment"}
                   className="w-full border border-[#ddd8d0] bg-white px-4 py-3.5 text-sm text-foreground placeholder:text-[#bbb] focus:outline-none focus:border-foreground transition-colors duration-150 resize-none"
                 />
               </div>
@@ -703,7 +833,8 @@ function Checkout() {
                   <button
                     type="button"
                     onClick={removePromo}
-                    className="text-emerald-400 hover:text-emerald-700 transition-colors ml-2"
+                    disabled={step === "payment"}
+                    className="text-emerald-400 hover:text-emerald-700 transition-colors ml-2 disabled:opacity-50"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -715,12 +846,13 @@ function Checkout() {
                     onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
                     onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), applyPromo())}
                     placeholder="Promo code"
-                    className="flex-1 border border-[#ddd8d0] bg-white px-3 py-2 text-xs font-mono uppercase placeholder:normal-case placeholder:text-[#bbb] focus:outline-none focus:border-foreground transition-colors"
+                    disabled={step === "payment"}
+                    className="flex-1 border border-[#ddd8d0] bg-white px-3 py-2 text-xs font-mono uppercase placeholder:normal-case placeholder:text-[#bbb] focus:outline-none focus:border-foreground transition-colors disabled:opacity-50"
                   />
                   <button
                     type="button"
                     onClick={applyPromo}
-                    disabled={promoLoading || !promoInput.trim()}
+                    disabled={promoLoading || !promoInput.trim() || step === "payment"}
                     className="border border-[#ddd8d0] px-3 text-[0.58rem] uppercase tracking-[0.16em] text-muted-foreground hover:border-foreground hover:text-foreground disabled:opacity-40 transition-colors"
                   >
                     {promoLoading ? "…" : "Apply"}
@@ -766,16 +898,22 @@ function Checkout() {
             </div>
 
             <div className="px-5 sm:px-6 pb-5 sm:pb-6 space-y-3">
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full bg-foreground text-background py-4 text-[0.65rem] uppercase tracking-[0.22em] disabled:opacity-60 hover:bg-foreground/90 transition-colors flex items-center justify-center gap-2"
-              >
-                {submitting && (
-                  <span className="w-3.5 h-3.5 border-2 border-background/30 border-t-background rounded-full animate-spin" />
-                )}
-                {submitting ? "Placing Order…" : "Complete Order"}
-              </button>
+              {step === "details" ? (
+                <button
+                  type="submit"
+                  disabled={submitting || !(paymentMethods.stripe || paymentMethods.paypal) || !selectedMethod}
+                  className="w-full bg-foreground text-background py-4 text-[0.65rem] uppercase tracking-[0.22em] disabled:opacity-60 hover:bg-foreground/90 transition-colors flex items-center justify-center gap-2"
+                >
+                  {submitting && (
+                    <span className="w-3.5 h-3.5 border-2 border-background/30 border-t-background rounded-full animate-spin" />
+                  )}
+                  {submitting ? "Continuing…" : "Continue to Payment"}
+                </button>
+              ) : (
+                <p className="text-xs text-muted-foreground text-center">
+                  Complete your payment in the Payment section above to finish your order.
+                </p>
+              )}
 
               <div className="flex items-center justify-center gap-3 text-[0.58rem] text-muted-foreground/70 uppercase tracking-[0.14em]">
                 <span className="flex items-center gap-1">

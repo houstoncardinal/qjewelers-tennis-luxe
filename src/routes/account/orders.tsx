@@ -12,7 +12,10 @@ import type { Session } from "@supabase/supabase-js";
 
 export const Route = createFileRoute("/account/orders")({
   head: () => ({
-    meta: [{ title: "Order History — Qureshi Jewelers" }],
+    meta: [
+      { title: "Order History — Qureshi Jewelers" },
+      { name: "robots", content: "noindex" },
+    ],
   }),
   component: AccountOrders,
 });

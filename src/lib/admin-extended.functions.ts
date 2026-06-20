@@ -1,12 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sendReturnConfirmation } from "@/lib/email";
-
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? "";
-
-function requireAdmin(token: string) {
-  if (!token || token !== ADMIN_TOKEN) throw new Error("Unauthorized");
-}
+import { requireAdmin, getCurrentAdminId, writeAuditLog } from "@/lib/admin.functions";
+import { checkHoneypot, checkRateLimit } from "@/lib/rate-limit";
+import { createStripeRefund, isStripeConfigured } from "@/lib/payments/stripe.server";
+import { createPaypalRefund, isPaypalConfigured } from "@/lib/payments/paypal.server";
+import { alertAdminOnError } from "@/lib/error-alert";
+import { AVAILABLE_SIZES, AVAILABLE_LENGTHS } from "@/lib/pricing";
 
 // New tables (promo_codes, returns, store_settings) are not in generated types.
 const db = supabaseAdmin as any;
@@ -168,6 +168,13 @@ export const updateProduct = createServerFn({ method: "POST" })
       .update({ ...fields, updated_at: new Date().toISOString() } as any)
       .eq("slug", slug);
     if (error) throw new Error(error.message);
+    writeAuditLog({
+      adminUserId: getCurrentAdminId(),
+      action: "product_updated",
+      targetType: "products",
+      targetId: slug,
+      details: fields,
+    }).catch((e) => console.warn("[AuditLog] product_updated failed:", e));
     return { success: true };
   });
 
@@ -356,6 +363,13 @@ export const createPromoCode = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw new Error(error.message);
+    writeAuditLog({
+      adminUserId: getCurrentAdminId(),
+      action: "promo_code_created",
+      targetType: "promo_codes",
+      targetId: created.id,
+      details: { code: created.code },
+    }).catch((e) => console.warn("[AuditLog] promo_code_created failed:", e));
     return { code: created };
   });
 
@@ -379,6 +393,13 @@ export const updatePromoCode = createServerFn({ method: "POST" })
       .update(fields as any)
       .eq("id", id);
     if (error) throw new Error(error.message);
+    writeAuditLog({
+      adminUserId: getCurrentAdminId(),
+      action: "promo_code_updated",
+      targetType: "promo_codes",
+      targetId: id,
+      details: fields,
+    }).catch((e) => console.warn("[AuditLog] promo_code_updated failed:", e));
     return { success: true };
   });
 
@@ -391,6 +412,12 @@ export const deletePromoCode = createServerFn({ method: "POST" })
       .delete()
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    writeAuditLog({
+      adminUserId: getCurrentAdminId(),
+      action: "promo_code_deleted",
+      targetType: "promo_codes",
+      targetId: data.id,
+    }).catch((e) => console.warn("[AuditLog] promo_code_deleted failed:", e));
     return { success: true };
   });
 
@@ -480,6 +507,81 @@ export const updateReturn = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+// Executes a real refund against the order's original payment provider.
+// Distinct from updateReturn — this is the only path that actually moves money.
+export const executeReturnRefund = createServerFn({ method: "POST" })
+  .inputValidator((d: { token: string; returnId: string }) => d)
+  .handler(async ({ data }) => {
+    requireAdmin(data.token);
+
+    const { data: ret, error: retError } = await db
+      .from("returns")
+      .select("id, order_id, refund_amount, refund_status")
+      .eq("id", data.returnId)
+      .single();
+    if (retError) throw new Error(retError.message);
+    if (!ret) throw new Error("Return not found");
+    if (ret.refund_status === "succeeded") throw new Error("This return has already been refunded");
+    if (!ret.refund_amount || ret.refund_amount <= 0) throw new Error("Set a refund amount before processing");
+
+    const { data: order, error: orderError } = await db
+      .from("orders")
+      .select("payment_method, payment_reference, total")
+      .eq("id", ret.order_id)
+      .single();
+    if (orderError) throw new Error(orderError.message);
+    if (!order) throw new Error("Linked order not found");
+    if (ret.refund_amount > Number(order.total)) {
+      throw new Error("Refund amount cannot exceed the order total");
+    }
+
+    await db.from("returns").update({ refund_status: "processing" }).eq("id", data.returnId);
+
+    try {
+      let refundId: string;
+      const amountCents = Math.round(ret.refund_amount * 100);
+
+      if (order.payment_method === "stripe") {
+        if (!isStripeConfigured()) throw new Error("Stripe is not configured");
+        if (!order.payment_reference) throw new Error("Order has no Stripe payment reference");
+        const refund = await createStripeRefund({ paymentIntentId: order.payment_reference, amountCents });
+        refundId = refund.refundId;
+      } else if (order.payment_method === "paypal") {
+        if (!isPaypalConfigured()) throw new Error("PayPal is not configured");
+        if (!order.payment_reference) throw new Error("Order has no PayPal capture reference");
+        const refund = await createPaypalRefund({
+          captureId: order.payment_reference,
+          amount: ret.refund_amount.toFixed(2),
+        });
+        refundId = refund.refundId;
+      } else {
+        throw new Error(`Unknown payment method: ${order.payment_method ?? "none"}`);
+      }
+
+      await db.from("returns").update({
+        status: "refunded",
+        refund_status: "succeeded",
+        refund_reference: refundId,
+        refunded_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq("id", data.returnId);
+
+      writeAuditLog({
+        adminUserId: getCurrentAdminId(),
+        action: "refund_executed",
+        targetType: "returns",
+        targetId: data.returnId,
+        details: { refundId, amount: ret.refund_amount, paymentMethod: order.payment_method },
+      }).catch((e) => console.warn("[AuditLog] refund_executed failed:", e));
+
+      return { success: true, refundId };
+    } catch (e) {
+      await db.from("returns").update({ refund_status: "failed" }).eq("id", data.returnId);
+      alertAdminOnError(`executeReturnRefund (return ${data.returnId})`, e);
+      throw e instanceof Error ? e : new Error("Refund failed");
+    }
+  });
+
 // Public: customer submits a return request
 export const submitReturn = createServerFn({ method: "POST" })
   .inputValidator((d: {
@@ -488,8 +590,12 @@ export const submitReturn = createServerFn({ method: "POST" })
     customer_email: string;
     reason: string;
     items: { name: string; quantity: number }[];
+    _hp?: string;
   }) => d)
   .handler(async ({ data }) => {
+    checkHoneypot(data._hp);
+    checkRateLimit("submit-return", { windowMs: 15 * 60 * 1000, max: 6 });
+
     if (!data.order_number || !data.customer_email || !data.reason) {
       throw new Error("Missing required fields");
     }
@@ -554,6 +660,13 @@ export const updateStoreSetting = createServerFn({ method: "POST" })
       .update({ value: data.value, updated_at: new Date().toISOString() })
       .eq("key", data.key);
     if (error) throw new Error(error.message);
+    writeAuditLog({
+      adminUserId: getCurrentAdminId(),
+      action: "store_setting_updated",
+      targetType: "store_settings",
+      targetId: data.key,
+      details: { value: data.value },
+    }).catch((e) => console.warn("[AuditLog] store_setting_updated failed:", e));
     return { success: true };
   });
 
@@ -576,12 +689,313 @@ export const getDashboardExtended = createServerFn({ method: "GET" })
   });
 
 // ─── URL Product Importer ─────────────────────────────────────────────────────
+// Scrapes a product page (Alibaba, AliExpress, 1688, or most other listing
+// sites) for images, description, and spec attributes via several
+// site-agnostic heuristics — meta tags, JSON-LD, and the embedded JSON blobs
+// these marketplaces ship product data in. There's no AI model involved: the
+// "SEO title" step is a deterministic rule-based cleanup/recompose, not a
+// generative one, so it only kicks in when it recognizes enough signal
+// (moissanite + a known product type) to safely rewrite the title — otherwise
+// it falls back to a cleaned, title-cased version of whatever was scraped.
 
 function decodeHtmlEntities(s: string): string {
   return s
     .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ")
     .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+}
+
+function clampWhitespace(s: string): string {
+  return s.replace(/\s+/g, " ").trim();
+}
+
+// ─── Attribute / spec extraction (best-effort, multiple strategies) ───────────
+
+function extractAttributes(html: string): { name: string; value: string }[] {
+  const attrs: { name: string; value: string }[] = [];
+  const seen = new Set<string>();
+  const push = (rawName: string, rawValue: string) => {
+    const name = decodeHtmlEntities(clampWhitespace(rawName)).slice(0, 60);
+    const value = decodeHtmlEntities(clampWhitespace(rawValue)).slice(0, 200);
+    if (!name || !value) return;
+    if (/^(loading|undefined|null|n\/a|please)/i.test(value)) return;
+    const key = name.toLowerCase();
+    if (seen.has(key) || attrs.length >= 20) return;
+    seen.add(key);
+    attrs.push({ name, value });
+  };
+
+  // Strategy 1: JSON-LD additionalProperty (schema.org PropertyValue list) —
+  // only from the first @type:"Product" block, same reasoning as the name/
+  // image extraction below: later blocks on the page are often unrelated
+  // "related products" carousels and must not contaminate this listing.
+  for (const m of html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]{1,20000}?)<\/script>/gi)) {
+    try {
+      const obj = JSON.parse(m[1]);
+      const types = Array.isArray(obj["@type"]) ? obj["@type"] : [obj["@type"]];
+      if (!types.includes("Product")) continue;
+      const props = obj.additionalProperty ?? obj.additionalProperties;
+      if (Array.isArray(props)) {
+        for (const p of props) if (p?.name && p?.value !== undefined) push(String(p.name), String(p.value));
+      }
+      break;
+    } catch {}
+  }
+
+  // Strategy 2: embedded JSON attribute arrays — Alibaba/AliExpress-style
+  // product data blobs (key names vary by marketplace, so try several).
+  const jsonAttrKeys = ["attributes", "productAttribute", "productProps", "attributeList", "skuProps", "saleProps"];
+  for (const key of jsonAttrKeys) {
+    const m = html.match(new RegExp(`"${key}"\\s*:\\s*(\\[[^\\]]{5,6000}\\])`, "s"));
+    if (!m) continue;
+    try {
+      const list = JSON.parse(m[1]) as any[];
+      for (const item of list) {
+        const name = item?.attrName ?? item?.name ?? item?.key ?? item?.propertyName ?? item?.prop_name;
+        const value = item?.attrValue ?? item?.value ?? item?.val ?? item?.propertyValue ?? item?.prop_value;
+        if (name && value !== undefined) push(String(name), String(value));
+      }
+    } catch {}
+  }
+
+  // Strategy 3: generic HTML spec tables — <tr><td>Label</td><td>Value</td></tr>,
+  // the most common cross-marketplace "Specifications" pattern.
+  for (const m of html.matchAll(/<tr[^>]*>\s*<t[hd][^>]*>([^<]{1,60})<\/t[hd]>\s*<t[hd][^>]*>([^<]{1,200})<\/t[hd]>\s*<\/tr>/gi)) {
+    push(m[1], m[2]);
+  }
+
+  return attrs.slice(0, 20);
+}
+
+// ─── Type / variant detection — matched against this store's own catalog vocabulary ──
+
+const TYPE_KEYWORDS: [string, RegExp][] = [
+  ["necklace", /\b(necklace|chain|pendant)\b/i],
+  ["bracelet", /\b(bracelet|bangle)\b/i],
+  ["earring", /\b(earrings?|studs?)\b/i],
+  ["ring", /\b(rings?)\b/i],
+];
+
+const COLOR_KEYWORDS: [string, RegExp][] = [
+  ["rose_gold", /\brose\s*gold\b/i],
+  ["white_gold", /\bwhite\s*gold\b/i],
+  ["gold", /\b(yellow\s*gold|18\s*k\s*gold|\bgold\b)/i],
+  ["silver", /\b(sterling\s*silver|s\s*925|925\s*silver|\bsilver\b)/i],
+];
+
+function detectType(text: string): string | null {
+  for (const [type, re] of TYPE_KEYWORDS) if (re.test(text)) return type;
+  return null;
+}
+
+function detectColors(text: string): string[] {
+  const found: string[] = [];
+  for (const [color, re] of COLOR_KEYWORDS) if (re.test(text) && !found.includes(color)) found.push(color);
+  return found;
+}
+
+function findCandidates(text: string, candidates: readonly string[]): string[] {
+  return candidates.filter(c => {
+    const esc = c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(?<![\\w.])${esc}(?![\\w])`, "i").test(text);
+  });
+}
+
+// Sizes/lengths are only ever a real *variant axis* when the source page
+// names them as one explicitly (a "Size"/"Length" spec row) — scanning the
+// whole title+description+attributes blob caught unrelated numbers in
+// marketing prose (e.g. a sentence mentioning an 8mm option for comparison)
+// and falsely turned a single fixed-spec product into a multi-variant one,
+// generating extra variant rows that didn't belong. Structured attributes
+// are checked first and are authoritative; full-text scanning is only a
+// fallback, and even then is capped to a single best match — a loose
+// fallback finding multiple candidates is more likely noise than a real
+// multi-option product.
+function detectSizeOrLength(
+  attributes: { name: string; value: string }[],
+  attrNamePattern: RegExp,
+  fullText: string,
+  candidates: readonly string[]
+): string[] {
+  const namedValues = attributes.filter(a => attrNamePattern.test(a.name)).map(a => a.value).join(" ");
+  if (namedValues) {
+    const found = findCandidates(namedValues, candidates);
+    if (found.length > 0) return found;
+  }
+  const fallback = findCandidates(fullText, candidates);
+  return fallback.slice(0, 1);
+}
+
+// Construction/setting details worth calling out specifically — these are
+// what make a title or description read as written for *this* product
+// rather than a generic template.
+function detectFeatures(text: string): string | null {
+  const prongMatch = text.match(/\b([3-8])[\s-]?prong\b/i);
+  const prong = prongMatch ? `${prongMatch[1]} Prong Setting` : null;
+  const clasp =
+    /\bdouble[\s-]?lock\b/i.test(text) ? "Double Lock Clasp" :
+    /\bscrew[\s-]?back\b/i.test(text) ? "Screw-Back Closure" :
+    /\bpush[\s-]?back\b/i.test(text) ? "Push-Back Closure" :
+    /\bhalo\b/i.test(text) ? "Halo Setting" :
+    /\bbezel\b/i.test(text) ? "Bezel Setting" :
+    /\bpav[eé]\b/i.test(text) ? "Pavé Accent" : null;
+  if (prong && clasp) return `${prong} With ${clasp}`;
+  return prong ?? clasp;
+}
+
+// Attribute names that identify the source manufacturer/supplier rather than
+// describing the product itself — these must never reach customer-facing
+// copy, even though they're shown to the admin in the import preview.
+const UNSAFE_ATTRIBUTE_NAME = /brand|manufactur|supplier|model\s*(no|number)?|company|origin|factory|\boem\b|\bodm\b|seller|store\s*name|trademark/i;
+
+function isSafeAttribute(name: string): boolean {
+  return !UNSAFE_ATTRIBUTE_NAME.test(name);
+}
+
+// ─── SEO title generator — deterministic cleanup + recompose, not AI ──────────
+
+const TITLE_NOISE = [
+  /\bwholesale\b/gi, /\bfactory\s*price\b/gi, /\bhot\s*sale\b/gi, /\boem\b/gi, /\bodm\b/gi,
+  /\bfree\s*shipping\b/gi, /\bnew\s*arrival\b/gi, /\bbest\s*seller\b/gi, /\bdrop\s*shipping\b/gi,
+  /\bin\s*stock\b/gi, /\bcustomi[sz]ed?\b/gi, /\blow\s*moq\b/gi, /\bmoq\s*\d+\s*pcs?\b/gi,
+  /\bdirect\s*from\s*factory\b/gi, /[!]{1,}/g,
+];
+
+const MINOR_WORDS = new Set(["a", "an", "the", "and", "or", "but", "for", "of", "in", "on", "with", "to", "by"]);
+
+function titleCase(s: string): string {
+  return s.split(" ").filter(Boolean).map((w, i) => {
+    if (/^[A-Z0-9]+$/.test(w) && w.length <= 5) return w; // preserve acronyms: VVS1, S925, 18K
+    const lw = w.toLowerCase();
+    if (i > 0 && MINOR_WORDS.has(lw)) return lw;
+    return lw.charAt(0).toUpperCase() + lw.slice(1);
+  }).join(" ");
+}
+
+const TYPE_LABEL: Record<string, string> = {
+  necklace: "Tennis Chain", bracelet: "Tennis Bracelet", earring: "Stud Earrings", ring: "Solitaire Ring",
+};
+const COLOR_TITLE_LABEL: Record<string, string> = {
+  gold: "18K Gold", rose_gold: "18K Rose Gold", white_gold: "18K White Gold", silver: "S925 Sterling Silver",
+};
+const COLOR_PHRASE: Record<string, string> = {
+  gold: "18K yellow gold", rose_gold: "18K rose gold", white_gold: "18K white gold", silver: "S925 sterling silver",
+};
+
+function generateSeoTitle(rawTitle: string, fullText: string, type: string | null, colors: string[]): string {
+  let cleaned = rawTitle;
+  for (const re of TITLE_NOISE) cleaned = cleaned.replace(re, " ");
+  cleaned = cleaned.replace(/^\[[^\]]{1,30}\]\s*/, "").replace(/^[A-Z0-9]{2,8}-[A-Z0-9-]{2,12}\s+/, "");
+  cleaned = clampWhitespace(cleaned);
+
+  const isMoissanite = /moissanite/i.test(fullText);
+  const isVVS = /\bvvs1?\b/i.test(fullText);
+  const isDColor = /\bd[\s-]?colou?r(?:less)?\b/i.test(fullText);
+
+  // Enough signal recognized (moissanite + a known product type) — safe to
+  // recompose a clean, on-brand title rather than just trim the scraped one.
+  if (isMoissanite && type) {
+    const parts = [
+      isVVS ? "VVS1" : null,
+      isDColor ? "D" : null,
+      "Moissanite",
+      TYPE_LABEL[type],
+      colors[0] ? COLOR_TITLE_LABEL[colors[0]] : null,
+    ].filter(Boolean) as string[];
+    let title = parts.join(" ");
+    const feature = detectFeatures(fullText);
+    if (feature) title += ` - ${feature}`;
+    return title.slice(0, 140);
+  }
+
+  return (titleCase(cleaned) || rawTitle).slice(0, 140);
+}
+
+// ─── Description generator — original on-brand copy, never the scraped/
+// manufacturer text. Built entirely from the signals already detected above
+// (type, quality grade, color, dimensions, safe attributes) so the result is
+// specific to this exact product, not a generic template. ──────────────────
+
+const TYPE_COPY: Record<string, { setting: string; hooks: string[] }> = {
+  necklace: {
+    setting: "hand-set in a continuous tennis-style chain",
+    hooks: ["Pure brilliance, worn close.", "Brilliance that catches every light.", "A chain built to outshine."],
+  },
+  bracelet: {
+    setting: "hand-set in a secure prong setting with a reinforced clasp",
+    hooks: ["A masterclass in jewelry engineering.", "Built for daily brilliance.", "Stacked stones, zero compromise."],
+  },
+  earring: {
+    setting: "hand-set in a secure prong setting",
+    hooks: ["Pure brilliance. No compromises.", "Flawless brilliance, every angle.", "Small stones, serious fire."],
+  },
+  ring: {
+    setting: "hand-set in a classic solitaire setting",
+    hooks: ["Flawless brilliance, set to last.", "One stone. Total brilliance.", "Brilliance, set in stone."],
+  },
+};
+
+// Deterministic-but-varied pick so descriptions for the same product type
+// don't all read identically, without needing any randomness/state.
+function pickStable<T>(arr: T[], seed: string): T {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return arr[h % arr.length];
+}
+
+function generateDescriptions(params: {
+  type: string | null;
+  colors: string[];
+  sizes: string[];
+  lengths: string[];
+  isMoissanite: boolean;
+  isVVS: boolean;
+  isDColor: boolean;
+  feature: string | null;
+  safeAttributes: { name: string; value: string }[];
+  seed: string;
+}): { shortDescription: string; fullDescription: string } {
+  const copy = TYPE_COPY[params.type ?? ""] ?? TYPE_COPY.necklace;
+  const hook = pickStable(copy.hooks, params.seed);
+  const stone = params.isMoissanite ? "moissanite" : "gemstone";
+
+  const qualityBits = [params.isVVS ? "VVS1 clarity" : null, params.isDColor ? "D Colorless color" : null]
+    .filter(Boolean).join(" and ");
+  const qualityPrefix = qualityBits ? `${qualityBits.charAt(0).toUpperCase()}${qualityBits.slice(1)} ` : "Premium ";
+
+  // Only metal-plated finishes (gold/rose gold/white gold) read naturally as
+  // "finished in X" — plain silver is the base material itself, so calling
+  // that out separately would just repeat "sterling silver" twice.
+  const platedLabels = params.colors.filter(c => c !== "silver").map(c => COLOR_PHRASE[c]).filter((c): c is string => !!c);
+  const baseClauseShort = platedLabels.length > 1
+    ? `Solid S925 sterling silver base, available in ${platedLabels.slice(0, -1).join(", ")} and ${platedLabels[platedLabels.length - 1]} plating.`
+    : platedLabels.length === 1
+      ? `Solid S925 sterling silver base, finished in ${platedLabels[0]} plating.`
+      : "Solid S925 sterling silver.";
+  const baseClauseFull = platedLabels.length > 1
+    ? `built on a solid S925 sterling silver foundation, available in ${platedLabels.slice(0, -1).join(", ")} and ${platedLabels[platedLabels.length - 1]} plating`
+    : platedLabels.length === 1
+      ? `built on a solid S925 sterling silver foundation and finished in ${platedLabels[0]} plating`
+      : "built on a solid S925 sterling silver foundation";
+
+  const sizePhrase = params.sizes.length > 0 ? ` Available in ${params.sizes.join(", ")}.` : "";
+  const lengthPhrase = params.lengths.length > 0 ? ` Offered in ${params.lengths.join(", ")} lengths.` : "";
+  const featurePhrase = params.feature ? ` Featuring a ${params.feature.toLowerCase()}.` : "";
+
+  const shortDescription = clampWhitespace(
+    `${qualityPrefix}${stone} ${TYPE_LABEL[params.type ?? "necklace"]?.toLowerCase() ?? "jewelry"}. ${baseClauseShort}${featurePhrase} GRA certifiable.${sizePhrase}${lengthPhrase}`
+  ).slice(0, 200);
+
+  const specLines = params.safeAttributes.slice(0, 8).map(a => `• ${a.name}: ${a.value}`);
+  const specBlock = specLines.length > 0 ? `\n\nSpecifications:\n${specLines.join("\n")}` : "";
+
+  const fullDescription = `${hook}
+
+This piece features ${qualityBits || "premium-grade"} ${stone}, ${copy.setting}, ${baseClauseFull}.${featurePhrase}
+
+Every stone can be independently GRA certified — verified clarity, color, and cut, never just a marketing claim.${sizePhrase}${lengthPhrase}`.trim() + specBlock;
+
+  return { shortDescription, fullDescription };
 }
 
 export const importProductFromUrl = createServerFn({ method: "POST" })
@@ -625,8 +1039,8 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
 
     // Name
     const ogTitle   = getMeta("og:title");
-    const rawTitle  = html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] ?? "";
-    let name = (ogTitle || decodeHtmlEntities(rawTitle))
+    const rawTitleHtml = html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] ?? "";
+    let rawName = (ogTitle || decodeHtmlEntities(rawTitleHtml))
       .replace(/\s*[-|–—]\s*(?:Alibaba\.com|AliExpress|1688\.com|Amazon|DHgate).*$/i, "")
       .replace(/\s*[-|–—]\s*Buy\s+.+?online$/i, "")
       .trim()
@@ -635,7 +1049,8 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
     // Description
     const description = (getMeta("og:description") || getMeta("description")).substring(0, 1500);
 
-    // Images — multiple extraction strategies
+    // Images — multiple extraction strategies, no cap until the very end so
+    // a gallery-heavy listing (common on Alibaba) isn't truncated early.
     const seen = new Set<string>();
     const images: string[] = [];
     const addImg = (src: string) => {
@@ -654,10 +1069,11 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
     const ogImgRe = /<meta[^>]+(?:property)=["']og:image(?::url)?["'][^>]+content=["']([^"']+)["']|<meta[^>]+content=["']([^"']+)["'][^>]+(?:property)=["']og:image(?::url)?["']/gi;
     for (const m of html.matchAll(ogImgRe)) addImg((m[1] || m[2] || "").trim());
 
-    // Alibaba/AliExpress JSON image arrays embedded in script tags
-    const jsonImgKeys = ["imagePathList", "mainImageList", "imageList", "subjectImageList", "skuImageList", "imageInfo", "slideImageList"];
+    // Alibaba/AliExpress JSON image arrays embedded in script tags — these
+    // carry the *full* gallery (often 5-20 images), not just the og:image cover.
+    const jsonImgKeys = ["imagePathList", "mainImageList", "imageList", "subjectImageList", "skuImageList", "imageInfo", "slideImageList", "detailImageList", "summImageList"];
     for (const key of jsonImgKeys) {
-      const m = html.match(new RegExp(`"${key}"\\s*:\\s*(\\[[^\\]]{5,3000}\\])`, "s"));
+      const m = html.match(new RegExp(`"${key}"\\s*:\\s*(\\[[^\\]]{5,6000}\\])`, "s"));
       if (!m) continue;
       try {
         const list = JSON.parse(m[1]) as any[];
@@ -667,20 +1083,28 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
           else if (item?.imageUrl) addImg(item.imageUrl);
           else if (item?.src) addImg(item.src);
           else if (item?.image) addImg(item.image);
+          else if (item?.fullPathImageURI) addImg(item.fullPathImageURI);
         }
       } catch {}
     }
 
-    // JSON-LD structured data
+    // JSON-LD structured data — many listing pages embed a JSON-LD block for
+    // EVERY product shown on the page, including unrelated "related items" /
+    // "frequently bought together" carousels. Using only the first block
+    // whose @type is actually "Product" prevents pulling in a name/image
+    // from a different, unrelated item lower on the page.
     for (const m of html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]{1,10000}?)<\/script>/gi)) {
       try {
         const obj = JSON.parse(m[1]);
-        if (!name && obj.name) name = decodeHtmlEntities(String(obj.name)).substring(0, 200);
+        const types = Array.isArray(obj["@type"]) ? obj["@type"] : [obj["@type"]];
+        if (!types.includes("Product")) continue;
+        if (!rawName && obj.name) rawName = decodeHtmlEntities(String(obj.name)).substring(0, 200);
         const imgSrc = obj.image ?? obj.thumbnail;
         if (imgSrc) {
           const imgs = Array.isArray(imgSrc) ? imgSrc : [imgSrc];
           for (const img of imgs) addImg(typeof img === "string" ? img : (img?.url ?? ""));
         }
+        break; // only the first real Product block — ignore any further ones
       } catch {}
     }
 
@@ -688,17 +1112,65 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
     if (images.length === 0) {
       let count = 0;
       for (const m of html.matchAll(/<img[^>]+src=["']([^"']{15,}\.(?:jpg|jpeg|png|webp)(?:\?[^"']*)?)["']/gi)) {
-        if (count >= 6) break;
+        if (count >= 20) break;
         addImg(m[1]);
         count++;
       }
     }
 
+    // Attributes / specs
+    const attributes = extractAttributes(html);
+
+    // Type + variant detection — scans title, description, and every
+    // extracted attribute value against this store's own catalog vocabulary.
+    const fullText = `${rawName} ${description} ${attributes.map(a => `${a.name} ${a.value}`).join(" ")}`;
+    // Title is checked first and wins if it has a match — a stray "chain"
+    // inside an unrelated spec value (e.g. "18 inch chain length") must not
+    // override what the title itself says the product is.
+    const detectedType = detectType(rawName) ?? detectType(fullText);
+    const detectedColors = detectColors(fullText);
+    const detectedSizes = detectSizeOrLength(attributes, /size|width|gauge|diameter|stone\s*size/i, fullText, AVAILABLE_SIZES);
+    const detectedLengths = detectSizeOrLength(attributes, /length|chain\s*length|extension/i, fullText, AVAILABLE_LENGTHS);
+
+    const isMoissanite = /moissanite/i.test(fullText);
+    const isVVS = /\bvvs1?\b/i.test(fullText);
+    const isDColor = /\bd[\s-]?colou?r(?:less)?\b/i.test(fullText);
+    const feature = detectFeatures(fullText);
+
+    const name = generateSeoTitle(rawName, fullText, detectedType, detectedColors);
+
+    // Customer-facing copy is generated fresh, never the scraped marketing
+    // text — the source description is only ever used internally as a
+    // detection signal (above), so the manufacturer/marketplace never shows
+    // up in what a customer reads. Only "safe" attributes (no brand/supplier/
+    // origin/model fields) are woven into the specifications block.
+    const safeAttributes = attributes.filter(a => isSafeAttribute(a.name));
+    const { shortDescription, fullDescription } = generateDescriptions({
+      type: detectedType,
+      colors: detectedColors,
+      sizes: detectedSizes,
+      lengths: detectedLengths,
+      isMoissanite,
+      isVVS,
+      isDColor,
+      feature,
+      safeAttributes,
+      seed: url,
+    });
+
     return {
       name,
-      description,
-      images: images.slice(0, 12),
+      rawName,
+      shortDescription,
+      description: fullDescription,
+      sourcePagePreview: description.slice(0, 300),
+      images: images.slice(0, 24),
       sourceUrl: url,
+      attributes,
+      detectedType,
+      detectedColors,
+      detectedSizes,
+      detectedLengths,
     };
   });
 
@@ -995,6 +1467,50 @@ export const listPublicImages = createServerFn({ method: "GET" })
     const files = await scanDir(publicDir);
     const folders = [...new Set(files.map(f => f.folder))].sort();
     return { files, folders };
+  });
+
+const ALLOWED_UPLOAD_EXT = ["jpg", "jpeg", "png", "gif", "webp", "avif"];
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
+
+const UPLOAD_BUCKET = "product-images";
+
+// Stored in Supabase Storage (not the local filesystem) — Netlify Functions
+// run on an ephemeral, non-CDN-served filesystem, so a disk write here would
+// succeed but the file would never actually be reachable at its URL in
+// production. Storage gives every upload a durable, CDN-backed public URL
+// that works identically in dev and prod.
+export const uploadAdminImage = createServerFn({ method: "POST" })
+  .inputValidator((d: { token: string; fileName: string; dataUrl: string }) => d)
+  .handler(async ({ data }) => {
+    requireAdmin(data.token);
+
+    const match = /^data:(image\/[a-zA-Z+.-]+);base64,(.+)$/.exec(data.dataUrl);
+    if (!match) throw new Error("Invalid image data");
+    const contentType = match[1];
+    const base64 = match[2];
+    const buffer = Buffer.from(base64, "base64");
+    if (buffer.length > MAX_UPLOAD_BYTES) throw new Error("Image exceeds 10MB limit");
+
+    const ext = (data.fileName.split(".").pop() || "").toLowerCase();
+    if (!ALLOWED_UPLOAD_EXT.includes(ext)) throw new Error("Unsupported image type");
+
+    const safeBase = data.fileName
+      .replace(/\.[^.]+$/, "")
+      .replace(/[^a-zA-Z0-9_-]/g, "-")
+      .replace(/-+/g, "-")
+      .slice(0, 60) || "image";
+    // Random suffix (not just Date.now()) so multiple files uploaded in the
+    // same batch can't collide on the same millisecond.
+    const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const fileName = `${safeBase}-${unique}.${ext}`;
+
+    const { error } = await supabaseAdmin.storage
+      .from(UPLOAD_BUCKET)
+      .upload(fileName, buffer, { contentType, upsert: false });
+    if (error) throw new Error(`Upload failed: ${error.message}`);
+
+    const { data: pub } = supabaseAdmin.storage.from(UPLOAD_BUCKET).getPublicUrl(fileName);
+    return { path: pub.publicUrl, name: fileName };
   });
 
 // ─── Customer Account — public, email-verified via Supabase Auth ──────────────

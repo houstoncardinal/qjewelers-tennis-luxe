@@ -1,5 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import { ShoppingBag, Menu, X, User } from "lucide-react";
+import {
+  ShoppingBag, Menu, X, User,
+  Link2, CircleDot, Sparkle, Circle,
+  PackageSearch, Ruler, Phone, ChevronRight,
+} from "lucide-react";
 import { useState, useEffect, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useCart } from "@/lib/cart";
@@ -13,6 +17,29 @@ const NAV_ITEMS = [
   { label: "Rings",      to: "/shop", search: { type: "ring" } },
   { label: "Our Craft",  to: "/about",                     search: {} },
   { label: "Moissanite", to: "/moissanite-guide",          search: {} },
+];
+
+// Mobile drawer — top serif links (destinations, not product types)
+const EXPLORE_LINKS = [
+  { label: "Shop All",         to: "/shop",             search: {} },
+  { label: "Our Craft",        to: "/about",            search: {} },
+  { label: "Moissanite Guide", to: "/moissanite-guide", search: {} },
+];
+
+// Mobile drawer — product-type quick grid
+const CATEGORY_LINKS = [
+  { label: "Chains",    to: "/shop", search: { type: "necklace" }, icon: Link2 },
+  { label: "Bracelets", to: "/shop", search: { type: "bracelet" }, icon: CircleDot },
+  { label: "Earrings",  to: "/shop", search: { type: "earring" },  icon: Sparkle },
+  { label: "Rings",     to: "/shop", search: { type: "ring" },     icon: Circle },
+];
+
+// Mobile drawer — utility shortcuts
+const QUICK_LINKS = [
+  { label: "My Account",  to: "/account",     icon: User },
+  { label: "Track Order", to: "/track-order", icon: PackageSearch },
+  { label: "Size Guide",  to: "/size-guide",  icon: Ruler },
+  { label: "Contact Us",  to: "/contact",     icon: Phone },
 ];
 
 export function Header() {
@@ -32,26 +59,28 @@ export function Header() {
     return () => { document.body.style.overflow = ""; };
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   const close = () => setOpen(false);
 
   return (
     <header className={`sticky top-0 z-40 bg-background/92 backdrop-blur-xl transition-shadow duration-300 ${scrolled ? "shadow-[0_1px_0_oklch(0.932_0.004_75),0_4px_24px_oklch(0.14_0.006_50_/_0.04)]" : ""}`}>
-      <div className="mx-auto max-w-[1360px] px-5 lg:px-10 h-16 flex items-center justify-between gap-6">
-        {/* Mobile hamburger */}
-        <button
-          className="md:hidden -ml-1 p-1.5 text-muted-foreground hover:text-foreground transition-colors"
-          onClick={() => setOpen(v => !v)}
-          aria-label="Menu"
-        >
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+      {/* Full-bleed bar — padding matches the hero's content padding (px-5 sm:px-8
+          lg:px-14 xl:px-20) instead of a separate boxed max-width, so the logo and
+          nav line up with the hero's headline/CTA edges at every breakpoint. */}
+      <div className="w-full px-5 sm:px-8 lg:px-14 xl:px-20 h-16 md:h-20 lg:h-24 flex items-center justify-between gap-6">
 
         {/* Logo */}
         <Link to="/" className="flex items-center shrink-0" onClick={close}>
           <img
             src="/QURESHIJEWELERSLOGO.png"
             alt="Qureshi Jewelers"
-            className="h-9 sm:h-10 w-auto"
+            className="h-10 sm:h-12 md:h-14 lg:h-16 w-auto"
           />
         </Link>
 
@@ -69,74 +98,155 @@ export function Header() {
           ))}
         </nav>
 
-        {/* Account */}
-        <Link
-          to="/account"
-          className="shrink-0 p-1.5 text-muted-foreground hover:text-foreground transition-colors duration-250"
-          aria-label="My Account"
-        >
-          <User className="h-[18px] w-[18px]" />
-        </Link>
+        {/* Desktop icon cluster */}
+        <div className="hidden md:flex items-center gap-1 shrink-0">
+          <Link
+            to="/account"
+            className="shrink-0 p-1.5 text-muted-foreground hover:text-foreground transition-colors duration-250"
+            aria-label="My Account"
+          >
+            <User className="h-[18px] w-[18px]" />
+          </Link>
+          <Link
+            to="/cart"
+            className="flex items-center gap-2 group shrink-0 text-muted-foreground hover:text-foreground transition-colors duration-250 ml-1"
+          >
+            <div className="relative">
+              <ShoppingBag className="h-[18px] w-[18px]" />
+              {count > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[15px] h-[15px] px-0.5 bg-foreground text-background text-[0.45rem] font-semibold flex items-center justify-center leading-none rounded-sm">
+                  {count}
+                </span>
+              )}
+            </div>
+            <span className="hidden lg:block text-[0.68rem] uppercase tracking-[0.12em]">Bag</span>
+          </Link>
+        </div>
 
-        {/* Cart */}
-        <Link
-          to="/cart"
-          className="flex items-center gap-2 group shrink-0 text-muted-foreground hover:text-foreground transition-colors duration-250"
-        >
-          <div className="relative">
-            <ShoppingBag className="h-[18px] w-[18px]" />
+        {/* Mobile icon cluster — logo stays left, all icons grouped right */}
+        <div className="flex md:hidden items-center gap-0.5 shrink-0">
+          <Link
+            to="/cart"
+            className="relative p-1.5 text-muted-foreground hover:text-foreground transition-colors duration-250"
+            aria-label="Bag"
+          >
+            <ShoppingBag className="h-5 w-5" />
             {count > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-[15px] h-[15px] px-0.5 bg-foreground text-background text-[0.45rem] font-semibold flex items-center justify-center leading-none rounded-sm">
+              <span className="absolute top-0.5 right-0.5 min-w-[15px] h-[15px] px-0.5 bg-foreground text-background text-[0.45rem] font-semibold flex items-center justify-center leading-none rounded-sm">
                 {count}
               </span>
             )}
-          </div>
-          <span className="hidden sm:block text-[0.68rem] uppercase tracking-[0.12em]">Bag</span>
-        </Link>
+          </Link>
+          <button
+            className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setOpen(v => !v)}
+            aria-label="Menu"
+            aria-expanded={open}
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       <div className="h-px bg-border/70" />
 
-      {/* Mobile drawer */}
-      {open && (
-        <div className="fixed inset-0 z-50 flex md:hidden" aria-modal="true">
-          <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={close} />
-          <div className="relative w-[300px] h-full bg-background flex flex-col shadow-2xl">
-            <div className="flex items-center justify-between px-6 h-16 border-b border-border shrink-0">
-              <img src="/QURESHIJEWELERSLOGO.png" alt="Qureshi Jewelers" className="h-8 w-auto" />
-              <button onClick={close} className="p-1.5 text-muted-foreground hover:text-foreground transition-colors">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <nav className="flex-1 overflow-y-auto px-6 py-4">
-              {NAV_ITEMS.map(({ label, to, search }, i) => (
+      {/* Mobile drawer — slides in from the right (same side as the trigger),
+          always mounted so close animates instead of popping out of existence. */}
+      <div
+        className={`fixed inset-0 z-50 md:hidden ${open ? "" : "pointer-events-none"}`}
+        aria-hidden={!open}
+      >
+        <div
+          className={`absolute inset-0 bg-foreground/30 backdrop-blur-sm transition-opacity duration-300 ${open ? "opacity-100" : "opacity-0"}`}
+          onClick={close}
+        />
+        <div
+          className={`absolute right-0 top-0 h-full w-[88%] max-w-[380px] bg-background flex flex-col shadow-2xl transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${open ? "translate-x-0" : "translate-x-full"}`}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Site menu"
+        >
+          {/* Drawer header */}
+          <div className="flex items-center justify-between px-6 h-16 border-b border-border shrink-0">
+            <img src="/QURESHIJEWELERSLOGO.png" alt="Qureshi Jewelers" className="h-9 w-auto" />
+            <button onClick={close} className="p-1.5 text-muted-foreground hover:text-foreground transition-colors" aria-label="Close menu">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto">
+
+            {/* Explore — large serif destination links */}
+            <nav className="px-6 pt-6 pb-1">
+              {EXPLORE_LINKS.map(({ label, to, search }, i) => (
                 <Link
                   key={label}
                   to={to as any}
                   search={search as any}
-                  className="flex items-center py-3.5 border-b border-border/50 text-[0.8rem] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground transition-colors duration-200"
-                  style={{ animationDelay: `${i * 0.05}s` }}
+                  className={`font-display block py-2.5 text-[1.55rem] leading-tight text-foreground hover:text-taupe transition-colors duration-200 ${open ? "animate-fade-up" : ""}`}
+                  style={{ animationDelay: `${0.05 + i * 0.05}s` }}
                   onClick={close}
                 >
                   {label}
                 </Link>
               ))}
             </nav>
-            <div className="px-6 py-4 border-t border-border space-y-3 shrink-0">
-              <Link
-                to="/account"
-                onClick={close}
-                className="flex items-center gap-2 text-[0.72rem] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <User className="h-4 w-4" /> My Account
-              </Link>
-              <p className="text-[0.52rem] uppercase tracking-[0.28em] text-muted-foreground/50">
-                GRA Certified · VVS Moissanite · S925
+
+            {/* Shop by category — icon grid */}
+            <div className="px-6 pt-5 pb-6 border-t border-border/60 mt-4">
+              <p className="text-[0.5rem] uppercase tracking-[0.32em] text-taupe font-semibold mb-4">
+                Shop by Category
               </p>
+              <div className="grid grid-cols-2 gap-3">
+                {CATEGORY_LINKS.map(({ label, to, search, icon: Icon }) => (
+                  <Link
+                    key={label}
+                    to={to as any}
+                    search={search as any}
+                    onClick={close}
+                    className="flex items-center gap-2.5 p-3.5 border border-border hover:border-taupe hover:bg-taupe/[0.06] transition-colors duration-200"
+                  >
+                    <Icon className="h-4 w-4 text-taupe shrink-0" />
+                    <span className="text-[0.68rem] uppercase tracking-[0.08em] text-foreground">{label}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* Quick utility links */}
+            <div className="px-6 py-2 border-t border-border/60">
+              {QUICK_LINKS.map(({ label, to, icon: Icon }) => (
+                <Link
+                  key={label}
+                  to={to as any}
+                  onClick={close}
+                  className="flex items-center justify-between py-3.5 border-b border-border/40 last:border-b-0 text-muted-foreground hover:text-foreground transition-colors duration-200"
+                >
+                  <span className="flex items-center gap-3 text-[0.74rem] uppercase tracking-[0.10em]">
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </span>
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40" />
+                </Link>
+              ))}
             </div>
           </div>
+
+          {/* Certification strip */}
+          <div className="px-6 py-5 border-t border-border bg-cream/60 shrink-0">
+            <div className="flex items-center justify-center gap-2.5 mb-2">
+              <span className="h-px w-5 bg-taupe/50" />
+              <span className="text-[0.46rem] uppercase tracking-[0.32em] text-taupe font-semibold">
+                Qureshi Jewelers
+              </span>
+              <span className="h-px w-5 bg-taupe/50" />
+            </div>
+            <p className="text-center text-[0.48rem] uppercase tracking-[0.20em] text-muted-foreground/55">
+              GRA Certified · VVS Moissanite · S925 Sterling
+            </p>
+          </div>
         </div>
-      )}
+      </div>
     </header>
   );
 }
@@ -196,7 +306,7 @@ export function Footer() {
           {/* Brand col */}
           <div className="lg:col-span-2 space-y-6">
             <Link to="/" className="inline-block">
-              <img src="/QURESHIJEWELERSLOGO.png" alt="Qureshi Jewelers" className="h-11 w-auto" />
+              <img src="/QURESHIJEWELERSLOGO.png" alt="Qureshi Jewelers" className="h-16 sm:h-20 w-auto" />
             </Link>
 
             <p className="text-[0.82rem] leading-[1.85] max-w-xs text-muted-foreground">

@@ -25,6 +25,16 @@ import {
 import { useCart } from "@/lib/cart";
 import { EmailCapture } from "@/components/marketing/email-capture";
 
+// Marketing-facing category labels — matches the labels shown on /shop's
+// filter tabs, so breadcrumb schema and on-page breadcrumbs always agree
+// with what the linked category page itself displays.
+const CATEGORY_LABEL: Record<string, string> = {
+  necklace: "Tennis Chains",
+  bracelet: "Tennis Bracelets",
+  earring:  "Stud Earrings",
+  ring:     "Engagement Rings",
+};
+
 export const Route = createFileRoute("/product/$slug")({
   loader: async ({ params }) => {
     const [res, rev, gal] = await Promise.all([
@@ -41,6 +51,35 @@ export const Route = createFileRoute("/product/$slug")({
     if (!p) return { meta: [{ title: "Product" }] };
     const pageUrl   = `${SITE}/product/${params.slug}`;
     const imageUrl  = p.image_url?.startsWith("http") ? p.image_url : `${SITE}${p.image_url || "/QURESHIJEWELERSLOGO.png"}`;
+
+    const galleryUrls = (loaderData?.galleryImages ?? [])
+      .map((g: any) => (g.url?.startsWith("http") ? g.url : `${SITE}${g.url}`));
+    const allImages = [imageUrl, ...galleryUrls.filter((u: string) => u !== imageUrl)];
+
+    const categoryLabel = CATEGORY_LABEL[p.type as string] ?? "Jewelry";
+    const colorLabel = COLOR_MAP[p.color as string]?.label ?? p.color;
+
+    const reviews = loaderData?.reviews ?? [];
+    const aggregateRating = reviews.length > 0 ? {
+      "@type": "AggregateRating",
+      ratingValue: (reviews.reduce((s: number, r: any) => s + r.rating, 0) / reviews.length).toFixed(1),
+      reviewCount: reviews.length,
+      bestRating: 5,
+      worstRating: 1,
+    } : undefined;
+    const reviewSchema = reviews.slice(0, 20).map((r: any) => ({
+      "@type": "Review",
+      author: { "@type": "Person", name: r.customer_name || "Verified Customer" },
+      datePublished: r.created_at,
+      reviewRating: { "@type": "Rating", ratingValue: r.rating, bestRating: 5, worstRating: 1 },
+      name: r.title || undefined,
+      reviewBody: r.body,
+    }));
+
+    // ~1 year validity window — a defensible default for a catalog with
+    // stable, admin-set pricing rather than fluctuating market prices.
+    const priceValidUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
     return {
       meta: [
         { title: p.seo_title },
@@ -61,26 +100,57 @@ export const Route = createFileRoute("/product/$slug")({
         { property: "product:price:amount", content: String(p.base_price) },
       ],
       links: [{ rel: "canonical", href: pageUrl }],
-      scripts: [{
-        type: "application/ld+json",
-        children: JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "Product",
-          name: p.name,
-          description: p.description,
-          url: pageUrl,
-          image: imageUrl,
-          brand: { "@type": "Brand", name: "Qureshi Jewelers" },
-          offers: {
-            "@type": "Offer",
-            priceCurrency: "USD",
-            price: Number(p.base_price),
-            availability: p.is_active ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Product",
+            "@id": `${pageUrl}#product`,
+            name: p.name,
+            description: p.description,
             url: pageUrl,
-            seller: { "@type": "Organization", name: "Qureshi Jewelers" },
-          },
-        }),
-      }],
+            image: allImages,
+            sku: p.slug,
+            category: `Jewelry > ${categoryLabel}`,
+            material: "925 Sterling Silver",
+            color: colorLabel,
+            brand: { "@type": "Brand", name: "Qureshi Jewelers" },
+            additionalProperty: [
+              { "@type": "PropertyValue", name: "Gemstone", value: "Moissanite" },
+              { "@type": "PropertyValue", name: "Clarity", value: "VVS1" },
+              { "@type": "PropertyValue", name: "Color Grade", value: "D (Colorless)" },
+              { "@type": "PropertyValue", name: "Certification", value: "GRA Certified" },
+              { "@type": "PropertyValue", name: "Base Metal", value: "925 Sterling Silver" },
+            ],
+            offers: {
+              "@type": "Offer",
+              priceCurrency: "USD",
+              price: Number(p.sale_active && p.sale_price ? p.sale_price : p.base_price),
+              priceValidUntil,
+              availability: p.is_active ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+              itemCondition: "https://schema.org/NewCondition",
+              url: pageUrl,
+              seller: { "@type": "Organization", name: "Qureshi Jewelers" },
+            },
+            ...(aggregateRating ? { aggregateRating } : {}),
+            ...(reviewSchema.length > 0 ? { review: reviewSchema } : {}),
+          }),
+        },
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Home", item: SITE },
+              { "@type": "ListItem", position: 2, name: "Shop", item: `${SITE}/shop` },
+              { "@type": "ListItem", position: 3, name: categoryLabel, item: `${SITE}/shop?type=${p.type}` },
+              { "@type": "ListItem", position: 4, name: p.name, item: pageUrl },
+            ],
+          }),
+        },
+      ],
     };
   },
   component: ProductPage,

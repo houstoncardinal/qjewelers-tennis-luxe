@@ -135,7 +135,6 @@ function AdminOrders() {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["admin-orders", token],
     queryFn: () => fetchOrders({ data: { token } }),
-    enabled: !!token,
     refetchInterval: 30_000,
   });
 

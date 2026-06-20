@@ -13,6 +13,7 @@ export const Route = createFileRoute("/account")({
     meta: [
       { title: "My Account — Qureshi Jewelers" },
       { name: "description", content: "Sign in to view your orders and manage your Qureshi Jewelers account." },
+      { name: "robots", content: "noindex" },
     ],
   }),
   component: AccountRoot,

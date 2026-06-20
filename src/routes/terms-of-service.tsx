@@ -1,11 +1,27 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://qureshijewelers.com").replace(/\/$/, "");
+const PAGE_URL = `${SITE_URL}/terms-of-service`;
+
 export const Route = createFileRoute("/terms-of-service")({
   head: () => ({
     meta: [
       { title: "Terms of Service — Qureshi Jewelers" },
       { name: "description", content: "Terms of service for Qureshi Jewelers. Please read before making a purchase." },
+      { property: "og:url", content: PAGE_URL },
     ],
+    links: [{ rel: "canonical", href: PAGE_URL }],
+    scripts: [{
+      type: "application/ld+json",
+      children: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+          { "@type": "ListItem", position: 2, name: "Terms of Service", item: PAGE_URL },
+        ],
+      }),
+    }],
   }),
   component: TermsOfService,
 });

@@ -2,6 +2,34 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Sparkles, ShieldCheck, Award, Eye, Diamond, ArrowRight } from "lucide-react";
 import { MOISSANITE_QUALITY, MOISSANITE_VS_DIAMOND } from "@/lib/pricing";
 
+// Hoisted to module scope — shared by both the rendered FAQ section and the
+// FAQPage schema below, so the two can never drift out of sync.
+const GUIDE_FAQS = [
+  {
+    q: "Is moissanite a fake diamond?",
+    a: "No. Moissanite is a genuine gemstone with its own distinct chemical composition (silicon carbide). It's not a diamond simulant or fake — it's a different stone that happens to have optical properties that exceed diamond in brilliance and fire.",
+  },
+  {
+    q: "Does moissanite lose its shine over time?",
+    a: "No. Moissanite is a 9.25 on the Mohs hardness scale (diamond is 10), making it extremely scratch-resistant. It does not fog, cloud, or degrade over time. Your Qureshi piece is backed by a lifetime brilliance guarantee.",
+  },
+  {
+    q: "What does VVS clarity mean?",
+    a: "VVS stands for Very Very Slightly Included — the highest practical clarity grade. Inclusions (internal imperfections) are virtually impossible to see even under 10x magnification. All Qureshi stones are VVS clarity.",
+  },
+  {
+    q: "What does D color mean?",
+    a: "D is the highest color grade on the GIA color scale, meaning the stone is completely colorless. There is no yellow, brown, or grey tint. D color moissanite produces the purest, whitest brilliance.",
+  },
+  {
+    q: "Is the GRA certificate included?",
+    a: "Yes. Every Qureshi piece ships with a GRA certificate of authenticity that independently verifies your stone's clarity, color, and carat weight.",
+  },
+];
+
+const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://qureshijewelers.com").replace(/\/$/, "");
+const GUIDE_URL = `${SITE_URL}/moissanite-guide`;
+
 export const Route = createFileRoute("/moissanite-guide")({
   head: () => ({
     meta: [
@@ -9,9 +37,47 @@ export const Route = createFileRoute("/moissanite-guide")({
       { name: "description", content: "Everything you need to know about moissanite quality: VVS clarity, D color, brilliant cut, and why moissanite outshines diamond. GRA certified guide." },
       { property: "og:title", content: "Moissanite Quality Guide — Qureshi Jewelers" },
       { property: "og:description", content: "Why VVS moissanite beats diamond on brilliance. Full quality education guide." },
-      { property: "og:url", content: "/moissanite-guide" },
+      { property: "og:url", content: GUIDE_URL },
     ],
-    links: [{ rel: "canonical", href: "/moissanite-guide" }],
+    links: [{ rel: "canonical", href: GUIDE_URL }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Article",
+          headline: "The Moissanite Guide: VVS Clarity, D Color & GRA Certification Explained",
+          description: "Everything you need to know about moissanite quality: VVS clarity, D color, brilliant cut, and why moissanite outshines diamond.",
+          url: GUIDE_URL,
+          author: { "@type": "Organization", name: "Qureshi Jewelers" },
+          publisher: { "@id": `${SITE_URL}/#organization` },
+          mainEntityOfPage: GUIDE_URL,
+        }),
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: GUIDE_FAQS.map((item) => ({
+            "@type": "Question",
+            name: item.q,
+            acceptedAnswer: { "@type": "Answer", text: item.a },
+          })),
+        }),
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+            { "@type": "ListItem", position: 2, name: "Moissanite Guide", item: GUIDE_URL },
+          ],
+        }),
+      },
+    ],
   }),
   component: MoissaniteGuide,
 });
@@ -164,28 +230,7 @@ function MoissaniteGuide() {
         <p className="eyebrow text-center">FAQs</p>
         <h2 className="mt-3 font-display text-4xl text-center">Common questions.</h2>
         <div className="mt-12 space-y-8">
-          {[
-            {
-              q: "Is moissanite a fake diamond?",
-              a: "No. Moissanite is a genuine gemstone with its own distinct chemical composition (silicon carbide). It's not a diamond simulant or fake — it's a different stone that happens to have optical properties that exceed diamond in brilliance and fire.",
-            },
-            {
-              q: "Does moissanite lose its shine over time?",
-              a: "No. Moissanite is a 9.25 on the Mohs hardness scale (diamond is 10), making it extremely scratch-resistant. It does not fog, cloud, or degrade over time. Your Qureshi piece is backed by a lifetime brilliance guarantee.",
-            },
-            {
-              q: "What does VVS clarity mean?",
-              a: "VVS stands for Very Very Slightly Included — the highest practical clarity grade. Inclusions (internal imperfections) are virtually impossible to see even under 10x magnification. All Qureshi stones are VVS clarity.",
-            },
-            {
-              q: "What does D color mean?",
-              a: "D is the highest color grade on the GIA color scale, meaning the stone is completely colorless. There is no yellow, brown, or grey tint. D color moissanite produces the purest, whitest brilliance.",
-            },
-            {
-              q: "Is the GRA certificate included?",
-              a: "Yes. Every Qureshi piece ships with a GRA certificate of authenticity that independently verifies your stone's clarity, color, and carat weight.",
-            },
-          ].map((faq) => (
+          {GUIDE_FAQS.map((faq) => (
             <div key={faq.q} className="border-b border-border pb-6">
               <h3 className="font-display text-xl">{faq.q}</h3>
               <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{faq.a}</p>

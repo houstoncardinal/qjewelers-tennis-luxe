@@ -5,12 +5,29 @@ import { toast } from "sonner";
 import { RotateCcw, Check, Package } from "lucide-react";
 import { submitReturn } from "@/lib/admin-extended.functions";
 
+const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://qureshijewelers.com").replace(/\/$/, "");
+const PAGE_URL = `${SITE_URL}/returns`;
+
 export const Route = createFileRoute("/returns")({
   head: () => ({
     meta: [
       { title: "Start a Return — Qureshi Jewelers" },
       { name: "description", content: "Submit a return request for your Qureshi Jewelers order. 14-day return window." },
+      { property: "og:title", content: "Start a Return — Qureshi Jewelers" },
+      { property: "og:url", content: PAGE_URL },
     ],
+    links: [{ rel: "canonical", href: PAGE_URL }],
+    scripts: [{
+      type: "application/ld+json",
+      children: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+          { "@type": "ListItem", position: 2, name: "Returns", item: PAGE_URL },
+        ],
+      }),
+    }],
   }),
   component: Returns,
 });
@@ -36,6 +53,7 @@ function Returns() {
     reason: "",
     reason_other: "",
     item_desc: "",
+    _hp: "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -65,6 +83,7 @@ function Returns() {
           items: form.item_desc.trim()
             ? [{ name: form.item_desc.trim(), quantity: 1 }]
             : [],
+          _hp: form._hp,
         },
       });
       setDone(true);
@@ -122,6 +141,16 @@ function Returns() {
         </div>
 
         <form onSubmit={handleSubmit} className="mt-10 space-y-5">
+          <input
+            type="text"
+            name="company"
+            value={form._hp}
+            onChange={update("_hp")}
+            tabIndex={-1}
+            autoComplete="off"
+            className="absolute -left-[9999px] w-px h-px opacity-0"
+            aria-hidden="true"
+          />
           <div className="border border-[#e5e1d9] bg-white">
             <div className="px-6 py-4 border-b border-[#f0ece4]">
               <p className="text-[0.65rem] uppercase tracking-[0.18em] font-medium">Order Information</p>

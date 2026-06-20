@@ -129,7 +129,6 @@ function SubscriberPanel({
   const { data: msgData, refetch: refetchMsgs } = useQuery({
     queryKey: ["sub-messages", sub.email, token],
     queryFn: () => listMsgFn({ data: { token, email: sub.email } }),
-    enabled: !!token,
   });
   const messages: Message[] = msgData?.messages ?? [];
 
@@ -523,13 +522,11 @@ function AdminSubscribers() {
   const { data: subData, isLoading: subLoading, refetch: refetchSubs } = useQuery({
     queryKey: ["admin-subscribers", token],
     queryFn: () => listFn({ data: { token } }),
-    enabled: !!token,
   });
 
   const { data: campData, isLoading: campLoading, refetch: refetchCamps } = useQuery({
     queryKey: ["admin-campaigns", token],
     queryFn: () => listCampFn({ data: { token } }),
-    enabled: !!token,
   });
 
   const subs: Subscriber[] = subData?.subscribers ?? [];

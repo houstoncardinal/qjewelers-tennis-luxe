@@ -7,7 +7,7 @@ import {
   ChevronDown, LayoutGrid, List, Upload, X, ImageOff,
   Check, AlertCircle, Loader2, AlertTriangle, Download, Copy,
   ArrowUpDown, ArrowUp, ArrowDown, Filter, Package, Tag,
-  TrendingDown, AlertTriangle as LowStock, XCircle,
+  TrendingDown, AlertTriangle as LowStock, XCircle, Sparkles, Layers, ListChecks,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -296,13 +296,33 @@ function ProductCard({
 
 // ─── Import Modal ─────────────────────────────────────────────────────────────
 
+const IMPORT_TYPE_LABELS: Record<string, string> = {
+  necklace: "Chain / Necklace", bracelet: "Bracelet", earring: "Earring", ring: "Ring",
+};
+const IMPORT_COLOR_LABELS: Record<string, string> = {
+  gold: "Yellow Gold", rose_gold: "Rose Gold", white_gold: "White Gold", silver: "Sterling Silver",
+};
+
+interface ImportResult {
+  name: string;
+  rawName: string;
+  shortDescription: string;
+  description: string;
+  sourcePagePreview: string;
+  images: string[];
+  sourceUrl: string;
+  attributes: { name: string; value: string }[];
+  detectedType: string | null;
+  detectedColors: string[];
+  detectedSizes: string[];
+  detectedLengths: string[];
+}
+
 function ImportModal({ onClose, token }: { onClose: () => void; token: string }) {
   const [url,         setUrl]         = useState("");
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState("");
-  const [result,      setResult]      = useState<{
-    name: string; description: string; images: string[]; sourceUrl: string;
-  } | null>(null);
+  const [result,      setResult]      = useState<ImportResult | null>(null);
   const [selectedImg, setSelectedImg] = useState("");
   const inputRef  = useRef<HTMLInputElement>(null);
   const importFn  = useServerFn(importProductFromUrl);
@@ -322,14 +342,26 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
   const useImport = () => {
     if (!result) return;
     sessionStorage.setItem("qj_product_import", JSON.stringify({
-      name:        result.name,
-      description: result.description,
-      imageUrl:    selectedImg || result.images[0] || "",
-      images:      result.images,
-      sourceUrl:   result.sourceUrl,
+      name:             result.name,
+      shortDescription: result.shortDescription,
+      description:      result.description,
+      imageUrl:         selectedImg || result.images[0] || "",
+      images:           result.images,
+      sourceUrl:        result.sourceUrl,
+      detectedType:     result.detectedType,
+      detectedColors:   result.detectedColors,
+      detectedSizes:    result.detectedSizes,
+      detectedLengths:  result.detectedLengths,
     }));
     window.location.href = "/admin/products/new";
   };
+
+  const detectedCount = (result?.detectedColors.length ?? 0) + (result?.detectedSizes.length ?? 0) + (result?.detectedLengths.length ?? 0);
+  // Matches the New Product form's actual trigger: variant pricing only
+  // turns on when an axis has genuine multiplicity, not just because the
+  // total count across axes exceeds one (a single size + single length +
+  // one color would wrongly sum to 3 under the old logic).
+  const hasVariantAxis = (result?.detectedColors.length ?? 0) > 1 || (result?.detectedSizes.length ?? 0) > 1 || (result?.detectedLengths.length ?? 0) > 1;
 
   return (
     <>
@@ -343,7 +375,7 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
               </div>
               <div>
                 <p className="text-sm font-semibold text-gray-900">Import from URL</p>
-                <p className="text-[0.60rem] text-gray-400">Alibaba, AliExpress, 1688, or any product page</p>
+                <p className="text-[0.60rem] text-gray-400">Alibaba, AliExpress, 1688, or any product page — pulls every image, specs, and an SEO-cleaned title</p>
               </div>
             </div>
             <button onClick={onClose} className="text-gray-300 hover:text-gray-600 transition-colors">
@@ -387,16 +419,58 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
             {result && (
               <div className="space-y-4">
                 <div className="bg-gray-50 border border-gray-100 p-4">
-                  <p className="text-[0.56rem] uppercase tracking-[0.14em] text-gray-400 mb-1.5">Detected Name</p>
+                  <p className="text-[0.56rem] uppercase tracking-[0.14em] text-gray-400 mb-1.5 flex items-center gap-1.5">
+                    <Sparkles className="h-3 w-3 text-amber-500" /> SEO-Optimized Title
+                  </p>
                   <p className="text-sm font-medium text-gray-800">
                     {result.name || <span className="text-gray-400 italic">No title found</span>}
                   </p>
+                  {result.rawName && result.rawName !== result.name && (
+                    <p className="text-[0.62rem] text-gray-400 mt-1.5 line-clamp-1">
+                      Original: <span className="line-through decoration-gray-300">{result.rawName}</span>
+                    </p>
+                  )}
                 </div>
+
+                {(result.detectedType || detectedCount > 0) && (
+                  <div className="bg-emerald-50 border border-emerald-100 p-4">
+                    <p className="text-[0.56rem] uppercase tracking-[0.14em] text-emerald-700 mb-2 flex items-center gap-1.5">
+                      <Layers className="h-3 w-3" /> Detected Attributes
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {result.detectedType && (
+                        <span className="px-2.5 py-1 bg-white border border-emerald-200 text-emerald-700 text-[0.62rem] font-medium">
+                          Type: {IMPORT_TYPE_LABELS[result.detectedType] ?? result.detectedType}
+                        </span>
+                      )}
+                      {result.detectedColors.map(c => (
+                        <span key={c} className="px-2.5 py-1 bg-white border border-emerald-200 text-emerald-700 text-[0.62rem] font-medium">
+                          Color: {IMPORT_COLOR_LABELS[c] ?? c}
+                        </span>
+                      ))}
+                      {result.detectedSizes.map(s => (
+                        <span key={s} className="px-2.5 py-1 bg-white border border-emerald-200 text-emerald-700 text-[0.62rem] font-medium">
+                          Size: {s}
+                        </span>
+                      ))}
+                      {result.detectedLengths.map(l => (
+                        <span key={l} className="px-2.5 py-1 bg-white border border-emerald-200 text-emerald-700 text-[0.62rem] font-medium">
+                          Length: {l}
+                        </span>
+                      ))}
+                    </div>
+                    {hasVariantAxis && (
+                      <p className="text-[0.6rem] text-emerald-600 mt-2">
+                        Multiple options detected on one axis — variant pricing will be pre-enabled on the new product form.
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {result.images.length > 0 ? (
                   <div>
                     <p className="text-[0.56rem] uppercase tracking-[0.14em] text-gray-400 mb-2">
-                      Images ({result.images.length}) — Click to select main image
+                      Images ({result.images.length}) — all will be imported · click one to choose the cover
                     </p>
                     <div className="flex gap-2 overflow-x-auto pb-2 snap-x">
                       {result.images.map((img, i) => (
@@ -404,11 +478,14 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                           key={i}
                           type="button"
                           onClick={() => setSelectedImg(img)}
-                          className={`shrink-0 w-24 h-24 snap-start border-2 overflow-hidden transition-all ${
+                          className={`shrink-0 w-24 h-24 snap-start border-2 overflow-hidden transition-all relative ${
                             selectedImg === img ? "border-blue-500 ring-1 ring-blue-300 scale-[1.02]" : "border-transparent hover:border-gray-300"
                           }`}
                         >
                           <img src={img} alt="" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/main.jpg"; }} />
+                          {selectedImg === img && (
+                            <span className="absolute top-1 left-1 bg-blue-500 text-white text-[0.5rem] uppercase px-1.5 py-0.5">Cover</span>
+                          )}
                         </button>
                       ))}
                     </div>
@@ -420,11 +497,47 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                   </div>
                 )}
 
-                {result.description && (
+                <div className="bg-emerald-50 border border-emerald-100 p-4">
+                  <p className="text-[0.56rem] uppercase tracking-[0.14em] text-emerald-700 mb-1.5 flex items-center gap-1.5">
+                    <Sparkles className="h-3 w-3" /> Generated Short Description
+                  </p>
+                  <p className="text-xs text-gray-700 leading-relaxed">{result.shortDescription}</p>
+                </div>
+
+                <div className="bg-emerald-50 border border-emerald-100 p-4">
+                  <p className="text-[0.56rem] uppercase tracking-[0.14em] text-emerald-700 mb-1.5 flex items-center gap-1.5">
+                    <Sparkles className="h-3 w-3" /> Generated Full Description
+                  </p>
+                  <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-line line-clamp-6">{result.description}</p>
+                  <p className="text-[0.58rem] text-emerald-600 mt-2">
+                    Original copy written from detected specs — never the source page's marketing text.
+                  </p>
+                </div>
+
+                {result.attributes.length > 0 && (
                   <div className="bg-gray-50 border border-gray-100 p-4">
-                    <p className="text-[0.56rem] uppercase tracking-[0.14em] text-gray-400 mb-1.5">Detected Description</p>
-                    <p className="text-xs text-gray-600 line-clamp-4 leading-relaxed">{result.description}</p>
+                    <p className="text-[0.56rem] uppercase tracking-[0.14em] text-gray-400 mb-2.5 flex items-center gap-1.5">
+                      <ListChecks className="h-3 w-3" /> Key Specifications ({result.attributes.length})
+                    </p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 max-h-40 overflow-y-auto">
+                      {result.attributes.map(a => (
+                        <div key={a.name} className="flex items-baseline gap-1.5 text-xs">
+                          <span className="text-gray-400 shrink-0">{a.name}:</span>
+                          <span className="text-gray-700 truncate">{a.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[0.58rem] text-gray-400 mt-2.5">Brand/supplier/origin fields are excluded from your listing automatically.</p>
                   </div>
+                )}
+
+                {result.sourcePagePreview && (
+                  <details className="text-gray-400">
+                    <summary className="text-[0.56rem] uppercase tracking-[0.14em] cursor-pointer hover:text-gray-600 transition-colors">
+                      Source page text (reference only — never used in your listing)
+                    </summary>
+                    <p className="text-[0.65rem] text-gray-400 mt-2 leading-relaxed italic">{result.sourcePagePreview}</p>
+                  </details>
                 )}
               </div>
             )}
@@ -589,7 +702,6 @@ function AdminProducts() {
     queryKey: ["admin-products", token],
     queryFn:  () => fetchProducts({ data: { token } }),
     staleTime: 2 * 60 * 1000,
-    enabled:  !!token,
   });
 
   const products = (data?.products ?? []) as any[];

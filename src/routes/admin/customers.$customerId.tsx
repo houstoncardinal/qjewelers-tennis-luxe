@@ -43,7 +43,7 @@ function CustomerNotes({ email }: { email: string }) {
   const { data, isLoading } = useQuery({
     queryKey: ["customer-notes", email, token],
     queryFn: () => fetchNotes({ data: { token, email } }),
-    enabled: !!token && !!email,
+    enabled: !!email,
   });
 
   const notes: any[] = data?.notes ?? [];
@@ -152,7 +152,6 @@ function AdminCustomerDetail() {
   const { data, isLoading } = useQuery({
     queryKey: ["admin-orders-customers", token],
     queryFn: () => fetchOrders({ data: { token } }),
-    enabled: !!token,
     staleTime: 5 * 60 * 1000,
   });
 

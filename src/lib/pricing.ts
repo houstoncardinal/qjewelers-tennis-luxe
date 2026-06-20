@@ -165,6 +165,37 @@ export const RING_SIZE_DESCRIPTIONS: Record<string, string> = {
   "3ct": "Statement · 9mm · Maximum sparkle",
 };
 
+// ─── Admin Variant Options ──────────────────────────────────────────────────
+// Shared across the product editor and the new-product screen so generated
+// variants always draw from the same option set.
+
+export const AVAILABLE_SIZES = ["2mm", "3mm", "4mm", "5mm", "6mm", "6.5mm", "8mm"];
+export const AVAILABLE_LENGTHS = ['6"', '6.5"', '7"', '7.5"', '8"', '8.5"', '9"', '16"', '18"', '20"', '22"', '24"'];
+export const AVAILABLE_COLORS = ["silver", "gold", "rose_gold", "white_gold"];
+
+export const COLOR_LABELS: Record<string, string> = {
+  silver:     "Sterling Silver",
+  gold:       "18K Yellow Gold",
+  rose_gold:  "18K Rose Gold",
+  white_gold: "18K White Gold",
+};
+
+export const COLOR_HEX: Record<string, string> = {
+  silver:     "#C0C0C0",
+  gold:       "#D4AF37",
+  rose_gold:  "#B76E79",
+  white_gold: "#E8E8F4",
+};
+
+export const TYPE_LABELS: Record<string, string> = {
+  necklace: "Chain / Necklace",
+  bracelet: "Bracelet",
+  earring:  "Earring",
+  ring:     "Ring",
+};
+
+export const isTennisBraceletSlug = (slug: string) => slug.includes("tennis") && slug.includes("bracelet");
+
 // ─── Tennis Bracelet ─────────────────────────────────────────────────────────
 
 export const SIZES_TENNIS_BRACELET = ["2mm", "3mm", "4mm", "5mm", "6mm"] as const;
