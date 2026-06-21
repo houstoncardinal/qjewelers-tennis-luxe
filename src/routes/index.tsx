@@ -142,35 +142,41 @@ function Ticker({ dark = false }: { dark?: boolean }) {
 
 function ProductCard({ p }: { p: any }) {
   return (
-    <Link to="/product/$slug" params={{ slug: p.slug }} className="group block product-shadow bg-background">
-      <div className="aspect-[3/4] overflow-hidden relative bg-[oklch(0.97_0.004_75)]">
+    <Link to="/product/$slug" params={{ slug: p.slug }} className="group block product-shadow bg-background lg:hover:shadow-xl transition-all duration-500 active:scale-[0.99]">
+      <div className="aspect-[4/5] lg:aspect-[3/4] overflow-hidden relative bg-[oklch(0.97_0.004_75)]">
         <img
           src={getProductThumb(p.slug, p.image_url)}
           alt={p.name}
           loading="lazy"
-          className="h-full w-full object-cover tile-img"
+          className="h-full w-full object-cover tile-img transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.08] group-active:scale-[1.03]"
         />
         {/* Gold top edge on hover */}
         <div
-          className="absolute top-0 left-0 right-0 h-[2px] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] origin-left"
+          className="absolute top-0 left-0 right-0 h-[3px] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] origin-left"
           style={{ background: "var(--gradient-gold-h)" }}
         />
+        {/* Quick-look label on hover (desktop) */}
+        <div className="absolute inset-x-0 bottom-0 py-4 px-5 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-400 lg:flex hidden items-center justify-center">
+          <span className="text-white text-[0.55rem] uppercase tracking-[0.26em] font-medium">
+            View Details
+          </span>
+        </div>
       </div>
-      <div className="px-4 pt-4 pb-5 space-y-1.5 border border-t-0 border-border">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[0.43rem] uppercase tracking-[0.10em] text-gray-400 font-mono border border-gray-200 px-1 py-0.5 leading-none">
+      <div className="px-4 sm:px-5 pt-4 sm:pt-5 pb-5 sm:pb-6 space-y-2 sm:space-y-2.5 border border-t-0 border-border">
+        <div className="flex items-center gap-2">
+          <span className="text-[0.48rem] sm:text-[0.43rem] uppercase tracking-[0.10em] text-gray-400 font-mono border border-gray-200 px-1.5 py-0.5 leading-none">
             S925
           </span>
           <div className="flex items-center gap-0.5 ml-0.5">
-            <span className="w-2 h-2 rounded-full shrink-0 ring-1 ring-black/10" style={{ backgroundColor: "#D4AF37" }} title="18K Yellow Gold" />
-            <span className="w-2 h-2 rounded-full shrink-0 ring-1 ring-black/10 -ml-0.5" style={{ backgroundColor: "#E8E8F4" }} title="18K White Gold" />
+            <span className="w-3 h-3 sm:w-2 sm:h-2 rounded-full shrink-0 ring-1 ring-black/10" style={{ backgroundColor: "#D4AF37" }} title="18K Yellow Gold" />
+            <span className="w-3 h-3 sm:w-2 sm:h-2 rounded-full shrink-0 ring-1 ring-black/10 -ml-0.5" style={{ backgroundColor: "#E8E8F4" }} title="18K White Gold" />
           </div>
         </div>
-        <h3 className="font-display text-[1.25rem] leading-tight group-hover:text-gold transition-colors duration-300">
+        <h3 className="font-display text-[1.5rem] sm:text-[1.25rem] leading-tight group-hover:text-gold transition-colors duration-300">
           {p.name}
         </h3>
-        <p className="text-[0.72rem] text-muted-foreground">
-          From <span className="text-foreground font-medium">
+        <p className="text-[0.85rem] sm:text-[0.72rem] text-muted-foreground">
+          From <span className="text-foreground font-semibold">
             {(p.slug?.includes("tennis-bracelet") || p.slug?.includes("tennis_bracelet"))
               ? formatUSD(getTennisBraceletPrice("2mm", '6"'))
               : formatUSD(Number(p.base_price))}
@@ -654,15 +660,15 @@ function Index() {
       </section>
 
       {/* ════════════════════════════════════════════════════════
-          OUR SIGNATURE — 4 product cards, white bg
+          FEATURED ITEMS — 4 product cards, white bg
       ════════════════════════════════════════════════════════ */}
       <section className="border-b border-border">
         <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-14 lg:py-20">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5 mb-9 reveal">
             <div>
-              <Eyebrow center={false}>Signature Pieces</Eyebrow>
+              <Eyebrow center={false}>Curated For You</Eyebrow>
               <h2 className="font-display" style={{ fontSize: "clamp(2.2rem, 4.5vw, 4rem)" }}>
-                Our Signature
+                Featured Items
               </h2>
             </div>
             <Link
@@ -673,7 +679,7 @@ function Index() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 reveal" style={{ transitionDelay: "0.15s" }}>
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 md:gap-6 reveal" style={{ transitionDelay: "0.15s" }}>
             {isLoading
               ? [...Array(4)].map((_, i) => <SkeletonCard key={i} />)
               : featuredProducts.slice(0, 4).map((p: any) => <ProductCard key={p.id} p={p} />)

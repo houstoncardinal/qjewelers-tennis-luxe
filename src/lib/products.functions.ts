@@ -121,6 +121,26 @@ export const getProductGallery = createServerFn({ method: "GET" })
     return { images: [] };
   });
 
+// Public: fetch active variants for a product (no auth required) — lets the
+// storefront page show only the color/size combinations a product actually
+// offers, instead of a blanket universal list regardless of real availability.
+export const getProductVariants = createServerFn({ method: "GET" })
+  .inputValidator((d: { slug: string }) => d)
+  .handler(async ({ data }) => {
+    try {
+      const { data: rows, error } = await (supabaseAdmin as any)
+        .from("product_variants")
+        .select("id, color, size, length, price_override, stock, is_active")
+        .eq("product_slug", data.slug)
+        .eq("is_active", true);
+      if (!error) return { variants: (rows ?? []) as Array<{
+        id: string; color: string | null; size: string | null; length: string | null;
+        price_override: number | null; stock: number; is_active: boolean;
+      }> };
+    } catch {}
+    return { variants: [] };
+  });
+
 // Public: read shipping + tax config from store_settings, fallback to defaults
 export const getShippingConfig = createServerFn({ method: "GET" }).handler(async () => {
   try {

@@ -6,7 +6,7 @@ import {
   ShieldCheck, Truck, Sparkles, Award, ArrowRight, Minus, Plus,
   Eye, Diamond, ShoppingBag, Check, Info, ChevronLeft, ChevronRight, Star,
 } from "lucide-react";
-import { getProductBySlug, listReviews, submitReview, getProductGallery } from "@/lib/products.functions";
+import { getProductBySlug, listReviews, submitReview, getProductGallery, getProductVariants } from "@/lib/products.functions";
 import { getProductImages, buildProductGallery, images as productImages } from "@/lib/product-images";
 import {
   calculatePrice, calculateEarringPrice, calculateRingPrice,
@@ -37,13 +37,14 @@ const CATEGORY_LABEL: Record<string, string> = {
 
 export const Route = createFileRoute("/product/$slug")({
   loader: async ({ params }) => {
-    const [res, rev, gal] = await Promise.all([
+    const [res, rev, gal, vars] = await Promise.all([
       getProductBySlug({ data: { slug: params.slug } }),
       listReviews({ data: { slug: params.slug } }),
       getProductGallery({ data: { slug: params.slug } }),
+      getProductVariants({ data: { slug: params.slug } }),
     ]);
     if (!res.product) throw notFound();
-    return { ...res, reviews: rev.reviews, galleryImages: gal.images };
+    return { ...res, reviews: rev.reviews, galleryImages: gal.images, variants: vars.variants };
   },
   head: ({ loaderData, params }) => {
     const p = loaderData?.product;
@@ -279,7 +280,7 @@ function ReviewForm({ slug, onSuccess }: { slug: string; onSuccess: () => void }
 }
 
 function ProductPage() {
-  const { product: p, reviews, galleryImages } = Route.useLoaderData();
+  const { product: p, reviews, galleryImages, variants } = Route.useLoaderData();
   const product = p!;
   const { slug } = Route.useParams();
   const navigate = useNavigate();
@@ -290,13 +291,28 @@ function ProductPage() {
   const isRing     = product.type === "ring";
   const isTennis   = slug.includes("tennis");
 
-  const sizes = isTennis ? SIZES_TENNIS_BRACELET : isEarring ? SIZES_EARRING : isRing ? SIZES_RING : SIZES_NECKLACE;
+  // Rings are variant-aware: when this product has real product_variants
+  // rows, the color/carat selectors only ever show what's actually been
+  // configured for sale (could be a single locked option, or several) —
+  // never a blanket universal list the product may not really offer.
+  // Falls back to the full carat range / the product's own color when no
+  // variants exist, preserving the original behavior for older listings.
+  const ringVariants = isRing ? (variants ?? []) : [];
+  const ringColors: string[] = ringVariants.length > 0
+    ? [...new Set(ringVariants.map(v => v.color).filter((c): c is string => !!c))]
+    : [product.color];
+  const ringCarats: string[] = ringVariants.length > 0
+    ? [...new Set(ringVariants.map(v => v.size).filter((s): s is string => !!s))]
+    : [...SIZES_RING];
+
+  const sizes = isTennis ? SIZES_TENNIS_BRACELET : isEarring ? SIZES_EARRING : isRing ? ringCarats : SIZES_NECKLACE;
   const sizeDescriptions = isTennis ? TENNIS_BRACELET_SIZE_DESCRIPTIONS : isEarring ? EARRING_SIZE_DESCRIPTIONS : isRing ? RING_SIZE_DESCRIPTIONS : SIZE_DESCRIPTIONS;
 
   const defaultSize: string = (() => {
     if (isRing) {
+      if (ringCarats.length === 1) return ringCarats[0];
       const match = Object.entries(RING_SLUG_SIZE_MAP).find(([key]) => slug.includes(key));
-      return match ? match[1] : "1ct";
+      return match ? match[1] : (ringCarats.includes("1ct") ? "1ct" : ringCarats[0]);
     }
     return (["2mm", "3mm", "4mm", "5mm", "6.5mm"] as const).find(s => slug.includes(s)) ?? "3mm";
   })();
@@ -315,6 +331,7 @@ function ProductPage() {
   const [addedToBag,   setAddedToBag]   = useState(false);
   const [earringMetal, setEarringMetal] = useState<"white_gold" | "gold">("gold");
   const [tennisMetal,  setTennisMetal]  = useState<"gold" | "white_gold">("gold");
+  const [ringMetal,    setRingMetal]    = useState<string>(ringColors[0] ?? product.color);
   const [touchStartX,  setTouchStartX]  = useState<number | null>(null);
   const [showReviewForm, setShowReviewForm] = useState(false);
 
@@ -331,15 +348,22 @@ function ProductPage() {
 
   const gallery = buildProductGallery(slug, galleryImages ?? [], product.image_url);
 
+  // A matching variant's price_override (when set) is authoritative — it's
+  // an exact admin-set price, not a derived one. Falls back to the formula
+  // for products without that level of per-combo pricing configured.
+  const matchedRingVariant = isRing
+    ? ringVariants.find(v => (v.color ?? product.color) === ringMetal && (v.size ?? defaultSize) === size)
+    : undefined;
+
   const price = isTennis
     ? getTennisBraceletPrice(size, length)
     : isEarring
       ? calculateEarringPrice(Number(product.base_price), size as EarringSize)
       : isRing
-        ? calculateRingPrice(Number(product.base_price), size as RingSize)
+        ? (matchedRingVariant?.price_override ?? calculateRingPrice(Number(product.base_price), size as RingSize))
         : calculatePrice(Number(product.base_price), size as Size, length as Length);
 
-  const activeColor = isTennis ? tennisMetal : isEarring ? earringMetal : product.color;
+  const activeColor = isTennis ? tennisMetal : isEarring ? earringMetal : isRing ? ringMetal : product.color;
   const colorInfo   = COLOR_MAP[activeColor];
 
   const showImage = (i: number) => { setActiveImg(i); };
@@ -356,7 +380,7 @@ function ProductPage() {
   };
 
   const handleAdd = (goToCart = false) => {
-    const cartColor = isTennis ? tennisMetal : isEarring ? earringMetal : product.color;
+    const cartColor = isTennis ? tennisMetal : isEarring ? earringMetal : isRing ? ringMetal : product.color;
     const cartLength = isRing || isEarring ? "" : length;
     add({
       id: `${product.id}-${size}-${cartLength}-${cartColor}`,
@@ -673,6 +697,46 @@ function ProductPage() {
                 </div>
               )}
 
+              {/* ── Ring Metal selector — always shown, even with a single
+                   color, so the chosen finish is never just plain text ── */}
+              {isRing && (
+                <div className="mb-6">
+                  <div className="flex items-baseline justify-between mb-3.5">
+                    <p className="text-[0.52rem] uppercase tracking-[0.28em] font-semibold">Metal</p>
+                    <span className="text-[0.57rem] italic text-muted-foreground">
+                      {COLOR_MAP[ringMetal]?.label ?? ringMetal.replace("_", " ")}
+                    </span>
+                  </div>
+                  <div className={`grid gap-2.5 ${ringColors.length === 1 ? "grid-cols-1" : ringColors.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+                    {ringColors.map(key => {
+                      const info = COLOR_MAP[key];
+                      const active = ringMetal === key;
+                      const single = ringColors.length === 1;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => !single && setRingMetal(key)}
+                          aria-pressed={active}
+                          className={`relative py-5 text-center border transition-all duration-150 flex flex-col items-center justify-center gap-2 ${
+                            active
+                              ? "border-foreground bg-foreground text-background"
+                              : "border-border hover:border-foreground/40 hover:bg-cream"
+                          } ${single ? "cursor-default" : ""}`}
+                        >
+                          <span className="w-[18px] h-[18px] rounded-full shrink-0 ring-1 ring-black/10 shadow-sm" style={{ backgroundColor: info?.hex ?? "#ccc" }} />
+                          <span className="text-[0.70rem] font-semibold leading-none">{info?.label ?? key.replace("_", " ")}</span>
+                          <span className={`text-[0.40rem] uppercase tracking-[0.16em] ${active ? "text-background/50" : "text-muted-foreground/50"}`}>
+                            {single ? "Only finish available" : "5× plated"}
+                          </span>
+                          {active && <span className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: "var(--gradient-gold-h)" }} />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* ── Size selector ────────────────────────── */}
               <div className="mb-6">
                 <div className="flex items-baseline justify-between mb-3.5">
@@ -682,9 +746,17 @@ function ProductPage() {
                   <span className="text-[0.57rem] italic text-muted-foreground">{sizeDescriptions[size]}</span>
                 </div>
                 {/* Mobile: horizontal scroll strip — each button wide enough to breathe */}
-                {/* Desktop: compact 5-col grid */}
+                {/* Desktop: compact grid, columns matched to actual option count
+                    so a single-option product (e.g. a ring sold in one carat
+                    weight) doesn't render four empty grid slots */}
                 <div
-                  className="grid grid-cols-5 gap-1.5 min-w-0"
+                  className={`grid gap-1.5 min-w-0 ${
+                    sizes.length === 1 ? "grid-cols-1"
+                    : sizes.length === 2 ? "grid-cols-2"
+                    : sizes.length === 3 ? "grid-cols-3"
+                    : sizes.length === 4 ? "grid-cols-4"
+                    : "grid-cols-5"
+                  }`}
                 >
                   {(sizes as readonly string[]).map(s => {
                     const sp = isTennis
