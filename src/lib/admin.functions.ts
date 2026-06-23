@@ -112,6 +112,10 @@ export const adminAuth = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     checkRateLimit("admin-login", { windowMs: 15 * 60 * 1000, max: 10 });
 
+    // Fail loudly on missing config rather than letting signValue() throw
+    // later and have the login UI mislabel it as a wrong-PIN error.
+    if (!SESSION_SECRET) throw new Error("Server misconfigured: ADMIN_SESSION_SECRET is not set");
+
     if (!data.pin || data.pin !== ADMIN_PIN) {
       throw new Error("Unauthorized");
     }

@@ -58,7 +58,12 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
         onLogin();
       }
     } catch (err: any) {
-      setError(err?.message?.includes("Too many") ? err.message : needsTotp ? "Invalid code. Try again." : "Incorrect PIN.");
+      const msg: string = err?.message ?? "";
+      if (msg.includes("Too many") || msg.includes("misconfigured")) {
+        setError(msg);
+      } else {
+        setError(needsTotp ? "Invalid code. Try again." : "Incorrect PIN.");
+      }
     } finally {
       setLoading(false);
     }
