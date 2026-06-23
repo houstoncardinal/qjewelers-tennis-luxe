@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   LayoutDashboard, ShoppingBag, Package, LogOut, Store, ChevronRight,
   Menu, X, BarChart2, Users, RotateCcw, Tag, Settings, Gem,
-  ArrowUpRight, Star, Mail, User, Lock, Eye, EyeOff, ShieldCheck,
+  ArrowUpRight, Star, Mail, Lock, ShieldCheck,
   ClipboardList, ArrowLeft,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
@@ -31,11 +31,9 @@ const BRAND_FEATURES = [
 ];
 
 function AdminLogin({ onLogin }: { onLogin: () => void }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [pin, setPin] = useState("");
   const [code, setCode] = useState("");
   const [needsTotp, setNeedsTotp] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const auth = useServerFn(adminAuth);
@@ -52,15 +50,15 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
         onLogin();
         return;
       }
-      if (!username || !password) return;
-      const result = await auth({ data: { username, password } });
+      if (!pin) return;
+      const result = await auth({ data: { pin } });
       if (result.requiresTotp) {
         setNeedsTotp(true);
       } else {
         onLogin();
       }
     } catch (err: any) {
-      setError(err?.message?.includes("Too many") ? err.message : needsTotp ? "Invalid code. Try again." : "Incorrect username or password.");
+      setError(err?.message?.includes("Too many") ? err.message : needsTotp ? "Invalid code. Try again." : "Incorrect PIN.");
     } finally {
       setLoading(false);
     }
@@ -147,7 +145,7 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
               {needsTotp ? "Verify your identity" : "Welcome back"}
             </h1>
             <p className="text-xs text-white/35">
-              {needsTotp ? "Enter the 6-digit code from your authenticator app" : "Sign in to access the admin console"}
+              {needsTotp ? "Enter the 6-digit code from your authenticator app" : "Enter your PIN to access the admin console"}
             </p>
           </div>
 
@@ -187,47 +185,31 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
                 />
               </div>
             ) : (
-              <>
-                <div>
-                  <label className="block text-[0.56rem] uppercase tracking-[0.20em] text-white/40 mb-2">Username</label>
-                  <div className="relative">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/25" />
-                    <input
-                      type="text"
-                      value={username}
-                      onChange={e => setUsername(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && submit(e)}
-                      className="w-full border pl-10 pr-4 py-3 text-sm rounded-lg focus:outline-none transition-colors text-white placeholder:text-white/25"
-                      style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.12)" }}
-                      placeholder="Enter username"
-                      autoFocus
-                    />
+              <div>
+                <div className="flex items-center justify-center mb-6">
+                  <div
+                    className="w-12 h-12 rounded-full flex items-center justify-center"
+                    style={{ background: "rgba(251,191,36,0.10)", border: "1px solid rgba(251,191,36,0.25)" }}
+                  >
+                    <Lock className="h-5 w-5" style={{ color: "#fbbf24" }} />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-[0.56rem] uppercase tracking-[0.20em] text-white/40 mb-2">Password</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/25" />
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && submit(e)}
-                      className="w-full border pl-10 pr-10 py-3 text-sm rounded-lg focus:outline-none transition-colors text-white placeholder:text-white/25"
-                      style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.12)" }}
-                      placeholder="Enter password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(s => !s)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/25 hover:text-white/50 transition-colors"
-                      tabIndex={-1}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-              </>
+                <label className="block text-[0.56rem] uppercase tracking-[0.20em] text-white/40 mb-2 text-center">
+                  Admin PIN
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  value={pin}
+                  onChange={e => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  onKeyDown={e => e.key === "Enter" && submit(e)}
+                  className="w-full border px-4 py-3.5 text-lg text-center tracking-[0.5em] font-semibold rounded-lg focus:outline-none transition-colors text-white"
+                  style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.12)" }}
+                  placeholder="······"
+                  autoFocus
+                  maxLength={6}
+                />
+              </div>
             )}
 
             {error && (
@@ -240,7 +222,7 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
             <button
               type="button"
               onClick={submit}
-              disabled={loading || (needsTotp ? code.length !== 6 : !username || !password)}
+              disabled={loading || (needsTotp ? code.length !== 6 : pin.length !== 6)}
               className="w-full text-[#0a0a0a] py-3.5 text-[0.62rem] font-bold uppercase tracking-[0.22em] rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110"
               style={{ background: "linear-gradient(135deg, #fde68a 0%, #fbbf24 50%, #d97706 100%)", boxShadow: "0 8px 24px rgba(251,191,36,0.25)" }}
             >

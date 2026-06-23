@@ -9,7 +9,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 
 const db = supabaseAdmin as any; // admin_users / audit_logs not in generated types
 
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? "";
+const ADMIN_PIN = process.env.ADMIN_PIN ?? "011491";
 const SESSION_SECRET = process.env.ADMIN_SESSION_SECRET ?? "";
 const SESSION_COOKIE = "qj_admin_session";
 const PENDING_2FA_COOKIE = "qj_admin_pending_2fa";
@@ -62,15 +62,6 @@ function hashPassword(password: string): string {
   return `${salt}:${hash}`;
 }
 
-function verifyPassword(password: string, stored: string): boolean {
-  const [salt, hash] = stored.split(":");
-  if (!salt || !hash) return false;
-  const actual = crypto.scryptSync(password, salt, 64);
-  const expected = Buffer.from(hash, "hex");
-  if (actual.length !== expected.length) return false;
-  return crypto.timingSafeEqual(actual, expected);
-}
-
 // createServerOnlyFn (not a plain function) so TanStack's compiler swaps these
 // out for throwing stubs in the client bundle — bare functions here would
 // leave the literal getCookie() calls (and the @tanstack/react-start/server
@@ -117,33 +108,26 @@ export async function writeAuditLog(params: {
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export const adminAuth = createServerFn({ method: "POST" })
-  .inputValidator((d: { username: string; password: string }) => d)
+  .inputValidator((d: { pin: string }) => d)
   .handler(async ({ data }) => {
     checkRateLimit("admin-login", { windowMs: 15 * 60 * 1000, max: 10 });
 
-    const username = data.username.trim().toLowerCase();
-    if (!username || !data.password) throw new Error("Unauthorized");
-
-    let { data: user } = await db.from("admin_users").select("*").eq("username", username).maybeSingle();
-
-    // Lazy bootstrap: the very first login after this table was introduced
-    // migrates the legacy single-password login into a real admin_users row,
-    // so the existing solo-founder credential keeps working with no manual step.
-    if (!user) {
-      const { count } = await db.from("admin_users").select("id", { count: "exact", head: true });
-      if (count === 0 && username === "admin" && ADMIN_TOKEN && data.password === ADMIN_TOKEN) {
-        const { data: created, error } = await db
-          .from("admin_users")
-          .insert({ username: "admin", password_hash: hashPassword(data.password), role: "admin" })
-          .select("*")
-          .single();
-        if (error) throw new Error(error.message);
-        user = created;
-      } else {
-        throw new Error("Unauthorized");
-      }
-    } else if (!verifyPassword(data.password, user.password_hash)) {
+    if (!data.pin || data.pin !== ADMIN_PIN) {
       throw new Error("Unauthorized");
+    }
+
+    // The PIN is the only credential — bootstrap (or reuse) a single "admin"
+    // admin_users row purely so downstream features keyed off admin_users.id
+    // (audit log FKs, staff management, optional TOTP) keep working unchanged.
+    let { data: user } = await db.from("admin_users").select("*").eq("username", "admin").maybeSingle();
+    if (!user) {
+      const { data: created, error } = await db
+        .from("admin_users")
+        .insert({ username: "admin", password_hash: hashPassword(crypto.randomBytes(32).toString("hex")), role: "admin" })
+        .select("*")
+        .single();
+      if (error) throw new Error(error.message);
+      user = created;
     }
 
     if (user.totp_enabled) {

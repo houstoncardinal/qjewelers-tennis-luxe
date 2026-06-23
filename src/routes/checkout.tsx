@@ -487,7 +487,7 @@ function Checkout() {
           />
 
           {/* ── Left: form sections ── */}
-          <div className="space-y-4">
+          <div className="space-y-4 min-w-0">
 
             {/* 1 · Contact */}
             <div className="border border-[#e5e1d9] bg-white">
@@ -795,7 +795,7 @@ function Checkout() {
           </div>
 
           {/* ── Right: order summary (sticky on desktop) ── */}
-          <aside className="lg:sticky lg:top-8 h-fit border border-[#e5e1d9] bg-white">
+          <aside className="lg:sticky lg:top-8 h-fit min-w-0 border border-[#e5e1d9] bg-white">
             <div className="px-5 sm:px-6 py-4 border-b border-[#f0ece4]">
               <p className="text-[0.6rem] uppercase tracking-[0.2em] font-medium">Order Summary</p>
             </div>

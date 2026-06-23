@@ -426,6 +426,7 @@
   html {
     font-family: var(--font-sans);
     scroll-behavior: smooth;
+    overflow-x: hidden;
   }
 
   body {
@@ -437,6 +438,13 @@
     font-feature-settings: "ss01", "cv01", "kern";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Off-canvas panels (mobile nav drawer, etc.) use translateX(100%) to
+       hide themselves. CSS transforms don't affect layout/reflow, so a
+       "hidden" drawer still contributes to the page's scrollable width
+       unless overflow-x is clipped here — without this, the whole page
+       could be horizontally swiped/scrolled to reveal blank space past
+       the drawer's hidden position. */
+    overflow-x: hidden;
   }
 
   h1, h2, h3, h4, .font-display {
