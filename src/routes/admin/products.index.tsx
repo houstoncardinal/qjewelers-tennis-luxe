@@ -13,7 +13,7 @@ import {
 import { toast } from "sonner";
 import {
   listAdminProductsAll, bulkUpdateProducts, bulkDeleteProducts,
-  deleteAllProducts, importProductFromUrl, rehostImportImages, duplicateProduct, quickUpdateProduct,
+  deleteAllProducts, importProductFromUrl, importProductFromHtml, rehostImportImages, duplicateProduct, quickUpdateProduct,
 } from "@/lib/admin-extended.functions";
 import { useAdminToken } from "@/lib/admin-context";
 import { formatUSD } from "@/lib/pricing";
@@ -325,29 +325,48 @@ interface ImportResult {
   suggestedPrice: number | null;
 }
 
+const IS_SUPPLIER_URL = /alibaba\.com|aliexpress\.com|1688\.com|dhgate\.com|temu\.com|made-in-china\.com/i;
+
 function ImportModal({ onClose, token }: { onClose: () => void; token: string }) {
+  const [mode,          setMode]          = useState<"url" | "paste">("url");
   const [url,           setUrl]           = useState("");
+  const [pastedHtml,    setPastedHtml]    = useState("");
   const [loading,       setLoading]       = useState(false);
   const [rehosting,     setRehosting]     = useState(false);
   const [rehostProgress,setRehostProgress]= useState<{ done: number; total: number } | null>(null);
   const [error,         setError]         = useState("");
   const [result,        setResult]        = useState<ImportResult | null>(null);
-  // Track which images the admin has selected (all by default, cover = first)
   const [selectedImgs,  setSelectedImgs]  = useState<string[]>([]);
-  const inputRef  = useRef<HTMLInputElement>(null);
-  const importFn  = useServerFn(importProductFromUrl);
-  const rehostFn  = useServerFn(rehostImportImages);
+  const inputRef    = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const importUrlFn  = useServerFn(importProductFromUrl);
+  const importHtmlFn = useServerFn(importProductFromHtml);
+  const rehostFn     = useServerFn(rehostImportImages);
 
-  const fetchData = async () => {
-    if (!url.trim()) return;
+  const isSupplierUrl = IS_SUPPLIER_URL.test(url);
+
+  const analyze = async () => {
     setLoading(true); setError(""); setResult(null); setSelectedImgs([]);
     try {
-      const res = await importFn({ data: { token, url: url.trim() } });
+      let res: ImportResult;
+      if (mode === "url") {
+        if (!url.trim()) return;
+        res = await importUrlFn({ data: { token, url: url.trim() } }) as ImportResult;
+      } else {
+        if (!pastedHtml.trim()) return;
+        res = await importHtmlFn({ data: { token, html: pastedHtml.trim(), sourceUrl: url.trim() || undefined } }) as ImportResult;
+      }
       setResult(res);
-      // Default: all images selected, first is cover
       setSelectedImgs(res.images.slice(0, 24));
     } catch (e: any) {
-      setError(e?.message ?? "Failed to fetch product data");
+      const msg: string = e?.message ?? "Failed";
+      // If blocked error, auto-switch to paste mode with a clear prompt
+      if (msg.startsWith("BLOCKED:")) {
+        setMode("paste");
+        setError(msg.replace("BLOCKED: ", ""));
+      } else {
+        setError(msg);
+      }
     } finally { setLoading(false); }
   };
 
@@ -433,7 +452,7 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
               </div>
               <div>
                 <p className="text-sm font-semibold text-gray-900">Smart Product Import</p>
-                <p className="text-[0.60rem] text-gray-400">Alibaba · AliExpress · 1688 · any product URL — images re-hosted to your CDN, source hidden</p>
+                <p className="text-[0.60rem] text-gray-400">Images re-hosted to your CDN · source never visible to customers</p>
               </div>
             </div>
             {!rehosting && (
@@ -443,23 +462,36 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
             )}
           </div>
 
-          {/* Re-hosting progress overlay */}
+          {/* Mode tabs */}
+          <div className="flex border-b border-gray-100 shrink-0">
+            <button
+              onClick={() => { setMode("url"); setError(""); setResult(null); setSelectedImgs([]); }}
+              className={`flex-1 py-2.5 text-[0.60rem] uppercase tracking-[0.14em] transition-colors ${mode === "url" ? "bg-gray-900 text-white" : "text-gray-400 hover:text-gray-700"}`}
+            >
+              Auto-Fetch from URL
+            </button>
+            <button
+              onClick={() => { setMode("paste"); setError(""); setResult(null); setSelectedImgs([]); }}
+              className={`flex-1 py-2.5 text-[0.60rem] uppercase tracking-[0.14em] transition-colors ${mode === "paste" ? "bg-gray-900 text-white" : "text-gray-400 hover:text-gray-700"}`}
+            >
+              Paste Page Source
+            </button>
+          </div>
+
+          {/* Re-hosting progress */}
           {rehosting && (
             <div className="px-6 py-5 bg-blue-50 border-b border-blue-100 shrink-0">
               <div className="flex items-center gap-3 mb-3">
                 <CloudUpload className="h-4 w-4 text-blue-600 shrink-0" />
                 <div className="flex-1">
                   <p className="text-xs font-semibold text-blue-800">Saving images to your store's CDN…</p>
-                  <p className="text-[0.60rem] text-blue-500 mt-0.5">Original source URLs are being replaced — customers will never see where these came from.</p>
+                  <p className="text-[0.60rem] text-blue-500 mt-0.5">Supplier URLs are being replaced — customers will never see where these came from.</p>
                 </div>
               </div>
               {rehostProgress && (
                 <>
                   <div className="w-full bg-blue-200 h-1.5 rounded-full overflow-hidden">
-                    <div
-                      className="bg-blue-600 h-full transition-all duration-300"
-                      style={{ width: `${Math.round((rehostProgress.done / rehostProgress.total) * 100)}%` }}
-                    />
+                    <div className="bg-blue-600 h-full transition-all duration-300" style={{ width: `${Math.round((rehostProgress.done / rehostProgress.total) * 100)}%` }} />
                   </div>
                   <p className="text-[0.58rem] text-blue-500 mt-1.5 text-right">{rehostProgress.done} / {rehostProgress.total} images</p>
                 </>
@@ -468,29 +500,87 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
           )}
 
           <div className="flex-1 overflow-y-auto p-6 space-y-5">
-            {/* URL input */}
-            <div>
-              <label className="block text-[0.58rem] uppercase tracking-[0.16em] text-gray-400 mb-2">Product URL</label>
-              <div className="flex gap-2">
-                <input
-                  ref={inputRef}
-                  value={url}
-                  onChange={e => { setUrl(e.target.value); setError(""); setResult(null); setSelectedImgs([]); }}
-                  onKeyDown={e => e.key === "Enter" && fetchData()}
-                  placeholder="https://www.alibaba.com/product/..."
-                  disabled={loading || rehosting}
-                  className="flex-1 border border-gray-200 px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-gray-400 transition-colors bg-white font-mono disabled:opacity-50"
-                />
+
+            {/* URL mode */}
+            {mode === "url" && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[0.58rem] uppercase tracking-[0.16em] text-gray-400 mb-2">Product URL</label>
+                  <div className="flex gap-2">
+                    <input
+                      ref={inputRef}
+                      value={url}
+                      onChange={e => { setUrl(e.target.value); setError(""); setResult(null); setSelectedImgs([]); }}
+                      onKeyDown={e => e.key === "Enter" && analyze()}
+                      placeholder="https://www.alibaba.com/product/..."
+                      disabled={loading || rehosting}
+                      className="flex-1 border border-gray-200 px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-gray-400 transition-colors bg-white font-mono disabled:opacity-50"
+                    />
+                    <button
+                      onClick={analyze}
+                      disabled={loading || rehosting || !url.trim()}
+                      className="px-5 py-2.5 bg-gray-900 text-white text-[0.62rem] uppercase tracking-[0.14em] hover:bg-gray-700 transition-colors disabled:opacity-40 shrink-0 flex items-center gap-2"
+                    >
+                      {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                      {loading ? "Fetching…" : "Fetch"}
+                    </button>
+                  </div>
+                </div>
+                {isSupplierUrl && !result && !loading && (
+                  <div className="bg-amber-50 border border-amber-200 px-4 py-3 text-[0.65rem] text-amber-800 leading-relaxed">
+                    <strong>Heads up:</strong> Alibaba, AliExpress, 1688, and DHgate block server-side fetches.
+                    If this fails, switch to the <button className="underline font-semibold" onClick={() => setMode("paste")}>Paste Page Source</button> tab — it always works.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Paste-source mode */}
+            {mode === "paste" && (
+              <div className="space-y-3">
+                <div className="bg-gray-900 text-white px-4 py-3 space-y-2 text-[0.65rem] leading-relaxed">
+                  <p className="font-semibold">How to get the page source:</p>
+                  <ol className="list-decimal list-inside space-y-1 text-gray-300">
+                    <li>Open the product page in your browser (Chrome / Safari)</li>
+                    <li>Press <kbd className="bg-gray-700 px-1.5 py-0.5 font-mono text-[0.6rem]">Cmd+U</kbd> (Mac) or <kbd className="bg-gray-700 px-1.5 py-0.5 font-mono text-[0.6rem]">Ctrl+U</kbd> (Windows) to view source</li>
+                    <li>Press <kbd className="bg-gray-700 px-1.5 py-0.5 font-mono text-[0.6rem]">Cmd+A</kbd> then <kbd className="bg-gray-700 px-1.5 py-0.5 font-mono text-[0.6rem]">Cmd+C</kbd> to select all &amp; copy</li>
+                    <li>Click below and paste with <kbd className="bg-gray-700 px-1.5 py-0.5 font-mono text-[0.6rem]">Cmd+V</kbd></li>
+                  </ol>
+                </div>
+                <div>
+                  <label className="block text-[0.58rem] uppercase tracking-[0.16em] text-gray-400 mb-1.5">Product URL <span className="normal-case tracking-normal text-gray-300">(optional)</span></label>
+                  <input
+                    value={url}
+                    onChange={e => setUrl(e.target.value)}
+                    placeholder="https://www.alibaba.com/product/... (optional)"
+                    disabled={loading || rehosting}
+                    className="w-full border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-gray-400 bg-white font-mono disabled:opacity-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[0.58rem] uppercase tracking-[0.16em] text-gray-400 mb-1.5">
+                    Page Source {pastedHtml.length > 0 && <span className="normal-case tracking-normal text-emerald-600 font-medium">✓ {(pastedHtml.length / 1000).toFixed(0)}KB ready</span>}
+                  </label>
+                  <textarea
+                    ref={textareaRef}
+                    value={pastedHtml}
+                    onChange={e => { setPastedHtml(e.target.value); setError(""); setResult(null); setSelectedImgs([]); }}
+                    placeholder="Paste the full page source here…"
+                    disabled={loading || rehosting}
+                    rows={6}
+                    className="w-full border border-gray-200 px-3 py-2.5 text-[0.65rem] text-gray-600 focus:outline-none focus:border-gray-400 bg-white font-mono resize-none disabled:opacity-50"
+                  />
+                </div>
                 <button
-                  onClick={fetchData}
-                  disabled={loading || rehosting || !url.trim()}
-                  className="px-5 py-2.5 bg-gray-900 text-white text-[0.62rem] uppercase tracking-[0.14em] hover:bg-gray-700 transition-colors disabled:opacity-40 shrink-0 flex items-center gap-2"
+                  onClick={analyze}
+                  disabled={loading || rehosting || pastedHtml.trim().length < 200}
+                  className="w-full py-2.5 bg-gray-900 text-white text-[0.62rem] uppercase tracking-[0.14em] hover:bg-gray-700 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
                 >
-                  {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                  {loading ? "Analyzing…" : "Analyze"}
+                  {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  {loading ? "Analyzing…" : "Analyze Pasted Source"}
                 </button>
               </div>
-            </div>
+            )}
 
             {error && (
               <div className="flex items-start gap-2.5 bg-red-50 border border-red-100 px-4 py-3">

@@ -1217,6 +1217,173 @@ ${cta}`.trim() + specBlock;
   return { shortDescription, fullDescription };
 }
 
+// ─── Core HTML parser — shared by both the URL-fetch and paste-source paths ───
+
+function parseProductPage(html: string, seed: string) {
+  // Meta tag extractor
+  const getMeta = (prop: string): string => {
+    const esc = prop.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const p1 = new RegExp(`<meta[^>]+(?:property|name)=["']${esc}["'][^>]+content=["']([^"']{1,500})["']`, "i");
+    const p2 = new RegExp(`<meta[^>]+content=["']([^"']{1,500})["'][^>]+(?:property|name)=["']${esc}["']`, "i");
+    return decodeHtmlEntities((html.match(p1) ?? html.match(p2))?.[1]?.trim() ?? "");
+  };
+
+  // Name
+  const ogTitle = getMeta("og:title");
+  const rawTitleHtml = html.match(/<title[^>]*>([^<]{1,300})<\/title>/i)?.[1] ?? "";
+  let rawName = (ogTitle || decodeHtmlEntities(rawTitleHtml))
+    .replace(/\s*[-|–—]\s*(?:Alibaba\.com|AliExpress|1688\.com|Amazon|DHgate|Temu|Shein).*$/i, "")
+    .replace(/\s*[-|–—]\s*Buy\s+.+?online$/i, "")
+    .replace(/\s*\|\s*Free Shipping.*$/i, "")
+    .trim()
+    .substring(0, 200);
+
+  // Description
+  const description = (getMeta("og:description") || getMeta("description")).substring(0, 1500);
+
+  // Images — multiple strategies, no cap until final slice
+  const seen = new Set<string>();
+  const images: string[] = [];
+  const addImg = (src: string) => {
+    if (!src || typeof src !== "string") return;
+    src = src.trim();
+    src = src.startsWith("//") ? `https:${src}` : src;
+    if (!src.startsWith("http")) return;
+    if (src.startsWith("data:")) return;
+    if (/\b(icon|logo|avatar|sprite|pixel|tracking|banner|badge|button|thumbnail_tiny|\.gif$)/i.test(src)) return;
+    if (seen.has(src)) return;
+    seen.add(src);
+    images.push(src);
+  };
+
+  // 1. og:image meta tags
+  const ogImgRe = /<meta[^>]+(?:property)=["']og:image(?::url)?["'][^>]+content=["']([^"']+)["']|<meta[^>]+content=["']([^"']+)["'][^>]+(?:property)=["']og:image(?::url)?["']/gi;
+  for (const m of html.matchAll(ogImgRe)) addImg((m[1] || m[2] || "").trim());
+
+  // 2. AliExpress: window.runParams JSON blob (most reliable source for AliExpress)
+  const runParamsM = html.match(/window\.runParams\s*=\s*(\{[\s\S]{200,200000}?\});\s*(?:window\.|var |\/\/)/);
+  if (runParamsM) {
+    try {
+      const rp = JSON.parse(runParamsM[1]);
+      const imgArr: any[] = rp?.data?.imageModule?.imagePathList
+        ?? rp?.data?.imageModule?.mainImageList
+        ?? rp?.imagePathList ?? rp?.mainImageList ?? [];
+      for (const img of imgArr) addImg(typeof img === "string" ? img : (img?.url ?? img?.imageUrl ?? ""));
+      if (!rawName && rp?.data?.titleModule?.subject) rawName = String(rp.data.titleModule.subject).substring(0, 200);
+    } catch {}
+  }
+
+  // 3. Alibaba/AliExpress JSON image arrays in script tags
+  const jsonImgKeys = [
+    "imagePathList", "mainImageList", "imageList", "subjectImageList",
+    "skuImageList", "imageInfo", "slideImageList", "detailImageList",
+    "summImageList", "imgList", "picList", "productImages",
+  ];
+  for (const key of jsonImgKeys) {
+    const m = html.match(new RegExp(`"${key}"\\s*:\\s*(\\[[^\\]]{5,8000}\\])`, "s"));
+    if (!m) continue;
+    try {
+      const list = JSON.parse(m[1]) as any[];
+      for (const item of list) {
+        if (typeof item === "string") addImg(item);
+        else if (item && typeof item === "object") {
+          addImg(item.url ?? item.imageUrl ?? item.src ?? item.image
+            ?? item.fullPathImageURI ?? item.imgUrl ?? item.picUrl ?? "");
+        }
+      }
+    } catch {}
+  }
+
+  // 4. JSON-LD Product structured data (first Product block only)
+  for (const m of html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]{1,20000}?)<\/script>/gi)) {
+    try {
+      const obj = JSON.parse(m[1]);
+      const types = Array.isArray(obj["@type"]) ? obj["@type"] : [obj["@type"]];
+      if (!types.includes("Product")) continue;
+      if (!rawName && obj.name) rawName = decodeHtmlEntities(String(obj.name)).substring(0, 200);
+      const imgSrc = obj.image ?? obj.thumbnail;
+      if (imgSrc) {
+        const imgs = Array.isArray(imgSrc) ? imgSrc : [imgSrc];
+        for (const img of imgs) addImg(typeof img === "string" ? img : (img?.url ?? ""));
+      }
+      break;
+    } catch {}
+  }
+
+  // 5. Generic inline JSON blobs: "images":["https://..."] or "pics":["https://..."]
+  for (const key of ["images", "pics", "photos", "gallery"]) {
+    const m = html.match(new RegExp(`["']${key}["']\\s*:\\s*(\\["https?://[^\\]]{10,8000}\\])`, "s"));
+    if (!m) continue;
+    try {
+      const list = JSON.parse(m[1]) as string[];
+      for (const img of list) addImg(img);
+    } catch {}
+  }
+
+  // 6. data-src / data-lazy-src attributes (lazy-loaded images)
+  for (const m of html.matchAll(/data-(?:src|lazy(?:-src)?|original|image)=["']([^"']{15,}\.(?:jpg|jpeg|png|webp)(?:\?[^"']*)?)["']/gi)) {
+    addImg(m[1]);
+  }
+
+  // 7. Last resort: <img src> tags for large product images
+  if (images.length === 0) {
+    let count = 0;
+    for (const m of html.matchAll(/<img[^>]+src=["']([^"']{15,}\.(?:jpg|jpeg|png|webp)(?:\?[^"']*)?)["']/gi)) {
+      if (count >= 20) break;
+      addImg(m[1]);
+      count++;
+    }
+  }
+
+  // Attributes / specs
+  const attributes = extractAttributes(html);
+
+  const fullText = `${rawName} ${description} ${attributes.map(a => `${a.name} ${a.value}`).join(" ")}`;
+  const detectedType    = detectType(rawName) ?? detectType(fullText);
+  const detectedColors  = detectColors(fullText);
+  const detectedSizes   = detectSizeOrLength(attributes, /size|width|gauge|diameter|stone\s*size/i, fullText, AVAILABLE_SIZES);
+  const detectedLengths = detectSizeOrLength(attributes, /length|chain\s*length|extension/i, fullText, AVAILABLE_LENGTHS);
+
+  const isMoissanite = /moissanite/i.test(fullText);
+  const isVVS        = /\bvvs1?\b/i.test(fullText);
+  const isDColor     = /\bd[\s-]?colou?r(?:less)?\b/i.test(fullText);
+  const feature      = detectFeatures(fullText);
+
+  const stoneCount    = detectStoneCount(fullText);
+  const caratWeight   = detectCaratWeight(fullText);
+  const stoneDiameter = detectStoneDiameter(fullText, attributes);
+  const chainType     = detectChainType(fullText);
+
+  const name = generateSeoTitle(rawName, fullText, detectedType, detectedColors, {
+    stoneCount, stoneDiameter, seed,
+  });
+
+  const safeAttributes = attributes.filter(a => isSafeAttribute(a.name));
+  const { shortDescription, fullDescription } = generateDescriptions({
+    type: detectedType, colors: detectedColors, sizes: detectedSizes,
+    lengths: detectedLengths, isMoissanite, isVVS, isDColor, feature,
+    safeAttributes, seed, stoneCount, caratWeight, stoneDiameter, chainType,
+  });
+
+  const suggestedTags  = generateAutoTags({ type: detectedType, colors: detectedColors, isMoissanite, isVVS, isDColor, chainType, stoneCount });
+  const suggestedPrice = suggestBasePrice(detectedType, detectedColors);
+
+  // Detect if the page is a bot wall so the caller can surface a clear error
+  const isBlocked = (
+    images.length === 0 && !rawName &&
+    /captcha|robot|verify|human|not available|access denied|403 forbidden/i.test(html.slice(0, 5000))
+  );
+
+  return {
+    name, rawName, shortDescription, description: fullDescription,
+    sourcePagePreview: description.slice(0, 300),
+    images: images.slice(0, 24),
+    attributes, detectedType, detectedColors, detectedSizes, detectedLengths,
+    stoneCount, caratWeight, stoneDiameter, chainType, suggestedTags, suggestedPrice,
+    isBlocked,
+  };
+}
+
 export const importProductFromUrl = createServerFn({ method: "POST" })
   .inputValidator((d: { token: string; url: string }) => d)
   .handler(async ({ data }) => {
@@ -1232,12 +1399,10 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
           "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
           "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
           "Accept-Language": "en-US,en;q=0.9",
-          "Accept-Encoding": "gzip, deflate",
           "Sec-Fetch-Dest": "document",
           "Sec-Fetch-Mode": "navigate",
           "Sec-Fetch-Site": "none",
           "Cache-Control": "no-cache",
-          "Pragma": "no-cache",
         },
         redirect: "follow",
         signal: AbortSignal.timeout(15000),
@@ -1248,173 +1413,24 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
       throw new Error(`Could not fetch URL: ${e.message}`);
     }
 
-    // Meta tag extractor
-    const getMeta = (prop: string): string => {
-      const esc = prop.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const p1 = new RegExp(`<meta[^>]+(?:property|name)=["']${esc}["'][^>]+content=["']([^"']{1,500})["']`, "i");
-      const p2 = new RegExp(`<meta[^>]+content=["']([^"']{1,500})["'][^>]+(?:property|name)=["']${esc}["']`, "i");
-      return decodeHtmlEntities((html.match(p1) ?? html.match(p2))?.[1]?.trim() ?? "");
-    };
-
-    // Name
-    const ogTitle   = getMeta("og:title");
-    const rawTitleHtml = html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] ?? "";
-    let rawName = (ogTitle || decodeHtmlEntities(rawTitleHtml))
-      .replace(/\s*[-|–—]\s*(?:Alibaba\.com|AliExpress|1688\.com|Amazon|DHgate).*$/i, "")
-      .replace(/\s*[-|–—]\s*Buy\s+.+?online$/i, "")
-      .trim()
-      .substring(0, 200);
-
-    // Description
-    const description = (getMeta("og:description") || getMeta("description")).substring(0, 1500);
-
-    // Images — multiple extraction strategies, no cap until the very end so
-    // a gallery-heavy listing (common on Alibaba) isn't truncated early.
-    const seen = new Set<string>();
-    const images: string[] = [];
-    const addImg = (src: string) => {
-      if (!src) return;
-      src = src.startsWith("//") ? `https:${src}` : src;
-      if (!src.startsWith("http")) return;
-      if (src.startsWith("data:")) return;
-      // Skip tiny/icon images (heuristic: url contains icon/logo/avatar/sprite)
-      if (/icon|logo|avatar|sprite|pixel|tracking/i.test(src)) return;
-      if (seen.has(src)) return;
-      seen.add(src);
-      images.push(src);
-    };
-
-    // og:image meta tags
-    const ogImgRe = /<meta[^>]+(?:property)=["']og:image(?::url)?["'][^>]+content=["']([^"']+)["']|<meta[^>]+content=["']([^"']+)["'][^>]+(?:property)=["']og:image(?::url)?["']/gi;
-    for (const m of html.matchAll(ogImgRe)) addImg((m[1] || m[2] || "").trim());
-
-    // Alibaba/AliExpress JSON image arrays embedded in script tags — these
-    // carry the *full* gallery (often 5-20 images), not just the og:image cover.
-    const jsonImgKeys = ["imagePathList", "mainImageList", "imageList", "subjectImageList", "skuImageList", "imageInfo", "slideImageList", "detailImageList", "summImageList"];
-    for (const key of jsonImgKeys) {
-      const m = html.match(new RegExp(`"${key}"\\s*:\\s*(\\[[^\\]]{5,6000}\\])`, "s"));
-      if (!m) continue;
-      try {
-        const list = JSON.parse(m[1]) as any[];
-        for (const item of list) {
-          if (typeof item === "string") addImg(item);
-          else if (item?.url) addImg(item.url);
-          else if (item?.imageUrl) addImg(item.imageUrl);
-          else if (item?.src) addImg(item.src);
-          else if (item?.image) addImg(item.image);
-          else if (item?.fullPathImageURI) addImg(item.fullPathImageURI);
-        }
-      } catch {}
+    const result = parseProductPage(html, url);
+    if (result.isBlocked) {
+      throw new Error(
+        "BLOCKED: This supplier's website blocked the automatic fetch. Use the \"Paste Page Source\" tab instead — open the product URL in your browser, press Cmd+U (Mac) or Ctrl+U (Windows) to view source, select all, copy, and paste it there."
+      );
     }
+    return { ...result, sourceUrl: url };
+  });
 
-    // JSON-LD structured data — many listing pages embed a JSON-LD block for
-    // EVERY product shown on the page, including unrelated "related items" /
-    // "frequently bought together" carousels. Using only the first block
-    // whose @type is actually "Product" prevents pulling in a name/image
-    // from a different, unrelated item lower on the page.
-    for (const m of html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]{1,10000}?)<\/script>/gi)) {
-      try {
-        const obj = JSON.parse(m[1]);
-        const types = Array.isArray(obj["@type"]) ? obj["@type"] : [obj["@type"]];
-        if (!types.includes("Product")) continue;
-        if (!rawName && obj.name) rawName = decodeHtmlEntities(String(obj.name)).substring(0, 200);
-        const imgSrc = obj.image ?? obj.thumbnail;
-        if (imgSrc) {
-          const imgs = Array.isArray(imgSrc) ? imgSrc : [imgSrc];
-          for (const img of imgs) addImg(typeof img === "string" ? img : (img?.url ?? ""));
-        }
-        break; // only the first real Product block — ignore any further ones
-      } catch {}
-    }
-
-    // Fallback: scan img tags for large images
-    if (images.length === 0) {
-      let count = 0;
-      for (const m of html.matchAll(/<img[^>]+src=["']([^"']{15,}\.(?:jpg|jpeg|png|webp)(?:\?[^"']*)?)["']/gi)) {
-        if (count >= 20) break;
-        addImg(m[1]);
-        count++;
-      }
-    }
-
-    // Attributes / specs
-    const attributes = extractAttributes(html);
-
-    // Type + variant detection — scans title, description, and every
-    // extracted attribute value against this store's own catalog vocabulary.
-    const fullText = `${rawName} ${description} ${attributes.map(a => `${a.name} ${a.value}`).join(" ")}`;
-    // Title is checked first and wins if it has a match — a stray "chain"
-    // inside an unrelated spec value (e.g. "18 inch chain length") must not
-    // override what the title itself says the product is.
-    const detectedType = detectType(rawName) ?? detectType(fullText);
-    const detectedColors = detectColors(fullText);
-    const detectedSizes = detectSizeOrLength(attributes, /size|width|gauge|diameter|stone\s*size/i, fullText, AVAILABLE_SIZES);
-    const detectedLengths = detectSizeOrLength(attributes, /length|chain\s*length|extension/i, fullText, AVAILABLE_LENGTHS);
-
-    const isMoissanite = /moissanite/i.test(fullText);
-    const isVVS = /\bvvs1?\b/i.test(fullText);
-    const isDColor = /\bd[\s-]?colou?r(?:less)?\b/i.test(fullText);
-    const feature = detectFeatures(fullText);
-
-    // Extended intelligence — stone count, carat weight, stone diameter, chain type
-    const stoneCount = detectStoneCount(fullText);
-    const caratWeight = detectCaratWeight(fullText);
-    const stoneDiameter = detectStoneDiameter(fullText, attributes);
-    const chainType = detectChainType(fullText);
-
-    const name = generateSeoTitle(rawName, fullText, detectedType, detectedColors, {
-      stoneCount, stoneDiameter, seed: url,
-    });
-
-    // Customer-facing copy is generated fresh, never the scraped marketing
-    // text — the source description is only ever used internally as a
-    // detection signal (above), so the manufacturer/marketplace never shows
-    // up in what a customer reads. Only "safe" attributes (no brand/supplier/
-    // origin/model fields) are woven into the specifications block.
-    const safeAttributes = attributes.filter(a => isSafeAttribute(a.name));
-    const { shortDescription, fullDescription } = generateDescriptions({
-      type: detectedType,
-      colors: detectedColors,
-      sizes: detectedSizes,
-      lengths: detectedLengths,
-      isMoissanite,
-      isVVS,
-      isDColor,
-      feature,
-      safeAttributes,
-      seed: url,
-      stoneCount,
-      caratWeight,
-      stoneDiameter,
-      chainType,
-    });
-
-    const suggestedTags = generateAutoTags({
-      type: detectedType, colors: detectedColors, isMoissanite, isVVS, isDColor,
-      chainType, stoneCount,
-    });
-    const suggestedPrice = suggestBasePrice(detectedType, detectedColors);
-
-    return {
-      name,
-      rawName,
-      shortDescription,
-      description: fullDescription,
-      sourcePagePreview: description.slice(0, 300),
-      images: images.slice(0, 24),
-      sourceUrl: url,
-      attributes,
-      detectedType,
-      detectedColors,
-      detectedSizes,
-      detectedLengths,
-      stoneCount,
-      caratWeight,
-      stoneDiameter,
-      chainType,
-      suggestedTags,
-      suggestedPrice,
-    };
+// Accepts raw HTML pasted from the user's browser — bypasses supplier bot
+// detection entirely because the user fetched the page themselves.
+export const importProductFromHtml = createServerFn({ method: "POST" })
+  .inputValidator((d: { token: string; html: string; sourceUrl?: string }) => d)
+  .handler(async ({ data }) => {
+    requireAdmin(data.token);
+    if (!data.html || data.html.trim().length < 200) throw new Error("Paste the full page source — it looks too short.");
+    const result = parseProductPage(data.html, data.sourceUrl ?? data.html.slice(0, 100));
+    return { ...result, sourceUrl: data.sourceUrl ?? "" };
   });
 
 // ─── Image re-hosting — downloads external (Alibaba/AliExpress) images server-
