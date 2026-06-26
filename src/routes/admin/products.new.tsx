@@ -271,6 +271,7 @@ function AdminNewProduct() {
         imageUrl?: string; images?: string[];
         detectedType?: string | null; detectedColors?: string[];
         detectedSizes?: string[]; detectedLengths?: string[];
+        suggestedTags?: string[]; suggestedPrice?: number | null;
       };
       if (imp.name) setName(imp.name);
 
@@ -279,7 +280,7 @@ function AdminNewProduct() {
       if (imp.description) setDescription(imp.description);
       if (imp.shortDescription) setShortDesc(imp.shortDescription);
 
-      // All imported images, not just the chosen cover — cover stays first.
+      // All imported images are already re-hosted on our CDN at this point.
       const allImages = imp.images && imp.images.length > 0 ? imp.images : (imp.imageUrl ? [imp.imageUrl] : []);
       if (allImages.length > 0) {
         const cover = imp.imageUrl && allImages.includes(imp.imageUrl) ? imp.imageUrl : allImages[0];
@@ -313,6 +314,10 @@ function AdminNewProduct() {
       // detected values (across axes) happens to exceed one.
       const colorCount = imp.detectedColors?.length ?? 0;
       if (colorCount > 1 || sizes.length > 1 || lengths.length > 1) setPricingMode("variants");
+
+      // Auto-fill tags and suggested price from import intelligence.
+      if (imp.suggestedTags && imp.suggestedTags.length > 0) setTags(imp.suggestedTags);
+      if (imp.suggestedPrice) setBasePrice(String(imp.suggestedPrice));
     } catch {}
   }, []);
 

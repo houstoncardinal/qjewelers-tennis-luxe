@@ -8,11 +8,12 @@ import {
   Check, AlertCircle, Loader2, AlertTriangle, Download, Copy,
   ArrowUpDown, ArrowUp, ArrowDown, Filter, Package, Tag,
   TrendingDown, AlertTriangle as LowStock, XCircle, Sparkles, Layers, ListChecks,
+  CloudUpload, Shield, Hash, Weight, Link2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   listAdminProductsAll, bulkUpdateProducts, bulkDeleteProducts,
-  deleteAllProducts, importProductFromUrl, duplicateProduct, quickUpdateProduct,
+  deleteAllProducts, importProductFromUrl, rehostImportImages, duplicateProduct, quickUpdateProduct,
 } from "@/lib/admin-extended.functions";
 import { useAdminToken } from "@/lib/admin-context";
 import { formatUSD } from "@/lib/pricing";
@@ -316,92 +317,177 @@ interface ImportResult {
   detectedColors: string[];
   detectedSizes: string[];
   detectedLengths: string[];
+  stoneCount: number | null;
+  caratWeight: string | null;
+  stoneDiameter: string | null;
+  chainType: string | null;
+  suggestedTags: string[];
+  suggestedPrice: number | null;
 }
 
 function ImportModal({ onClose, token }: { onClose: () => void; token: string }) {
-  const [url,         setUrl]         = useState("");
-  const [loading,     setLoading]     = useState(false);
-  const [error,       setError]       = useState("");
-  const [result,      setResult]      = useState<ImportResult | null>(null);
-  const [selectedImg, setSelectedImg] = useState("");
+  const [url,           setUrl]           = useState("");
+  const [loading,       setLoading]       = useState(false);
+  const [rehosting,     setRehosting]     = useState(false);
+  const [rehostProgress,setRehostProgress]= useState<{ done: number; total: number } | null>(null);
+  const [error,         setError]         = useState("");
+  const [result,        setResult]        = useState<ImportResult | null>(null);
+  // Track which images the admin has selected (all by default, cover = first)
+  const [selectedImgs,  setSelectedImgs]  = useState<string[]>([]);
   const inputRef  = useRef<HTMLInputElement>(null);
   const importFn  = useServerFn(importProductFromUrl);
+  const rehostFn  = useServerFn(rehostImportImages);
 
   const fetchData = async () => {
     if (!url.trim()) return;
-    setLoading(true); setError(""); setResult(null);
+    setLoading(true); setError(""); setResult(null); setSelectedImgs([]);
     try {
       const res = await importFn({ data: { token, url: url.trim() } });
       setResult(res);
-      if (res.images.length > 0) setSelectedImg(res.images[0]);
+      // Default: all images selected, first is cover
+      setSelectedImgs(res.images.slice(0, 24));
     } catch (e: any) {
       setError(e?.message ?? "Failed to fetch product data");
     } finally { setLoading(false); }
   };
 
-  const useImport = () => {
+  const toggleImage = (img: string) => {
+    setSelectedImgs(prev =>
+      prev.includes(img)
+        ? prev.filter(x => x !== img)
+        : [...prev, img]
+    );
+  };
+
+  const makeCover = (img: string) => {
+    setSelectedImgs(prev => [img, ...prev.filter(x => x !== img)]);
+  };
+
+  // Re-host all selected images to our CDN, then navigate to the new product form.
+  const handleImport = async () => {
     if (!result) return;
+    const cover = selectedImgs[0] ?? result.images[0] ?? "";
+    const toRehost = selectedImgs.length > 0 ? selectedImgs : result.images.slice(0, 24);
+
+    let finalImages = toRehost;
+    let finalCover  = cover;
+
+    if (toRehost.length > 0) {
+      setRehosting(true);
+      setRehostProgress({ done: 0, total: toRehost.length });
+      try {
+        // Rehost in batches of 5 so we can show progress
+        const hosted: string[] = [];
+        const map = new Map<string, string>();
+        const batch = 5;
+        for (let i = 0; i < toRehost.length; i += batch) {
+          const chunk = toRehost.slice(i, i + batch);
+          const { results } = await rehostFn({ data: { token, urls: chunk } });
+          for (const r of results) {
+            if (r.hosted) { hosted.push(r.hosted); map.set(r.original, r.hosted); }
+            else hosted.push(r.original); // keep original if rehost failed for this one
+          }
+          setRehostProgress({ done: Math.min(i + batch, toRehost.length), total: toRehost.length });
+        }
+        finalImages = hosted;
+        finalCover  = map.get(cover) ?? (hosted[0] ?? cover);
+        const hosted_count = [...map.values()].length;
+        if (hosted_count > 0) toast.success(`${hosted_count} image${hosted_count !== 1 ? "s" : ""} saved to your store's CDN`);
+      } catch (e: any) {
+        toast.error(`Image re-hosting failed: ${e?.message ?? "Unknown error"}. Images will use original URLs.`);
+      } finally {
+        setRehosting(false);
+        setRehostProgress(null);
+      }
+    }
+
     sessionStorage.setItem("qj_product_import", JSON.stringify({
       name:             result.name,
       shortDescription: result.shortDescription,
       description:      result.description,
-      imageUrl:         selectedImg || result.images[0] || "",
-      images:           result.images,
-      sourceUrl:        result.sourceUrl,
+      imageUrl:         finalCover,
+      images:           finalImages,
       detectedType:     result.detectedType,
       detectedColors:   result.detectedColors,
       detectedSizes:    result.detectedSizes,
       detectedLengths:  result.detectedLengths,
+      suggestedTags:    result.suggestedTags,
+      suggestedPrice:   result.suggestedPrice,
     }));
     window.location.href = "/admin/products/new";
   };
 
-  const detectedCount = (result?.detectedColors.length ?? 0) + (result?.detectedSizes.length ?? 0) + (result?.detectedLengths.length ?? 0);
-  // Matches the New Product form's actual trigger: variant pricing only
-  // turns on when an axis has genuine multiplicity, not just because the
-  // total count across axes exceeds one (a single size + single length +
-  // one color would wrongly sum to 3 under the old logic).
   const hasVariantAxis = (result?.detectedColors.length ?? 0) > 1 || (result?.detectedSizes.length ?? 0) > 1 || (result?.detectedLengths.length ?? 0) > 1;
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm" onClick={rehosting ? undefined : onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-        <div className="w-full max-w-2xl bg-white shadow-2xl pointer-events-auto flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+        <div className="w-full max-w-2xl bg-white shadow-2xl pointer-events-auto flex flex-col max-h-[92vh]" onClick={e => e.stopPropagation()}>
+
+          {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gray-900 flex items-center justify-center">
+              <div className="w-8 h-8 bg-gray-900 flex items-center justify-center shrink-0">
                 <Upload className="h-4 w-4 text-white" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-900">Import from URL</p>
-                <p className="text-[0.60rem] text-gray-400">Alibaba, AliExpress, 1688, or any product page — pulls every image, specs, and an SEO-cleaned title</p>
+                <p className="text-sm font-semibold text-gray-900">Smart Product Import</p>
+                <p className="text-[0.60rem] text-gray-400">Alibaba · AliExpress · 1688 · any product URL — images re-hosted to your CDN, source hidden</p>
               </div>
             </div>
-            <button onClick={onClose} className="text-gray-300 hover:text-gray-600 transition-colors">
-              <X className="h-5 w-5" />
-            </button>
+            {!rehosting && (
+              <button onClick={onClose} className="text-gray-300 hover:text-gray-600 transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            )}
           </div>
 
+          {/* Re-hosting progress overlay */}
+          {rehosting && (
+            <div className="px-6 py-5 bg-blue-50 border-b border-blue-100 shrink-0">
+              <div className="flex items-center gap-3 mb-3">
+                <CloudUpload className="h-4 w-4 text-blue-600 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-blue-800">Saving images to your store's CDN…</p>
+                  <p className="text-[0.60rem] text-blue-500 mt-0.5">Original source URLs are being replaced — customers will never see where these came from.</p>
+                </div>
+              </div>
+              {rehostProgress && (
+                <>
+                  <div className="w-full bg-blue-200 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-blue-600 h-full transition-all duration-300"
+                      style={{ width: `${Math.round((rehostProgress.done / rehostProgress.total) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-[0.58rem] text-blue-500 mt-1.5 text-right">{rehostProgress.done} / {rehostProgress.total} images</p>
+                </>
+              )}
+            </div>
+          )}
+
           <div className="flex-1 overflow-y-auto p-6 space-y-5">
+            {/* URL input */}
             <div>
               <label className="block text-[0.58rem] uppercase tracking-[0.16em] text-gray-400 mb-2">Product URL</label>
               <div className="flex gap-2">
                 <input
                   ref={inputRef}
                   value={url}
-                  onChange={e => { setUrl(e.target.value); setError(""); setResult(null); }}
+                  onChange={e => { setUrl(e.target.value); setError(""); setResult(null); setSelectedImgs([]); }}
                   onKeyDown={e => e.key === "Enter" && fetchData()}
                   placeholder="https://www.alibaba.com/product/..."
-                  className="flex-1 border border-gray-200 px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-gray-400 transition-colors bg-white font-mono"
+                  disabled={loading || rehosting}
+                  className="flex-1 border border-gray-200 px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-gray-400 transition-colors bg-white font-mono disabled:opacity-50"
                 />
                 <button
                   onClick={fetchData}
-                  disabled={loading || !url.trim()}
+                  disabled={loading || rehosting || !url.trim()}
                   className="px-5 py-2.5 bg-gray-900 text-white text-[0.62rem] uppercase tracking-[0.14em] hover:bg-gray-700 transition-colors disabled:opacity-40 shrink-0 flex items-center gap-2"
                 >
                   {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                  {loading ? "Fetching…" : "Fetch"}
+                  {loading ? "Analyzing…" : "Analyze"}
                 </button>
               </div>
             </div>
@@ -418,77 +504,180 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
 
             {result && (
               <div className="space-y-4">
+                {/* Generated title */}
                 <div className="bg-gray-50 border border-gray-100 p-4">
                   <p className="text-[0.56rem] uppercase tracking-[0.14em] text-gray-400 mb-1.5 flex items-center gap-1.5">
-                    <Sparkles className="h-3 w-3 text-amber-500" /> SEO-Optimized Title
+                    <Sparkles className="h-3 w-3 text-amber-500" /> Generated Store Title
                   </p>
-                  <p className="text-sm font-medium text-gray-800">
-                    {result.name || <span className="text-gray-400 italic">No title found</span>}
+                  <p className="text-sm font-semibold text-gray-900">
+                    {result.name || <span className="text-gray-400 italic">No title detected</span>}
                   </p>
                   {result.rawName && result.rawName !== result.name && (
-                    <p className="text-[0.62rem] text-gray-400 mt-1.5 line-clamp-1">
-                      Original: <span className="line-through decoration-gray-300">{result.rawName}</span>
+                    <p className="text-[0.60rem] text-gray-400 mt-1.5 line-clamp-1">
+                      Supplier original: <span className="line-through decoration-gray-300 italic">{result.rawName.slice(0, 100)}</span>
                     </p>
                   )}
                 </div>
 
-                {(result.detectedType || detectedCount > 0) && (
-                  <div className="bg-emerald-50 border border-emerald-100 p-4">
-                    <p className="text-[0.56rem] uppercase tracking-[0.14em] text-emerald-700 mb-2 flex items-center gap-1.5">
-                      <Layers className="h-3 w-3" /> Detected Attributes
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {result.detectedType && (
-                        <span className="px-2.5 py-1 bg-white border border-emerald-200 text-emerald-700 text-[0.62rem] font-medium">
-                          Type: {IMPORT_TYPE_LABELS[result.detectedType] ?? result.detectedType}
-                        </span>
-                      )}
-                      {result.detectedColors.map(c => (
-                        <span key={c} className="px-2.5 py-1 bg-white border border-emerald-200 text-emerald-700 text-[0.62rem] font-medium">
-                          Color: {IMPORT_COLOR_LABELS[c] ?? c}
-                        </span>
-                      ))}
-                      {result.detectedSizes.map(s => (
-                        <span key={s} className="px-2.5 py-1 bg-white border border-emerald-200 text-emerald-700 text-[0.62rem] font-medium">
-                          Size: {s}
-                        </span>
-                      ))}
-                      {result.detectedLengths.map(l => (
-                        <span key={l} className="px-2.5 py-1 bg-white border border-emerald-200 text-emerald-700 text-[0.62rem] font-medium">
-                          Length: {l}
-                        </span>
-                      ))}
-                    </div>
-                    {hasVariantAxis && (
-                      <p className="text-[0.6rem] text-emerald-600 mt-2">
-                        Multiple options detected on one axis — variant pricing will be pre-enabled on the new product form.
-                      </p>
-                    )}
-                  </div>
-                )}
+                {/* Intelligence panel: all detected signals */}
+                <div className="bg-emerald-50 border border-emerald-100 p-4 space-y-3">
+                  <p className="text-[0.56rem] uppercase tracking-[0.14em] text-emerald-700 flex items-center gap-1.5">
+                    <Layers className="h-3 w-3" /> Detected Product Intelligence
+                  </p>
 
+                  {/* Core attributes row */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {result.detectedType && (
+                      <span className="px-2.5 py-1 bg-white border border-emerald-200 text-emerald-700 text-[0.62rem] font-medium">
+                        Type: {IMPORT_TYPE_LABELS[result.detectedType] ?? result.detectedType}
+                      </span>
+                    )}
+                    {result.detectedColors.map(c => (
+                      <span key={c} className="px-2.5 py-1 bg-white border border-emerald-200 text-emerald-700 text-[0.62rem] font-medium">
+                        {IMPORT_COLOR_LABELS[c] ?? c}
+                      </span>
+                    ))}
+                    {result.detectedSizes.map(s => (
+                      <span key={s} className="px-2.5 py-1 bg-white border border-emerald-200 text-emerald-700 text-[0.62rem] font-medium">
+                        Size {s}
+                      </span>
+                    ))}
+                    {result.detectedLengths.map(l => (
+                      <span key={l} className="px-2.5 py-1 bg-white border border-emerald-200 text-emerald-700 text-[0.62rem] font-medium">
+                        {l}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Extended signals */}
+                  {(result.stoneCount || result.caratWeight || result.stoneDiameter || result.chainType) && (
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-emerald-100">
+                      {result.stoneCount && (
+                        <div className="flex items-center gap-2 text-[0.65rem] text-emerald-700">
+                          <Hash className="h-3 w-3 shrink-0" />
+                          <span><strong>{result.stoneCount}</strong> stones detected</span>
+                        </div>
+                      )}
+                      {result.caratWeight && (
+                        <div className="flex items-center gap-2 text-[0.65rem] text-emerald-700">
+                          <Weight className="h-3 w-3 shrink-0" />
+                          <span><strong>{result.caratWeight}</strong> total weight</span>
+                        </div>
+                      )}
+                      {result.stoneDiameter && (
+                        <div className="flex items-center gap-2 text-[0.65rem] text-emerald-700">
+                          <span className="h-3 w-3 shrink-0 text-center text-[0.6rem] font-bold">⌀</span>
+                          <span><strong>{result.stoneDiameter}</strong> per stone</span>
+                        </div>
+                      )}
+                      {result.chainType && (
+                        <div className="flex items-center gap-2 text-[0.65rem] text-emerald-700">
+                          <Link2 className="h-3 w-3 shrink-0" />
+                          <span><strong className="capitalize">{result.chainType.replace("-", " ")}</strong> style</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Suggested price */}
+                  {result.suggestedPrice && (
+                    <div className="flex items-center gap-2 pt-1 border-t border-emerald-100">
+                      <Tag className="h-3 w-3 text-emerald-600 shrink-0" />
+                      <p className="text-[0.65rem] text-emerald-700">
+                        Suggested base price: <strong>${result.suggestedPrice}</strong> (based on detected type × metal)
+                      </p>
+                    </div>
+                  )}
+
+                  {hasVariantAxis && (
+                    <p className="text-[0.60rem] text-emerald-600 bg-white border border-emerald-200 px-2.5 py-1.5">
+                      Multiple options on one axis — variant pricing will be pre-enabled on the product form.
+                    </p>
+                  )}
+                </div>
+
+                {/* Source privacy badge */}
+                <div className="flex items-center gap-2.5 bg-gray-900 text-white px-4 py-2.5">
+                  <Shield className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                  <p className="text-[0.60rem]">
+                    <strong>Source protection:</strong> All {result.images.length} images will be re-hosted on your own CDN before saving —
+                    no supplier URLs will ever reach your customers.
+                  </p>
+                </div>
+
+                {/* Image multi-select grid */}
                 {result.images.length > 0 ? (
                   <div>
-                    <p className="text-[0.56rem] uppercase tracking-[0.14em] text-gray-400 mb-2">
-                      Images ({result.images.length}) — all will be imported · click one to choose the cover
-                    </p>
-                    <div className="flex gap-2 overflow-x-auto pb-2 snap-x">
-                      {result.images.map((img, i) => (
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[0.56rem] uppercase tracking-[0.14em] text-gray-400">
+                        Images — {selectedImgs.length}/{result.images.length} selected · first = cover
+                      </p>
+                      <div className="flex gap-2">
                         <button
-                          key={i}
                           type="button"
-                          onClick={() => setSelectedImg(img)}
-                          className={`shrink-0 w-24 h-24 snap-start border-2 overflow-hidden transition-all relative ${
-                            selectedImg === img ? "border-blue-500 ring-1 ring-blue-300 scale-[1.02]" : "border-transparent hover:border-gray-300"
-                          }`}
+                          onClick={() => setSelectedImgs(result.images.slice(0, 24))}
+                          className="text-[0.55rem] uppercase tracking-[0.1em] text-gray-400 hover:text-gray-700 transition-colors"
                         >
-                          <img src={img} alt="" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).src = "/main.jpg"; }} />
-                          {selectedImg === img && (
-                            <span className="absolute top-1 left-1 bg-blue-500 text-white text-[0.5rem] uppercase px-1.5 py-0.5">Cover</span>
-                          )}
+                          All
                         </button>
-                      ))}
+                        <span className="text-gray-200">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedImgs([])}
+                          className="text-[0.55rem] uppercase tracking-[0.1em] text-gray-400 hover:text-gray-700 transition-colors"
+                        >
+                          None
+                        </button>
+                      </div>
                     </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {result.images.map((img, i) => {
+                        const isSelected = selectedImgs.includes(img);
+                        const isCover = selectedImgs[0] === img;
+                        return (
+                          <div key={i} className="relative group">
+                            <button
+                              type="button"
+                              onClick={() => toggleImage(img)}
+                              className={`w-full aspect-square border-2 overflow-hidden transition-all relative block ${
+                                isCover
+                                  ? "border-amber-500 ring-1 ring-amber-300"
+                                  : isSelected
+                                  ? "border-emerald-500 ring-1 ring-emerald-300"
+                                  : "border-gray-200 opacity-50 hover:opacity-80 hover:border-gray-400"
+                              }`}
+                            >
+                              <img
+                                src={img}
+                                alt=""
+                                className="w-full h-full object-cover"
+                                onError={e => { (e.target as HTMLImageElement).src = "/main.jpg"; }}
+                              />
+                              {isSelected && (
+                                <span className="absolute top-1 right-1 bg-emerald-500 rounded-full w-4 h-4 flex items-center justify-center">
+                                  <Check className="h-2.5 w-2.5 text-white" />
+                                </span>
+                              )}
+                              {isCover && (
+                                <span className="absolute bottom-0 left-0 right-0 bg-amber-500 text-white text-[0.45rem] uppercase tracking-wider text-center py-0.5 font-semibold">
+                                  Cover
+                                </span>
+                              )}
+                            </button>
+                            {isSelected && !isCover && (
+                              <button
+                                type="button"
+                                onClick={() => makeCover(img)}
+                                className="absolute top-1 left-1 bg-black/60 text-white text-[0.45rem] uppercase px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                Make cover
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[0.57rem] text-gray-400 mt-2">Click to toggle selection · hover to set cover image</p>
                   </div>
                 ) : (
                   <div className="bg-amber-50 border border-amber-100 px-4 py-3 flex items-center gap-2.5">
@@ -497,60 +686,75 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                   </div>
                 )}
 
-                <div className="bg-emerald-50 border border-emerald-100 p-4">
-                  <p className="text-[0.56rem] uppercase tracking-[0.14em] text-emerald-700 mb-1.5 flex items-center gap-1.5">
-                    <Sparkles className="h-3 w-3" /> Generated Short Description
-                  </p>
-                  <p className="text-xs text-gray-700 leading-relaxed">{result.shortDescription}</p>
-                </div>
-
-                <div className="bg-emerald-50 border border-emerald-100 p-4">
-                  <p className="text-[0.56rem] uppercase tracking-[0.14em] text-emerald-700 mb-1.5 flex items-center gap-1.5">
-                    <Sparkles className="h-3 w-3" /> Generated Full Description
-                  </p>
-                  <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-line line-clamp-6">{result.description}</p>
-                  <p className="text-[0.58rem] text-emerald-600 mt-2">
-                    Original copy written from detected specs — never the source page's marketing text.
-                  </p>
-                </div>
-
-                {result.attributes.length > 0 && (
+                {/* Auto-generated tags */}
+                {result.suggestedTags.length > 0 && (
                   <div className="bg-gray-50 border border-gray-100 p-4">
-                    <p className="text-[0.56rem] uppercase tracking-[0.14em] text-gray-400 mb-2.5 flex items-center gap-1.5">
-                      <ListChecks className="h-3 w-3" /> Key Specifications ({result.attributes.length})
+                    <p className="text-[0.56rem] uppercase tracking-[0.14em] text-gray-400 mb-2 flex items-center gap-1.5">
+                      <Tag className="h-3 w-3" /> Auto-Generated Tags
                     </p>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 max-h-40 overflow-y-auto">
-                      {result.attributes.map(a => (
-                        <div key={a.name} className="flex items-baseline gap-1.5 text-xs">
-                          <span className="text-gray-400 shrink-0">{a.name}:</span>
-                          <span className="text-gray-700 truncate">{a.value}</span>
-                        </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {result.suggestedTags.map(t => (
+                        <span key={t} className="px-2 py-0.5 bg-white border border-gray-200 text-gray-600 text-[0.60rem] font-mono">
+                          {t}
+                        </span>
                       ))}
                     </div>
-                    <p className="text-[0.58rem] text-gray-400 mt-2.5">Brand/supplier/origin fields are excluded from your listing automatically.</p>
                   </div>
                 )}
 
-                {result.sourcePagePreview && (
-                  <details className="text-gray-400">
-                    <summary className="text-[0.56rem] uppercase tracking-[0.14em] cursor-pointer hover:text-gray-600 transition-colors">
-                      Source page text (reference only — never used in your listing)
+                {/* Generated copy preview */}
+                <div className="bg-emerald-50 border border-emerald-100 p-4">
+                  <p className="text-[0.56rem] uppercase tracking-[0.14em] text-emerald-700 mb-1.5 flex items-center gap-1.5">
+                    <Sparkles className="h-3 w-3" /> Generated Description Preview
+                  </p>
+                  <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-line line-clamp-5">{result.description}</p>
+                  <p className="text-[0.58rem] text-emerald-600 mt-2">
+                    Written from detected specs — zero supplier language will appear in your listing.
+                  </p>
+                </div>
+
+                {/* Specs (collapsed by default) */}
+                {result.attributes.length > 0 && (
+                  <details className="group">
+                    <summary className="text-[0.56rem] uppercase tracking-[0.14em] text-gray-400 cursor-pointer hover:text-gray-600 transition-colors flex items-center gap-1.5">
+                      <ListChecks className="h-3 w-3" /> Scraped Specs ({result.attributes.length}) — for your reference only
                     </summary>
-                    <p className="text-[0.65rem] text-gray-400 mt-2 leading-relaxed italic">{result.sourcePagePreview}</p>
+                    <div className="mt-3 bg-gray-50 border border-gray-100 p-4">
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 max-h-36 overflow-y-auto">
+                        {result.attributes.map(a => (
+                          <div key={a.name} className="flex items-baseline gap-1.5 text-xs">
+                            <span className="text-gray-400 shrink-0">{a.name}:</span>
+                            <span className="text-gray-700 truncate">{a.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[0.58rem] text-gray-400 mt-2.5">Brand/supplier/origin fields excluded automatically.</p>
+                    </div>
                   </details>
                 )}
               </div>
             )}
           </div>
 
+          {/* Footer */}
           <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between shrink-0">
-            <button onClick={onClose} className="text-[0.62rem] uppercase tracking-[0.14em] text-gray-400 hover:text-gray-700 transition-colors">Cancel</button>
+            <button
+              onClick={onClose}
+              disabled={rehosting}
+              className="text-[0.62rem] uppercase tracking-[0.14em] text-gray-400 hover:text-gray-700 transition-colors disabled:opacity-30"
+            >
+              Cancel
+            </button>
             {result && (
               <button
-                onClick={useImport}
-                className="px-5 py-2.5 bg-gray-900 text-white text-[0.62rem] uppercase tracking-[0.14em] hover:bg-gray-700 transition-colors flex items-center gap-2"
+                onClick={handleImport}
+                disabled={rehosting || selectedImgs.length === 0 && result.images.length > 0}
+                className="px-5 py-2.5 bg-gray-900 text-white text-[0.62rem] uppercase tracking-[0.14em] hover:bg-gray-700 transition-colors disabled:opacity-40 flex items-center gap-2"
               >
-                <Plus className="h-3.5 w-3.5" /> Create Product from Import
+                {rehosting
+                  ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Re-hosting images…</>
+                  : <><CloudUpload className="h-3.5 w-3.5" /> Save to Store & Create Product</>
+                }
               </button>
             )}
           </div>

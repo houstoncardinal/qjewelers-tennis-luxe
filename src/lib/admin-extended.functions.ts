@@ -859,6 +859,12 @@ const TITLE_NOISE = [
   /\bfree\s*shipping\b/gi, /\bnew\s*arrival\b/gi, /\bbest\s*seller\b/gi, /\bdrop\s*shipping\b/gi,
   /\bin\s*stock\b/gi, /\bcustomi[sz]ed?\b/gi, /\blow\s*moq\b/gi, /\bmoq\s*\d+\s*pcs?\b/gi,
   /\bdirect\s*from\s*factory\b/gi, /[!]{1,}/g,
+  /\bhigh\s*quality\b/gi, /\bhot\s*selling\b/gi, /\btrendy\b/gi, /\bluxury\s*design\b/gi,
+  /\bsupplier\b/gi, /\bmanufacturer\b/gi, /\bfor\s+women\b/gi, /\bfor\s+men\b/gi,
+  /\bgift\s*box(?:\s*included)?\b/gi, /\bwith\s*(?:free\s+)?box\b/gi,
+  /\d+\s*pcs?\s*(?:lot|pack|set|min(?:imum)?)?/gi,
+  /\/\s*\d+\s*(?:colors?|styles?)\s*available\b/gi,
+  /\bbirthday\s*gift\b/gi, /\bparty\s*jewelry\b/gi, /\bfashion\s*jewelry\b/gi,
 ];
 
 const MINOR_WORDS = new Set(["a", "an", "the", "and", "or", "but", "for", "of", "in", "on", "with", "to", "by"]);
@@ -882,7 +888,149 @@ const COLOR_PHRASE: Record<string, string> = {
   gold: "18K yellow gold", rose_gold: "18K rose gold", white_gold: "18K white gold", silver: "S925 sterling silver",
 };
 
-function generateSeoTitle(rawTitle: string, fullText: string, type: string | null, colors: string[]): string {
+// ─── Extended detection helpers ────────────────────────────────────────────────
+
+function detectStoneCount(fullText: string): number | null {
+  const patterns = [
+    /\b(\d+)[\s-]?(?:stone|stones|pcs|pieces?)\s+(?:moissanite|diamond|gemstone|crystal)/i,
+    /(?:moissanite|diamond|gemstone|crystal)s?\s+(?:count|qty)?:?\s*(\d+)/i,
+    /\b(\d{2,3})[\s-]?(?:stone|stones)\b/i,
+    /total\s+(?:of\s+)?(\d+)\s+(?:stone|stones|gems?|crystals?)/i,
+  ];
+  for (const re of patterns) {
+    const m = fullText.match(re);
+    if (m) {
+      const n = parseInt(m[1] || m[2]);
+      if (n >= 5 && n <= 500) return n;
+    }
+  }
+  return null;
+}
+
+function detectCaratWeight(fullText: string): string | null {
+  const m = fullText.match(/\b(\d+(?:\.\d+)?)\s*(?:ct(?:w)?|carat(?:s)?(?:\s*(?:total|weight|tw))?)\b/i);
+  if (m) {
+    const n = parseFloat(m[1]);
+    if (n > 0 && n <= 100) return `${n} CTW`;
+  }
+  return null;
+}
+
+function detectChainType(fullText: string): string | null {
+  if (/\btennis\b/i.test(fullText)) return "tennis";
+  if (/\bcuban[\s-]?(?:link)?\b/i.test(fullText)) return "cuban-link";
+  if (/\brope[\s-]?chain\b/i.test(fullText)) return "rope";
+  if (/\bfigaro\b/i.test(fullText)) return "figaro";
+  if (/\bbox[\s-]?chain\b/i.test(fullText)) return "box";
+  if (/\bsnake[\s-]?chain\b/i.test(fullText)) return "snake";
+  if (/\bherringbone\b/i.test(fullText)) return "herringbone";
+  return null;
+}
+
+function detectStoneDiameter(fullText: string, attributes: { name: string; value: string }[]): string | null {
+  for (const attr of attributes) {
+    if (/stone\s*(?:size|diameter)|gem(?:stone)?\s*size/i.test(attr.name)) {
+      const m = attr.value.match(/(\d+(?:\.\d+)?)\s*mm/i);
+      if (m) return `${m[1]}mm`;
+    }
+  }
+  const m = fullText.match(
+    /\b(\d+(?:\.\d+)?)\s*mm\s+(?:stone|moissanite|diamond|gem)|(?:each\s+)?(?:stone|moissanite|diamond|gem)s?\s+(?:are\s+|is\s+)?(\d+(?:\.\d+)?)\s*mm/i
+  );
+  if (m) return `${m[1] || m[2]}mm`;
+  return null;
+}
+
+function generateAutoTags(params: {
+  type: string | null;
+  colors: string[];
+  isMoissanite: boolean;
+  isVVS: boolean;
+  isDColor: boolean;
+  chainType: string | null;
+  stoneCount: number | null;
+}): string[] {
+  const tags: string[] = [];
+  const typeTagMap: Record<string, string[]> = {
+    necklace: ["necklace", "tennis-chain", "chain-necklace"],
+    bracelet: ["bracelet", "tennis-bracelet", "wrist-jewelry"],
+    earring:  ["earrings", "stud-earrings", "ear-jewelry"],
+    ring:     ["ring", "solitaire-ring"],
+  };
+  if (params.type) tags.push(...(typeTagMap[params.type] ?? []));
+  if (params.isMoissanite) tags.push("moissanite");
+  if (params.isVVS) tags.push("vvs", "vvs1");
+  if (params.isDColor) tags.push("d-color", "d-colorless");
+  if (params.isMoissanite && params.isVVS) tags.push("vvs-moissanite");
+  const colorTagMap: Record<string, string[]> = {
+    silver:     ["sterling-silver", "s925", "silver-jewelry"],
+    gold:       ["gold", "18k-gold", "yellow-gold"],
+    rose_gold:  ["rose-gold", "18k-rose-gold"],
+    white_gold: ["white-gold", "18k-white-gold"],
+  };
+  for (const c of params.colors) tags.push(...(colorTagMap[c] ?? []));
+  if (params.chainType === "cuban-link") tags.push("cuban-link");
+  if (params.stoneCount && params.stoneCount >= 80) tags.push("full-eternity");
+  tags.push("gra-certified", "luxury-jewelry", "fine-jewelry");
+  return [...new Set(tags)].slice(0, 15);
+}
+
+// Suggested base price derived from our own pricing table (type × color).
+const SUGGESTED_BASE_PRICES: Record<string, Record<string, number>> = {
+  necklace: { silver: 189, gold: 219, rose_gold: 229, white_gold: 229 },
+  bracelet: { silver: 129, gold: 159, rose_gold: 169, white_gold: 169 },
+  earring:  { silver: 89,  gold: 119, rose_gold: 129, white_gold: 129 },
+  ring:     { silver: 399, gold: 499, rose_gold: 549, white_gold: 549 },
+};
+function suggestBasePrice(type: string | null, colors: string[]): number | null {
+  if (!type) return null;
+  const priceMap = SUGGESTED_BASE_PRICES[type];
+  if (!priceMap) return null;
+  return priceMap[colors[0] ?? "silver"] ?? priceMap.silver;
+}
+
+// ─── Multi-template title generator ───────────────────────────────────────────
+
+type TitleParams = {
+  vvs: boolean; dColor: boolean; color: string | null;
+  stoneCount: number | null; stoneDiameter: string | null; feature: string | null;
+};
+
+const TITLE_TEMPLATES: Record<string, Array<(p: TitleParams) => string>> = {
+  necklace: [
+    p => clampWhitespace([p.vvs ? "VVS1" : null, p.dColor ? "D" : null, "Moissanite Tennis Chain", p.color ? COLOR_TITLE_LABEL[p.color] : null].filter(Boolean).join(" ")),
+    p => clampWhitespace([p.stoneDiameter ?? null, p.vvs ? "VVS" : null, "Moissanite Tennis Chain", p.color ? `- ${COLOR_TITLE_LABEL[p.color]}` : null].filter(Boolean).join(" ")),
+    p => clampWhitespace(["Iced Out", p.vvs ? "VVS1" : "Premium", "Moissanite Chain", p.color ? `| ${COLOR_TITLE_LABEL[p.color]}` : null].filter(Boolean).join(" ")),
+    p => clampWhitespace([p.stoneCount ? `${p.stoneCount}-Stone` : "Full Eternity", p.vvs ? "VVS" : null, "Moissanite Necklace", p.color ? COLOR_TITLE_LABEL[p.color] : null].filter(Boolean).join(" ")),
+    p => clampWhitespace([p.vvs ? "VVS1 D Color" : "Premium", "Moissanite Tennis Chain", p.feature ? `with ${p.feature}` : null, p.color ? `| ${COLOR_TITLE_LABEL[p.color]}` : null].filter(Boolean).join(" ")),
+    p => clampWhitespace(["Brilliant", p.vvs ? "VVS1" : null, "Moissanite Chain", p.color ? `- ${COLOR_TITLE_LABEL[p.color]}` : null, p.stoneCount ? `(${p.stoneCount} Stones)` : null].filter(Boolean).join(" ")),
+  ],
+  bracelet: [
+    p => clampWhitespace([p.vvs ? "VVS1" : null, p.dColor ? "D" : null, "Moissanite Tennis Bracelet", p.color ? COLOR_TITLE_LABEL[p.color] : null].filter(Boolean).join(" ")),
+    p => clampWhitespace([p.stoneDiameter ?? null, p.vvs ? "VVS" : null, "Moissanite Bracelet", p.color ? `- ${COLOR_TITLE_LABEL[p.color]}` : null].filter(Boolean).join(" ")),
+    p => clampWhitespace(["Iced Out", p.vvs ? "VVS1 D" : "Premium", "Moissanite Bracelet", p.color ? `| ${COLOR_TITLE_LABEL[p.color]}` : null].filter(Boolean).join(" ")),
+    p => clampWhitespace([p.stoneCount ? `${p.stoneCount}-Stone` : "Full Eternity", p.vvs ? "VVS" : null, "Moissanite Tennis Bracelet", p.color ? COLOR_TITLE_LABEL[p.color] : null].filter(Boolean).join(" ")),
+    p => clampWhitespace([p.vvs ? "VVS1" : "Premium", "Moissanite Tennis Bracelet", p.feature ? `- ${p.feature}` : null, p.color ? `| ${COLOR_TITLE_LABEL[p.color]}` : null].filter(Boolean).join(" ")),
+    p => clampWhitespace(["Brilliant", p.vvs ? "VVS1" : null, "Moissanite Wrist Stack", p.color ? `- ${COLOR_TITLE_LABEL[p.color]}` : null].filter(Boolean).join(" ")),
+  ],
+  earring: [
+    p => clampWhitespace([p.vvs ? "VVS1" : null, p.dColor ? "D" : null, "Moissanite Stud Earrings", p.color ? COLOR_TITLE_LABEL[p.color] : null].filter(Boolean).join(" ")),
+    p => clampWhitespace([p.stoneDiameter ?? null, p.vvs ? "VVS" : null, "Moissanite Studs", p.color ? `| ${COLOR_TITLE_LABEL[p.color]}` : null].filter(Boolean).join(" ")),
+    p => clampWhitespace(["Brilliant", p.vvs ? "VVS1 D" : "Cut", "Moissanite Earrings", p.color ? `- ${COLOR_TITLE_LABEL[p.color]}` : null].filter(Boolean).join(" ")),
+    p => clampWhitespace([p.vvs ? "VVS1 D Color" : "Premium", "Moissanite Stud Earrings", p.color ? `| ${COLOR_TITLE_LABEL[p.color]}` : null].filter(Boolean).join(" ")),
+  ],
+  ring: [
+    p => clampWhitespace([p.vvs ? "VVS1" : null, p.dColor ? "D" : null, "Moissanite Solitaire Ring", p.color ? COLOR_TITLE_LABEL[p.color] : null].filter(Boolean).join(" ")),
+    p => clampWhitespace([p.stoneDiameter ?? null, p.vvs ? "VVS" : null, "Moissanite Ring", p.color ? `- ${COLOR_TITLE_LABEL[p.color]}` : null].filter(Boolean).join(" ")),
+    p => clampWhitespace(["Brilliant Cut", p.vvs ? "VVS1 D" : null, "Moissanite Ring", p.color ? `| ${COLOR_TITLE_LABEL[p.color]}` : null].filter(Boolean).join(" ")),
+    p => clampWhitespace([p.stoneCount ? `${p.stoneCount}-Stone` : null, p.vvs ? "VVS" : "Premium", "Moissanite Eternity Ring", p.color ? COLOR_TITLE_LABEL[p.color] : null].filter(Boolean).join(" ")),
+    p => clampWhitespace([p.vvs ? "VVS1 D Color" : "Premium", "Moissanite Solitaire", p.feature ? `with ${p.feature}` : null, p.color ? `| ${COLOR_TITLE_LABEL[p.color]}` : null].filter(Boolean).join(" ")),
+  ],
+};
+
+function generateSeoTitle(rawTitle: string, fullText: string, type: string | null, colors: string[], extra?: {
+  stoneCount?: number | null; stoneDiameter?: string | null; seed?: string;
+}): string {
   let cleaned = rawTitle;
   for (const re of TITLE_NOISE) cleaned = cleaned.replace(re, " ");
   cleaned = cleaned.replace(/^\[[^\]]{1,30}\]\s*/, "").replace(/^[A-Z0-9]{2,8}-[A-Z0-9-]{2,12}\s+/, "");
@@ -891,19 +1039,24 @@ function generateSeoTitle(rawTitle: string, fullText: string, type: string | nul
   const isMoissanite = /moissanite/i.test(fullText);
   const isVVS = /\bvvs1?\b/i.test(fullText);
   const isDColor = /\bd[\s-]?colou?r(?:less)?\b/i.test(fullText);
+  const feature = detectFeatures(fullText);
 
-  // Enough signal recognized (moissanite + a known product type) — safe to
-  // recompose a clean, on-brand title rather than just trim the scraped one.
   if (isMoissanite && type) {
+    const templates = TITLE_TEMPLATES[type];
+    if (templates && extra?.seed) {
+      const tparams: TitleParams = {
+        vvs: isVVS, dColor: isDColor, color: colors[0] ?? null,
+        stoneCount: extra.stoneCount ?? null, stoneDiameter: extra.stoneDiameter ?? null, feature,
+      };
+      const result = clampWhitespace(pickStable(templates, extra.seed)(tparams));
+      if (result) return result.slice(0, 140);
+    }
+    // Fallback composition
     const parts = [
-      isVVS ? "VVS1" : null,
-      isDColor ? "D" : null,
-      "Moissanite",
-      TYPE_LABEL[type],
-      colors[0] ? COLOR_TITLE_LABEL[colors[0]] : null,
+      isVVS ? "VVS1" : null, isDColor ? "D" : null, "Moissanite",
+      TYPE_LABEL[type], colors[0] ? COLOR_TITLE_LABEL[colors[0]] : null,
     ].filter(Boolean) as string[];
     let title = parts.join(" ");
-    const feature = detectFeatures(fullText);
     if (feature) title += ` - ${feature}`;
     return title.slice(0, 140);
   }
@@ -912,26 +1065,72 @@ function generateSeoTitle(rawTitle: string, fullText: string, type: string | nul
 }
 
 // ─── Description generator — original on-brand copy, never the scraped/
-// manufacturer text. Built entirely from the signals already detected above
-// (type, quality grade, color, dimensions, safe attributes) so the result is
-// specific to this exact product, not a generic template. ──────────────────
+// manufacturer text. Built entirely from the signals already detected above. ──
 
-const TYPE_COPY: Record<string, { setting: string; hooks: string[] }> = {
+const TYPE_COPY: Record<string, { setting: string; hooks: string[]; cta: string[] }> = {
   necklace: {
     setting: "hand-set in a continuous tennis-style chain",
-    hooks: ["Pure brilliance, worn close.", "Brilliance that catches every light.", "A chain built to outshine."],
+    hooks: [
+      "Pure brilliance, worn close.",
+      "Brilliance that catches every light.",
+      "A chain built to outshine.",
+      "Where precision meets presence.",
+      "Every stone placed to perfection.",
+      "The chain that speaks before you do.",
+    ],
+    cta: [
+      "Wear it alone or layer it — either way, it owns the room.",
+      "Stack it, layer it, or let it lead. It's built for both.",
+      "Dress it up or down — this chain works every angle.",
+    ],
   },
   bracelet: {
-    setting: "hand-set in a secure prong setting with a reinforced clasp",
-    hooks: ["A masterclass in jewelry engineering.", "Built for daily brilliance.", "Stacked stones, zero compromise."],
+    setting: "hand-set in a secure four-prong setting with a reinforced double-lock clasp",
+    hooks: [
+      "A masterclass in jewelry engineering.",
+      "Built for daily brilliance.",
+      "Stacked stones, zero compromise.",
+      "Precision from clasp to clasp.",
+      "The bracelet that never comes off.",
+      "Wrist game, elevated.",
+    ],
+    cta: [
+      "Stack it with other pieces or let it stand alone — it demands attention either way.",
+      "Built to be worn daily. Crafted to last a lifetime.",
+      "Layer it or let it breathe — it commands every wrist.",
+    ],
   },
   earring: {
-    setting: "hand-set in a secure prong setting",
-    hooks: ["Pure brilliance. No compromises.", "Flawless brilliance, every angle.", "Small stones, serious fire."],
+    setting: "hand-set in a secure four-prong setting",
+    hooks: [
+      "Pure brilliance. No compromises.",
+      "Flawless brilliance, every angle.",
+      "Small stones, serious fire.",
+      "The studs that complete every look.",
+      "Subtle? Never. Understated? Always.",
+      "Two stones. Infinite impact.",
+    ],
+    cta: [
+      "Pair with a tennis chain for the full look, or let these shine solo.",
+      "Day-to-night versatility — from office to occasion without a second thought.",
+      "The earrings that work with everything. Because brilliance is always on theme.",
+    ],
   },
   ring: {
-    setting: "hand-set in a classic solitaire setting",
-    hooks: ["Flawless brilliance, set to last.", "One stone. Total brilliance.", "Brilliance, set in stone."],
+    setting: "hand-set in a polished solitaire setting",
+    hooks: [
+      "Flawless brilliance, set to last.",
+      "One stone. Total brilliance.",
+      "Brilliance, set in stone.",
+      "The ring that says everything.",
+      "A solitaire with nothing to prove — and everything to show.",
+      "Cut for brilliance. Set for forever.",
+    ],
+    cta: [
+      "Stack it or wear it solo — either way, this ring commands attention.",
+      "Wear it on any finger. Own every room.",
+      "A ring this brilliant doesn't need a story. It tells its own.",
+    ],
   },
 };
 
@@ -954,9 +1153,14 @@ function generateDescriptions(params: {
   feature: string | null;
   safeAttributes: { name: string; value: string }[];
   seed: string;
+  stoneCount?: number | null;
+  caratWeight?: string | null;
+  stoneDiameter?: string | null;
+  chainType?: string | null;
 }): { shortDescription: string; fullDescription: string } {
   const copy = TYPE_COPY[params.type ?? ""] ?? TYPE_COPY.necklace;
   const hook = pickStable(copy.hooks, params.seed);
+  const cta = pickStable(copy.cta, params.seed + "cta");
   const stone = params.isMoissanite ? "moissanite" : "gemstone";
 
   const qualityBits = [params.isVVS ? "VVS1 clarity" : null, params.isDColor ? "D Colorless color" : null]
@@ -981,19 +1185,34 @@ function generateDescriptions(params: {
   const sizePhrase = params.sizes.length > 0 ? ` Available in ${params.sizes.join(", ")}.` : "";
   const lengthPhrase = params.lengths.length > 0 ? ` Offered in ${params.lengths.join(", ")} lengths.` : "";
   const featurePhrase = params.feature ? ` Featuring a ${params.feature.toLowerCase()}.` : "";
+  const caratPhrase = params.caratWeight ? ` Total stone weight: ${params.caratWeight}.` : "";
+
+  // Stone-count paragraph (only when detected — adds specificity without being generic)
+  const stoneParagraph = (params.stoneCount || params.stoneDiameter)
+    ? "\n\n" + [
+        params.stoneCount
+          ? `${params.stoneCount} individually hand-placed stones run edge to edge — no gaps, no filler, no shortcuts.`
+          : null,
+        params.stoneDiameter
+          ? `Each stone measures ${params.stoneDiameter} for a clean, consistent sparkle across every angle.`
+          : null,
+      ].filter(Boolean).join(" ")
+    : "";
 
   const shortDescription = clampWhitespace(
-    `${qualityPrefix}${stone} ${TYPE_LABEL[params.type ?? "necklace"]?.toLowerCase() ?? "jewelry"}. ${baseClauseShort}${featurePhrase} GRA certifiable.${sizePhrase}${lengthPhrase}`
-  ).slice(0, 200);
+    `${qualityPrefix}${stone} ${TYPE_LABEL[params.type ?? "necklace"]?.toLowerCase() ?? "jewelry"}. ${baseClauseShort}${featurePhrase} GRA certifiable.${params.stoneCount ? ` ${params.stoneCount} hand-set stones.` : ""}${sizePhrase}${lengthPhrase}`
+  ).slice(0, 250);
 
   const specLines = params.safeAttributes.slice(0, 8).map(a => `• ${a.name}: ${a.value}`);
   const specBlock = specLines.length > 0 ? `\n\nSpecifications:\n${specLines.join("\n")}` : "";
 
   const fullDescription = `${hook}
 
-This piece features ${qualityBits || "premium-grade"} ${stone}, ${copy.setting}, ${baseClauseFull}.${featurePhrase}
+This piece features ${qualityBits || "premium-grade"} ${stone}, ${copy.setting}, ${baseClauseFull}.${featurePhrase}${stoneParagraph}
 
-Every stone can be independently GRA certified — verified clarity, color, and cut, never just a marketing claim.${sizePhrase}${lengthPhrase}`.trim() + specBlock;
+Every stone can be independently GRA certified — verified clarity, color, and cut, never just a marketing claim.${sizePhrase}${lengthPhrase}${caratPhrase}
+
+${cta}`.trim() + specBlock;
 
   return { shortDescription, fullDescription };
 }
@@ -1137,7 +1356,15 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
     const isDColor = /\bd[\s-]?colou?r(?:less)?\b/i.test(fullText);
     const feature = detectFeatures(fullText);
 
-    const name = generateSeoTitle(rawName, fullText, detectedType, detectedColors);
+    // Extended intelligence — stone count, carat weight, stone diameter, chain type
+    const stoneCount = detectStoneCount(fullText);
+    const caratWeight = detectCaratWeight(fullText);
+    const stoneDiameter = detectStoneDiameter(fullText, attributes);
+    const chainType = detectChainType(fullText);
+
+    const name = generateSeoTitle(rawName, fullText, detectedType, detectedColors, {
+      stoneCount, stoneDiameter, seed: url,
+    });
 
     // Customer-facing copy is generated fresh, never the scraped marketing
     // text — the source description is only ever used internally as a
@@ -1156,7 +1383,17 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
       feature,
       safeAttributes,
       seed: url,
+      stoneCount,
+      caratWeight,
+      stoneDiameter,
+      chainType,
     });
+
+    const suggestedTags = generateAutoTags({
+      type: detectedType, colors: detectedColors, isMoissanite, isVVS, isDColor,
+      chainType, stoneCount,
+    });
+    const suggestedPrice = suggestBasePrice(detectedType, detectedColors);
 
     return {
       name,
@@ -1171,7 +1408,87 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
       detectedColors,
       detectedSizes,
       detectedLengths,
+      stoneCount,
+      caratWeight,
+      stoneDiameter,
+      chainType,
+      suggestedTags,
+      suggestedPrice,
     };
+  });
+
+// ─── Image re-hosting — downloads external (Alibaba/AliExpress) images server-
+// side and re-uploads them to our own Supabase Storage so customers never see
+// the supplier URL in browser devtools, network tabs, or image hover previews.
+// Each original URL is mapped to a clean hosted URL; failures are per-image
+// so one bad image doesn't abort the whole batch.
+export const rehostImportImages = createServerFn({ method: "POST" })
+  .inputValidator((d: { token: string; urls: string[] }) => d)
+  .handler(async ({ data }) => {
+    requireAdmin(data.token);
+    if (data.urls.length > 20) throw new Error("Maximum 20 images per batch");
+
+    // Rotate through a few realistic User-Agents so repeated imports don't
+    // look like a bot to CDN rate-limiters.
+    const UAS = [
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_4) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Safari/605.1.15",
+    ];
+
+    const EXT_MAP: Record<string, string> = {
+      "image/jpeg": "jpg", "image/jpg": "jpg", "image/png": "png",
+      "image/webp": "webp", "image/gif": "gif", "image/avif": "avif",
+    };
+
+    const results: { original: string; hosted: string | null; error?: string }[] = [];
+
+    for (let i = 0; i < data.urls.length; i++) {
+      const imgUrl = data.urls[i];
+      try {
+        const ua = UAS[i % UAS.length];
+        const res = await fetch(imgUrl, {
+          headers: {
+            "User-Agent": ua,
+            "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Referer": "https://www.alibaba.com/",
+            "Sec-Fetch-Dest": "image",
+            "Sec-Fetch-Mode": "no-cors",
+            "Sec-Fetch-Site": "cross-site",
+            "Cache-Control": "no-cache",
+          },
+          redirect: "follow",
+          signal: AbortSignal.timeout(12000),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const contentType = (res.headers.get("content-type") ?? "image/jpeg").split(";")[0].trim();
+        if (!contentType.startsWith("image/")) throw new Error("Not an image content-type");
+
+        const buffer = Buffer.from(await res.arrayBuffer());
+        if (buffer.length > MAX_UPLOAD_BYTES) throw new Error("Image exceeds 10 MB");
+
+        const extFromUrl = imgUrl.match(/\.(jpg|jpeg|png|webp|gif|avif)(?:[?#]|$)/i)?.[1]?.toLowerCase();
+        const ext = (extFromUrl ?? EXT_MAP[contentType] ?? "jpg").replace(/^jpeg$/, "jpg");
+        if (!ALLOWED_UPLOAD_EXT.includes(ext)) throw new Error("Unsupported image type");
+
+        const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const fileName = `import-${unique}.${ext}`;
+
+        const { error: uploadError } = await supabaseAdmin.storage
+          .from(UPLOAD_BUCKET)
+          .upload(fileName, buffer, { contentType, upsert: false });
+        if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
+
+        const { data: pub } = supabaseAdmin.storage.from(UPLOAD_BUCKET).getPublicUrl(fileName);
+        results.push({ original: imgUrl, hosted: pub.publicUrl });
+      } catch (e: any) {
+        results.push({ original: imgUrl, hosted: null, error: e?.message ?? "Failed" });
+      }
+    }
+
+    return { results };
   });
 
 // ─── Inventory Alerts ─────────────────────────────────────────────────────────
