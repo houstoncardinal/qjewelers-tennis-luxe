@@ -18,17 +18,202 @@ export const Route = createFileRoute("/admin")({
 
 // ─── Login ───────────────────────────────────────────────────────────────────
 
-const GRID_BG = {
-  backgroundImage:
-    "linear-gradient(rgba(255,255,255,.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.5) 1px,transparent 1px)",
-  backgroundSize: "44px 44px",
-};
+// Luxury vault CSS injected once at the module level
+const VAULT_CSS = `
+  @keyframes vault-spin-cw  { to { transform: rotate(360deg);  } }
+  @keyframes vault-spin-ccw { to { transform: rotate(-360deg); } }
+  @keyframes vault-pulse    {
+    0%,100% { opacity: 0.35; }
+    50%      { opacity: 0.65; }
+  }
+  @keyframes gold-shimmer {
+    0%   { transform: translateX(-120%) skewX(-20deg); opacity: 0; }
+    8%   { opacity: 0.6; }
+    92%  { opacity: 0.6; }
+    100% { transform: translateX(320%) skewX(-20deg); opacity: 0; }
+  }
+  @keyframes vault-entrance {
+    from { opacity: 0; transform: scale(0.96) translateY(14px); }
+    to   { opacity: 1; transform: scale(1)    translateY(0);    }
+  }
+  @keyframes spark-float {
+    0%,100% { opacity: 0; transform: scale(0) rotate(0deg);   }
+    40%     { opacity: 1; transform: scale(1) rotate(45deg);  }
+    80%     { opacity: 0; transform: scale(0) rotate(90deg);  }
+  }
+  @keyframes needle-pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(212,175,55,0.6); }
+    50%     { box-shadow: 0 0 0 6px rgba(212,175,55,0);  }
+  }
+  .vault-entrance { animation: vault-entrance 0.7s cubic-bezier(0.16,1,0.3,1) both; }
+  .gold-shimmer-card { position: relative; overflow: hidden; }
+  .gold-shimmer-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 40%, rgba(212,175,55,0.07) 50%, transparent 60%);
+    animation: gold-shimmer 6s ease-in-out 1.5s infinite;
+    pointer-events: none;
+  }
+`;
 
-const BRAND_FEATURES = [
-  { icon: ShieldCheck, text: "TOTP two-factor authentication" },
-  { icon: Lock, text: "Encrypted, HttpOnly session cookies" },
-  { icon: ClipboardList, text: "Full audit trail on every action" },
+// Vault dial rings ─────────────────────────────────────────────────────────────
+function VaultDoor() {
+  const rings = [
+    { d: 580, border: "1px solid rgba(212,175,55,0.07)", anim: "vault-spin-cw 220s linear infinite" },
+    { d: 480, border: "1px solid rgba(212,175,55,0.12)", anim: "vault-spin-ccw 160s linear infinite" },
+    { d: 390, border: "2px solid rgba(212,175,55,0.10)", anim: "vault-spin-cw 120s linear infinite" },
+    { d: 300, border: "1px solid rgba(212,175,55,0.18)", anim: "vault-spin-ccw 90s linear infinite" },
+    { d: 218, border: "1px solid rgba(212,175,55,0.22)", anim: "vault-spin-cw 60s linear infinite" },
+    { d: 146, border: "2px solid rgba(212,175,55,0.28)", anim: "vault-spin-ccw 40s linear infinite" },
+  ];
+  // bolt positions on the 480 ring
+  const bolts = Array.from({ length: 12 }, (_, i) => i * 30);
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+      {/* Ambient glow behind vault */}
+      <div
+        className="absolute rounded-full"
+        style={{
+          width: 500, height: 500,
+          background: "radial-gradient(circle, rgba(212,175,55,0.09) 0%, rgba(212,175,55,0.03) 40%, transparent 70%)",
+          animation: "vault-pulse 4s ease-in-out infinite",
+        }}
+      />
+      {/* Rings */}
+      {rings.map((r, i) => (
+        <div
+          key={i}
+          className="absolute rounded-full"
+          style={{ width: r.d, height: r.d, border: r.border, animation: r.anim }}
+        >
+          {/* Tick marks on each ring */}
+          {i === 1 && bolts.map((deg) => (
+            <div
+              key={deg}
+              className="absolute"
+              style={{
+                width: 6, height: 6,
+                borderRadius: "50%",
+                background: "rgba(212,175,55,0.35)",
+                top: "50%", left: "50%",
+                transform: `rotate(${deg}deg) translateX(${r.d / 2 - 10}px) translateY(-50%)`,
+                transformOrigin: "0 50%",
+              }}
+            />
+          ))}
+          {/* Spokes on the 390 ring */}
+          {i === 2 && [0, 45, 90, 135].map((deg) => (
+            <div
+              key={deg}
+              className="absolute top-1/2 left-1/2 origin-left"
+              style={{
+                width: r.d / 2 - 30,
+                height: 1,
+                marginTop: -0.5,
+                background: "linear-gradient(to right, rgba(212,175,55,0.20), transparent)",
+                transform: `rotate(${deg}deg)`,
+              }}
+            />
+          ))}
+        </div>
+      ))}
+      {/* Center medallion */}
+      <div
+        className="absolute flex items-center justify-center rounded-full"
+        style={{
+          width: 100, height: 100,
+          background: "radial-gradient(circle, rgba(212,175,55,0.14) 0%, rgba(0,0,0,0) 70%)",
+          border: "1px solid rgba(212,175,55,0.30)",
+          boxShadow: "0 0 30px rgba(212,175,55,0.12), inset 0 0 20px rgba(0,0,0,0.6)",
+        }}
+      >
+        <Gem className="h-9 w-9" style={{ color: "rgba(212,175,55,0.55)" }} />
+      </div>
+    </div>
+  );
+}
+
+// Decorative gold divider ──────────────────────────────────────────────────────
+function GoldRule({ label }: { label?: string }) {
+  return (
+    <div className="flex items-center gap-3 my-1">
+      <div className="flex-1 h-px" style={{ background: "linear-gradient(to right, transparent, rgba(212,175,55,0.30))" }} />
+      {label ? (
+        <span className="text-[0.42rem] uppercase tracking-[0.38em] font-semibold" style={{ color: "rgba(212,175,55,0.45)" }}>
+          {label}
+        </span>
+      ) : (
+        <span style={{ color: "rgba(212,175,55,0.40)", fontSize: "0.45rem" }}>◆</span>
+      )}
+      <div className="flex-1 h-px" style={{ background: "linear-gradient(to left, transparent, rgba(212,175,55,0.30))" }} />
+    </div>
+  );
+}
+
+// Corner gold inlay marks ──────────────────────────────────────────────────────
+function CornerAccents({ size = 20, opacity = 0.5 }: { size?: number; opacity?: number }) {
+  const s = `rgba(212,175,55,${opacity})`;
+  const b = `${size}px`;
+  const shared: React.CSSProperties = { position: "absolute", width: size, height: size };
+  return (
+    <>
+      <div style={{ ...shared, top: 0, left: 0, borderTop: `1.5px solid ${s}`, borderLeft: `1.5px solid ${s}` }} />
+      <div style={{ ...shared, top: 0, right: 0, borderTop: `1.5px solid ${s}`, borderRight: `1.5px solid ${s}` }} />
+      <div style={{ ...shared, bottom: 0, left: 0, borderBottom: `1.5px solid ${s}`, borderLeft: `1.5px solid ${s}` }} />
+      <div style={{ ...shared, bottom: 0, right: 0, borderBottom: `1.5px solid ${s}`, borderRight: `1.5px solid ${s}` }} />
+    </>
+  );
+}
+
+// Floating diamond sparks ──────────────────────────────────────────────────────
+const SPARKS = [
+  { top: "12%",  left: "8%",  delay: "0s",   dur: "3.5s" },
+  { top: "28%",  left: "91%", delay: "1.2s", dur: "4.1s" },
+  { top: "72%",  left: "6%",  delay: "2.0s", dur: "3.2s" },
+  { top: "85%",  left: "88%", delay: "0.6s", dur: "4.8s" },
+  { top: "48%",  left: "96%", delay: "3.1s", dur: "3.0s" },
 ];
+
+function DiamondSparks() {
+  return (
+    <>
+      {SPARKS.map((s, i) => (
+        <div
+          key={i}
+          className="absolute pointer-events-none select-none"
+          style={{
+            top: s.top, left: s.left,
+            width: 8, height: 8,
+            fontSize: "0.5rem",
+            color: "rgba(212,175,55,0.55)",
+            animation: `spark-float ${s.dur} ease-in-out ${s.delay} infinite`,
+          }}
+        >
+          ◆
+        </div>
+      ))}
+    </>
+  );
+}
+
+// Security credential row ──────────────────────────────────────────────────────
+function CredentialRow({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div
+        className="w-6 h-6 rounded flex items-center justify-center shrink-0"
+        style={{ background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.18)" }}
+      >
+        <Icon className="h-3 w-3" style={{ color: "rgba(212,175,55,0.70)" }} />
+      </div>
+      <span className="text-[0.60rem] tracking-[0.06em]" style={{ color: "rgba(255,255,255,0.38)" }}>{label}</span>
+    </div>
+  );
+}
+
+// ─── Main Login ───────────────────────────────────────────────────────────────
 
 function AdminLogin({ onLogin }: { onLogin: () => void }) {
   const [pin, setPin] = useState("");
@@ -39,8 +224,8 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
   const auth = useServerFn(adminAuth);
   const verifyTotp = useServerFn(verifyTotpLogin);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submit = async (e?: React.FormEvent | React.MouseEvent) => {
+    e?.preventDefault();
     setLoading(true);
     setError("");
     try {
@@ -62,7 +247,7 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
       if (msg.includes("Too many") || msg.includes("misconfigured")) {
         setError(msg);
       } else {
-        setError(needsTotp ? "Invalid code. Try again." : "Incorrect PIN.");
+        setError(needsTotp ? "Invalid code. Try again." : "Incorrect access code.");
       }
     } finally {
       setLoading(false);
@@ -71,204 +256,419 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
 
   const backToLogin = () => { setNeedsTotp(false); setCode(""); setError(""); };
 
+  // Gold palette
+  const GOLD       = "rgba(212,175,55,1)";
+  const GOLD_MID   = "rgba(212,175,55,0.55)";
+  const GOLD_DIM   = "rgba(212,175,55,0.22)";
+  const GOLD_FAINT = "rgba(212,175,55,0.08)";
+
   return (
-    <div className="min-h-screen flex" style={{ background: "#0a0a0a" }}>
-      {/* ── Brand panel (desktop only) ───────────────────────────────────── */}
+    <>
+      <style>{VAULT_CSS}</style>
+
       <div
-        className="hidden lg:flex lg:w-[44%] relative overflow-hidden flex-col justify-between p-14"
-        style={{ background: "linear-gradient(160deg, #0a0a0a 0%, #161410 55%, #0d0c0a 100%)" }}
+        className="min-h-screen flex"
+        style={{ background: "linear-gradient(160deg, #07060a 0%, #0d0b08 55%, #0a0908 100%)" }}
       >
-        <div className="absolute inset-0 opacity-[0.035]" style={GRID_BG} />
+        {/* ══════════════════════════════════════════════════
+            LEFT PANEL — vault door + brand identity
+        ══════════════════════════════════════════════════ */}
         <div
-          className="absolute -top-40 -left-32 w-[480px] h-[480px] rounded-full pointer-events-none"
-          style={{ background: "radial-gradient(circle, rgba(251,191,36,0.18) 0%, transparent 70%)" }}
-        />
-        <div
-          className="absolute bottom-0 right-0 w-[420px] h-[420px] rounded-full pointer-events-none"
-          style={{ background: "radial-gradient(circle, rgba(251,191,36,0.08) 0%, transparent 70%)" }}
-        />
+          className="hidden lg:flex lg:w-[46%] relative overflow-hidden flex-col justify-between"
+          style={{
+            background: "linear-gradient(145deg, #060509 0%, #0e0c07 60%, #090808 100%)",
+            borderRight: `1px solid ${GOLD_DIM}`,
+          }}
+        >
+          {/* Vault door graphic */}
+          <VaultDoor />
 
-        <div className="relative z-10">
-          <img
-            src="/QURESHIJEWELERSLOGO.png"
-            alt="Qureshi Jewelers"
-            className="h-11 w-auto mb-3"
-            style={{ filter: "brightness(0) invert(1)" }}
+          {/* Diamond sparks */}
+          <DiamondSparks />
+
+          {/* Large background radial gold bloom */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: "radial-gradient(ellipse 70% 60% at 50% 50%, rgba(212,175,55,0.07) 0%, transparent 70%)",
+            }}
           />
-          <p className="text-[0.5rem] uppercase tracking-[0.5em] text-white/30">Enterprise Admin Console</p>
-        </div>
 
-        <div className="relative z-10 max-w-md">
-          <h2 className="text-3xl leading-tight mb-4 text-white" style={{ fontFamily: "Georgia, serif" }}>
-            Command center for <span style={{ color: "#fbbf24" }}>fine jewelry</span> operations.
-          </h2>
-          <p className="text-sm text-white/40 leading-relaxed mb-9">
-            Manage your entire catalog, orders, and clientele from one secure, GRA-grade console.
-          </p>
-          <div className="space-y-3.5">
-            {BRAND_FEATURES.map(({ icon: Icon, text }) => (
-              <div key={text} className="flex items-center gap-3">
-                <div
-                  className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background: "rgba(251,191,36,0.10)", border: "1px solid rgba(251,191,36,0.20)" }}
-                >
-                  <Icon className="h-3.5 w-3.5" style={{ color: "#fbbf24" }} />
-                </div>
-                <span className="text-xs text-white/55">{text}</span>
+          {/* Top brand mark */}
+          <div className="relative z-10 p-12">
+            <div className="flex items-center gap-3 mb-3">
+              <img
+                src="/QURESHIJEWELERSLOGO.png"
+                alt="Qureshi Jewelers"
+                className="h-10 w-auto"
+                style={{ filter: "brightness(0) saturate(100%) invert(78%) sepia(38%) saturate(600%) hue-rotate(5deg) brightness(95%)" }}
+              />
+            </div>
+            <GoldRule label="Private Vault Console" />
+          </div>
+
+          {/* Bottom copy */}
+          <div className="relative z-10 p-12 pb-14">
+            <p
+              className="font-display text-[2.1rem] leading-[1.15] mb-5"
+              style={{
+                color: "rgba(255,255,255,0.88)",
+                textShadow: `0 0 60px ${GOLD_FAINT}`,
+              }}
+            >
+              Every flawless piece.<br />
+              <span style={{ color: GOLD_MID }}>Every operation.</span><br />
+              One secure vault.
+            </p>
+            <p className="text-[0.62rem] leading-relaxed mb-8" style={{ color: "rgba(255,255,255,0.28)" }}>
+              Military-grade access control protecting the world's finest moissanite collections.
+            </p>
+
+            <div className="space-y-3">
+              <CredentialRow icon={ShieldCheck} label="TOTP dual-factor authentication" />
+              <CredentialRow icon={Lock}        label="AES-256 encrypted session vault" />
+              <CredentialRow icon={ClipboardList} label="Immutable audit chronicle" />
+            </div>
+
+            <div className="mt-10 pt-6" style={{ borderTop: `1px solid ${GOLD_DIM}` }}>
+              <div className="flex items-center gap-2">
+                <span
+                  className="w-1.5 h-1.5 rounded-full"
+                  style={{ background: "#4ade80", boxShadow: "0 0 8px rgba(74,222,128,0.8)", animation: "needle-pulse 2.5s ease-in-out infinite" }}
+                />
+                <span className="text-[0.50rem] uppercase tracking-[0.36em]" style={{ color: "rgba(212,175,55,0.45)" }}>
+                  Vault Online · All Systems Secured
+                </span>
               </div>
+            </div>
+          </div>
+
+          {/* Vertical "VAULT" label — right edge */}
+          <div
+            className="absolute right-[-1px] top-1/2 -translate-y-1/2 flex flex-col items-center gap-1 py-4 z-10"
+            style={{ borderLeft: `1px solid ${GOLD_DIM}` }}
+          >
+            {"VAULT".split("").map((c, i) => (
+              <span
+                key={i}
+                className="text-[0.38rem] font-semibold uppercase tracking-widest"
+                style={{ color: GOLD_DIM, writingMode: "vertical-lr" }}
+              >
+                {c}
+              </span>
             ))}
           </div>
         </div>
 
-        <div className="relative z-10 flex items-center gap-2 text-[0.58rem] text-white/25">
-          <span>© {new Date().getFullYear()} Qureshi Jewelers</span>
-          <span className="w-1 h-1 rounded-full bg-white/20" />
-          <span>All rights reserved</span>
-        </div>
-      </div>
+        {/* ══════════════════════════════════════════════════
+            RIGHT PANEL — login form
+        ══════════════════════════════════════════════════ */}
+        <div className="flex-1 flex items-center justify-center p-6 relative overflow-hidden">
 
-      {/* ── Form panel ───────────────────────────────────────────────────── */}
-      <div className="flex-1 flex items-center justify-center p-6 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.03] lg:hidden" style={GRID_BG} />
-        <div className="w-full max-w-sm relative z-10">
-          {/* Mobile-only logo */}
-          <div className="lg:hidden mb-9 flex flex-col items-center gap-4">
-            <div className="relative">
-              <img
-                src="/QURESHIJEWELERSLOGO.png"
-                alt="Qureshi Jewelers"
-                className="h-9 w-auto"
-                style={{ filter: "brightness(0) invert(1)" }}
-              />
-              <span className="absolute -top-1 -right-2 w-2 h-2 bg-emerald-400 rounded-full border-2 border-[#0a0a0a]" />
-            </div>
-            <p className="text-[0.46rem] uppercase tracking-[0.4em] text-white/30">Admin Console</p>
-          </div>
-
-          <div className="mb-7">
-            <h1 className="text-xl font-semibold text-white tracking-tight mb-1.5">
-              {needsTotp ? "Verify your identity" : "Welcome back"}
-            </h1>
-            <p className="text-xs text-white/35">
-              {needsTotp ? "Enter the 6-digit code from your authenticator app" : "Enter your PIN to access the admin console"}
-            </p>
-          </div>
-
+          {/* Background bloom on the right */}
           <div
-            className="p-8 rounded-2xl space-y-5"
+            className="absolute inset-0 pointer-events-none"
             style={{
-              background: "rgba(255,255,255,0.035)",
-              border: "1px solid rgba(255,255,255,0.09)",
-              backdropFilter: "blur(20px)",
-              boxShadow: "0 25px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04) inset",
+              background: "radial-gradient(ellipse 80% 60% at 60% 40%, rgba(212,175,55,0.05) 0%, transparent 70%)",
             }}
-          >
-            {needsTotp ? (
-              <div>
-                <div className="flex items-center justify-center mb-6">
-                  <div
-                    className="w-12 h-12 rounded-full flex items-center justify-center"
-                    style={{ background: "rgba(251,191,36,0.10)", border: "1px solid rgba(251,191,36,0.25)" }}
-                  >
-                    <ShieldCheck className="h-5 w-5" style={{ color: "#fbbf24" }} />
-                  </div>
-                </div>
-                <label className="block text-[0.56rem] uppercase tracking-[0.20em] text-white/40 mb-2 text-center">
-                  Authenticator Code
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={code}
-                  onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  onKeyDown={e => e.key === "Enter" && submit(e)}
-                  className="w-full border px-4 py-3.5 text-lg text-center tracking-[0.5em] font-semibold rounded-lg focus:outline-none transition-colors text-white"
-                  style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.12)" }}
-                  placeholder="······"
-                  autoFocus
-                  maxLength={6}
-                />
-              </div>
-            ) : (
-              <div>
-                <div className="flex items-center justify-center mb-6">
-                  <div
-                    className="w-12 h-12 rounded-full flex items-center justify-center"
-                    style={{ background: "rgba(251,191,36,0.10)", border: "1px solid rgba(251,191,36,0.25)" }}
-                  >
-                    <Lock className="h-5 w-5" style={{ color: "#fbbf24" }} />
-                  </div>
-                </div>
-                <label className="block text-[0.56rem] uppercase tracking-[0.20em] text-white/40 mb-2 text-center">
-                  Admin PIN
-                </label>
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  value={pin}
-                  onChange={e => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  onKeyDown={e => e.key === "Enter" && submit(e)}
-                  className="w-full border px-4 py-3.5 text-lg text-center tracking-[0.5em] font-semibold rounded-lg focus:outline-none transition-colors text-white"
-                  style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.12)" }}
-                  placeholder="······"
-                  autoFocus
-                  maxLength={6}
-                />
-              </div>
-            )}
+          />
 
-            {error && (
-              <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2.5 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
-                {error}
-              </p>
-            )}
-
-            <button
-              type="button"
-              onClick={submit}
-              disabled={loading || (needsTotp ? code.length !== 6 : pin.length !== 6)}
-              className="w-full text-[#0a0a0a] py-3.5 text-[0.62rem] font-bold uppercase tracking-[0.22em] rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110"
-              style={{ background: "linear-gradient(135deg, #fde68a 0%, #fbbf24 50%, #d97706 100%)", boxShadow: "0 8px 24px rgba(251,191,36,0.25)" }}
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="w-3 h-3 border border-[#0a0a0a]/30 border-t-[#0a0a0a] rounded-full animate-spin" />
-                  Verifying…
-                </span>
-              ) : needsTotp ? "Verify Code" : "Sign In"}
-            </button>
-
-            {needsTotp && (
-              <button
-                onClick={backToLogin}
-                className="w-full flex items-center justify-center gap-1.5 text-[0.60rem] uppercase tracking-[0.14em] text-white/30 hover:text-white/55 transition-colors"
-              >
-                <ArrowLeft className="h-3 w-3" /> Back to login
-              </button>
-            )}
-
-            {!needsTotp && (
-              <div className="flex items-center justify-center gap-4 pt-1">
-                <span className="flex items-center gap-1.5 text-[0.56rem] text-white/25">
-                  <Lock className="h-3 w-3" /> 256-bit encrypted
-                </span>
-                <span className="w-1 h-1 rounded-full bg-white/15" />
-                <span className="flex items-center gap-1.5 text-[0.56rem] text-white/25">
-                  <ShieldCheck className="h-3 w-3" /> 2FA protected
-                </span>
-              </div>
-            )}
+          {/* Mobile vault rings (small, decorative) */}
+          <div className="lg:hidden absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
+            {[300, 220, 150].map((d, i) => (
+              <div
+                key={i}
+                className="absolute rounded-full"
+                style={{
+                  width: d, height: d,
+                  border: "1px solid rgba(212,175,55,0.4)",
+                  animation: `${i % 2 === 0 ? "vault-spin-cw" : "vault-spin-ccw"} ${120 - i * 30}s linear infinite`,
+                }}
+              />
+            ))}
           </div>
 
-          {!needsTotp && (
-            <p className="mt-6 text-center text-[0.62rem] text-white/25">
-              <Link to="/" className="hover:text-white/50 transition-colors">← Back to storefront</Link>
-            </p>
-          )}
+          <DiamondSparks />
+
+          <div className="w-full max-w-[380px] relative z-10 vault-entrance">
+
+            {/* Logo emblem (mobile + desktop top) */}
+            <div className="flex flex-col items-center mb-9">
+              <div
+                className="relative flex items-center justify-center mb-5"
+                style={{
+                  width: 72, height: 72,
+                  borderRadius: "50%",
+                  background: `radial-gradient(circle, rgba(212,175,55,0.13) 0%, transparent 70%)`,
+                  border: `1px solid ${GOLD_DIM}`,
+                  boxShadow: `0 0 40px rgba(212,175,55,0.08)`,
+                }}
+              >
+                <img
+                  src="/QURESHIJEWELERSLOGO.png"
+                  alt="Qureshi Jewelers"
+                  className="h-8 w-auto"
+                  style={{ filter: "brightness(0) saturate(100%) invert(78%) sepia(38%) saturate(600%) hue-rotate(5deg) brightness(95%)" }}
+                />
+                {/* Orbital ring */}
+                <div
+                  className="absolute inset-[-10px] rounded-full"
+                  style={{
+                    border: `1px dashed rgba(212,175,55,0.18)`,
+                    animation: "vault-spin-cw 30s linear infinite",
+                  }}
+                />
+              </div>
+              <p
+                className="text-[0.46rem] uppercase tracking-[0.50em] font-semibold"
+                style={{ color: GOLD_MID }}
+              >
+                Qureshi Jewelers
+              </p>
+              <p className="text-[0.40rem] uppercase tracking-[0.38em] mt-1" style={{ color: "rgba(255,255,255,0.22)" }}>
+                Private Vault Console
+              </p>
+            </div>
+
+            {/* Heading */}
+            <div className="text-center mb-7">
+              <h1
+                className="font-display text-[1.7rem] leading-tight mb-2"
+                style={{ color: "rgba(255,255,255,0.90)", textShadow: `0 0 40px rgba(212,175,55,0.12)` }}
+              >
+                {needsTotp ? "Identity Verification" : "Vault Access"}
+              </h1>
+              <p className="text-[0.60rem] tracking-[0.08em]" style={{ color: "rgba(255,255,255,0.30)" }}>
+                {needsTotp
+                  ? "Enter the 6-digit code from your authenticator"
+                  : "Authorised personnel only · Enter your access code"}
+              </p>
+            </div>
+
+            {/* Main card */}
+            <div
+              className="relative px-8 pt-7 pb-8 gold-shimmer-card"
+              style={{
+                background: "linear-gradient(160deg, rgba(255,255,255,0.030) 0%, rgba(255,255,255,0.018) 100%)",
+                border: `1px solid rgba(212,175,55,0.22)`,
+                boxShadow: [
+                  "0 0 0 4px rgba(8,7,10,1)",
+                  `0 0 0 5px rgba(212,175,55,0.10)`,
+                  "0 40px 80px rgba(0,0,0,0.70)",
+                  "0 8px 32px rgba(0,0,0,0.50)",
+                  "inset 0 0 60px rgba(0,0,0,0.25)",
+                ].join(", "),
+                backdropFilter: "blur(24px)",
+              }}
+            >
+              <CornerAccents size={18} opacity={0.55} />
+
+              <GoldRule label={needsTotp ? "Dual Factor" : "Secure Entry"} />
+
+              <div className="mt-6 mb-6">
+                {needsTotp ? (
+                  <>
+                    <div className="flex justify-center mb-5">
+                      <div
+                        className="w-14 h-14 rounded-full flex items-center justify-center"
+                        style={{
+                          background: "radial-gradient(circle, rgba(212,175,55,0.14) 0%, transparent 70%)",
+                          border: `1px solid rgba(212,175,55,0.30)`,
+                          boxShadow: "0 0 24px rgba(212,175,55,0.10)",
+                        }}
+                      >
+                        <ShieldCheck className="h-6 w-6" style={{ color: GOLD_MID }} />
+                      </div>
+                    </div>
+                    <label
+                      className="block text-[0.46rem] uppercase tracking-[0.36em] font-semibold mb-3 text-center"
+                      style={{ color: GOLD_MID }}
+                    >
+                      Authenticator Code
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={code}
+                        onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        onKeyDown={e => e.key === "Enter" && submit(e)}
+                        className="w-full px-4 py-4 text-xl text-center tracking-[0.55em] font-semibold focus:outline-none transition-all text-white"
+                        style={{
+                          background: "rgba(0,0,0,0.35)",
+                          border: `1px solid rgba(212,175,55,0.22)`,
+                          boxShadow: "inset 0 2px 8px rgba(0,0,0,0.35)",
+                          caretColor: GOLD,
+                        }}
+                        placeholder="· · · · · ·"
+                        autoFocus
+                        maxLength={6}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-center mb-5">
+                      <div
+                        className="w-14 h-14 rounded-full flex items-center justify-center"
+                        style={{
+                          background: "radial-gradient(circle, rgba(212,175,55,0.14) 0%, transparent 70%)",
+                          border: `1px solid rgba(212,175,55,0.30)`,
+                          boxShadow: "0 0 24px rgba(212,175,55,0.10)",
+                        }}
+                      >
+                        <Lock className="h-6 w-6" style={{ color: GOLD_MID }} />
+                      </div>
+                    </div>
+                    <label
+                      className="block text-[0.46rem] uppercase tracking-[0.36em] font-semibold mb-3 text-center"
+                      style={{ color: GOLD_MID }}
+                    >
+                      Access Code
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="password"
+                        value={pin}
+                        onChange={e => setPin(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && submit(e)}
+                        className="w-full pl-4 pr-10 py-4 text-base tracking-[0.22em] focus:outline-none transition-all text-white"
+                        style={{
+                          background: "rgba(0,0,0,0.35)",
+                          border: `1px solid rgba(212,175,55,0.22)`,
+                          boxShadow: "inset 0 2px 8px rgba(0,0,0,0.35)",
+                          caretColor: GOLD,
+                        }}
+                        placeholder="••••••••••••"
+                        autoFocus
+                      />
+                      <Lock
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
+                        style={{ color: GOLD_DIM }}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {error && (
+                <div
+                  className="flex items-start gap-2.5 px-3.5 py-3 mb-5 text-[0.62rem]"
+                  style={{
+                    background: "rgba(239,68,68,0.07)",
+                    border: "1px solid rgba(239,68,68,0.20)",
+                    color: "rgba(252,165,165,0.90)",
+                  }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 mt-0.5 shrink-0" />
+                  {error}
+                </div>
+              )}
+
+              {/* Submit button */}
+              <button
+                type="button"
+                onClick={submit}
+                disabled={loading || (needsTotp ? code.length !== 6 : pin.length === 0)}
+                className="w-full py-4 text-[0.60rem] font-bold uppercase tracking-[0.28em] transition-all disabled:opacity-40 disabled:cursor-not-allowed relative overflow-hidden group"
+                style={{
+                  background: "linear-gradient(to bottom, #e8cc6a 0%, #c9a84c 45%, #a07830 100%)",
+                  color: "#1a1008",
+                  boxShadow: loading
+                    ? "0 2px 0 #7a5c1e, 0 6px 20px rgba(212,175,55,0.20)"
+                    : "0 4px 0 #7a5c1e, 0 12px 32px rgba(212,175,55,0.28)",
+                  transform: loading ? "translateY(2px)" : undefined,
+                }}
+              >
+                {/* Hover shimmer */}
+                <div
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                  style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0.12), transparent)" }}
+                />
+                <span className="relative flex items-center justify-center gap-2.5">
+                  {loading ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-[#1a1008]/25 border-t-[#1a1008] rounded-full animate-spin" />
+                      Authenticating…
+                    </>
+                  ) : needsTotp ? (
+                    <>
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      Verify Identity
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="h-3.5 w-3.5" />
+                      Open Vault
+                    </>
+                  )}
+                </span>
+              </button>
+
+              {needsTotp && (
+                <button
+                  onClick={backToLogin}
+                  className="w-full flex items-center justify-center gap-1.5 mt-4 text-[0.52rem] uppercase tracking-[0.20em] transition-colors"
+                  style={{ color: "rgba(255,255,255,0.25)" }}
+                  onMouseEnter={e => (e.currentTarget.style.color = "rgba(212,175,55,0.55)")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.25)")}
+                >
+                  <ArrowLeft className="h-3 w-3" />
+                  Return to vault entrance
+                </button>
+              )}
+
+              <GoldRule />
+
+              {!needsTotp && (
+                <div className="flex items-center justify-center gap-5 mt-2">
+                  <span className="flex items-center gap-1.5 text-[0.48rem] uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.22)" }}>
+                    <Lock className="h-2.5 w-2.5" style={{ color: GOLD_DIM }} />
+                    AES-256
+                  </span>
+                  <span style={{ color: GOLD_DIM, fontSize: "0.4rem" }}>◆</span>
+                  <span className="flex items-center gap-1.5 text-[0.48rem] uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.22)" }}>
+                    <ShieldCheck className="h-2.5 w-2.5" style={{ color: GOLD_DIM }} />
+                    2FA Ready
+                  </span>
+                  <span style={{ color: GOLD_DIM, fontSize: "0.4rem" }}>◆</span>
+                  <span className="flex items-center gap-1.5 text-[0.48rem] uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.22)" }}>
+                    <ClipboardList className="h-2.5 w-2.5" style={{ color: GOLD_DIM }} />
+                    Audited
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            {!needsTotp && (
+              <div className="mt-7 flex items-center justify-between">
+                <Link
+                  to="/"
+                  className="flex items-center gap-1.5 text-[0.52rem] uppercase tracking-[0.18em] transition-colors"
+                  style={{ color: "rgba(255,255,255,0.22)" }}
+                  onMouseEnter={e => (e.currentTarget.style.color = "rgba(212,175,55,0.50)")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.22)")}
+                >
+                  <ArrowLeft className="h-3 w-3" />
+                  Storefront
+                </Link>
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ background: "#4ade80", boxShadow: "0 0 6px rgba(74,222,128,0.8)", animation: "needle-pulse 2.5s ease-in-out infinite" }}
+                  />
+                  <span className="text-[0.44rem] uppercase tracking-[0.26em]" style={{ color: "rgba(255,255,255,0.22)" }}>
+                    Vault secured
+                  </span>
+                </div>
+              </div>
+            )}
+
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
