@@ -309,6 +309,7 @@ interface ImportResult {
   rawName: string;
   shortDescription: string;
   description: string;
+  seoDescription: string;
   sourcePagePreview: string;
   images: string[];
   sourceUrl: string;
@@ -320,9 +321,16 @@ interface ImportResult {
   stoneCount: number | null;
   caratWeight: string | null;
   stoneDiameter: string | null;
+  stoneShape: string | null;
+  metalPurity: string | null;
   chainType: string | null;
+  clarity: string | null;
+  colorGrade: string | null;
+  supplierPrice: number | null;
   suggestedTags: string[];
   suggestedPrice: number | null;
+  aiEnriched: boolean;
+  confidence: "high" | "medium" | "low" | null;
 }
 
 const IS_SUPPLIER_URL = /alibaba\.com|aliexpress\.com|1688\.com|dhgate\.com|temu\.com|made-in-china\.com/i;
@@ -331,7 +339,7 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
   const [mode,          setMode]          = useState<"url" | "paste">("url");
   const [url,           setUrl]           = useState("");
   const [pastedHtml,    setPastedHtml]    = useState("");
-  const [loading,       setLoading]       = useState(false);
+  const [loadStep,      setLoadStep]      = useState<"idle" | "fetching" | "parsing" | "enriching" | "done">("idle");
   const [rehosting,     setRehosting]     = useState(false);
   const [rehostProgress,setRehostProgress]= useState<{ done: number; total: number } | null>(null);
   const [error,         setError]         = useState("");
@@ -343,31 +351,46 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
   const importHtmlFn = useServerFn(importProductFromHtml);
   const rehostFn     = useServerFn(rehostImportImages);
 
+  const loading = loadStep !== "idle" && loadStep !== "done";
   const isSupplierUrl = IS_SUPPLIER_URL.test(url);
 
   const analyze = async () => {
-    setLoading(true); setError(""); setResult(null); setSelectedImgs([]);
+    setLoadStep("fetching"); setError(""); setResult(null); setSelectedImgs([]);
     try {
       let res: ImportResult;
       if (mode === "url") {
-        if (!url.trim()) return;
-        res = await importUrlFn({ data: { token, url: url.trim() } }) as ImportResult;
+        if (!url.trim()) { setLoadStep("idle"); return; }
+        // Show sequential step labels while the server processes
+        const stepTimer = setTimeout(() => setLoadStep("parsing"), 3000);
+        const enrichTimer = setTimeout(() => setLoadStep("enriching"), 7000);
+        try {
+          res = await importUrlFn({ data: { token, url: url.trim() } }) as ImportResult;
+        } finally {
+          clearTimeout(stepTimer); clearTimeout(enrichTimer);
+        }
       } else {
-        if (!pastedHtml.trim()) return;
-        res = await importHtmlFn({ data: { token, html: pastedHtml.trim(), sourceUrl: url.trim() || undefined } }) as ImportResult;
+        if (!pastedHtml.trim()) { setLoadStep("idle"); return; }
+        setLoadStep("parsing");
+        const enrichTimer = setTimeout(() => setLoadStep("enriching"), 2000);
+        try {
+          res = await importHtmlFn({ data: { token, html: pastedHtml.trim(), sourceUrl: url.trim() || undefined } }) as ImportResult;
+        } finally {
+          clearTimeout(enrichTimer);
+        }
       }
+      setLoadStep("done");
       setResult(res);
       setSelectedImgs(res.images.slice(0, 24));
     } catch (e: any) {
       const msg: string = e?.message ?? "Failed";
-      // If blocked error, auto-switch to paste mode with a clear prompt
+      setLoadStep("idle");
       if (msg.startsWith("BLOCKED:")) {
         setMode("paste");
         setError(msg.replace("BLOCKED: ", ""));
       } else {
         setError(msg);
       }
-    } finally { setLoading(false); }
+    }
   };
 
   const toggleImage = (img: string) => {
@@ -424,6 +447,7 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
       name:             result.name,
       shortDescription: result.shortDescription,
       description:      result.description,
+      seoDescription:   result.seoDescription,
       imageUrl:         finalCover,
       images:           finalImages,
       detectedType:     result.detectedType,
@@ -432,6 +456,12 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
       detectedLengths:  result.detectedLengths,
       suggestedTags:    result.suggestedTags,
       suggestedPrice:   result.suggestedPrice,
+      stoneShape:       result.stoneShape,
+      metalPurity:      result.metalPurity,
+      clarity:          result.clarity,
+      colorGrade:       result.colorGrade,
+      caratWeight:      result.caratWeight,
+      stoneCount:       result.stoneCount,
     }));
     window.location.href = "/admin/products/new";
   };
@@ -465,18 +495,50 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
           {/* Mode tabs */}
           <div className="flex border-b border-gray-100 shrink-0">
             <button
-              onClick={() => { setMode("url"); setError(""); setResult(null); setSelectedImgs([]); }}
+              onClick={() => { setMode("url"); setError(""); setResult(null); setSelectedImgs([]); setLoadStep("idle"); }}
               className={`flex-1 py-2.5 text-[0.60rem] uppercase tracking-[0.14em] transition-colors ${mode === "url" ? "bg-gray-900 text-white" : "text-gray-400 hover:text-gray-700"}`}
             >
               Auto-Fetch from URL
             </button>
             <button
-              onClick={() => { setMode("paste"); setError(""); setResult(null); setSelectedImgs([]); }}
+              onClick={() => { setMode("paste"); setError(""); setResult(null); setSelectedImgs([]); setLoadStep("idle"); }}
               className={`flex-1 py-2.5 text-[0.60rem] uppercase tracking-[0.14em] transition-colors ${mode === "paste" ? "bg-gray-900 text-white" : "text-gray-400 hover:text-gray-700"}`}
             >
               Paste Page Source
             </button>
           </div>
+
+          {/* AI step progress */}
+          {loading && (
+            <div className="shrink-0 border-b border-gray-100 bg-gray-50">
+              <div className="flex items-center gap-0 px-6 py-3">
+                {(["fetching", "parsing", "enriching"] as const).map((step, i, arr) => {
+                  const labels = { fetching: "Fetching page", parsing: "Parsing specs", enriching: "AI enriching" };
+                  const icons  = { fetching: "🔗", parsing: "🔍", enriching: "✨" };
+                  const stepOrder = arr.indexOf(loadStep as any);
+                  const done   = i < stepOrder;
+                  const active = step === loadStep;
+                  return (
+                    <div key={step} className="flex items-center">
+                      <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[0.58rem] font-medium transition-all ${
+                        active ? "bg-gray-900 text-white" : done ? "bg-emerald-50 text-emerald-600" : "text-gray-300"
+                      }`}>
+                        <span>{done ? "✓" : icons[step]}</span>
+                        <span className="uppercase tracking-[0.10em]">{labels[step]}</span>
+                        {active && <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                      </div>
+                      {i < arr.length - 1 && <div className={`w-6 h-px mx-1 ${done ? "bg-emerald-300" : "bg-gray-200"}`} />}
+                    </div>
+                  );
+                })}
+              </div>
+              {loadStep === "enriching" && (
+                <p className="px-6 pb-2 text-[0.57rem] text-amber-600">
+                  ✨ Claude AI is rewriting your product copy for luxury retail — this takes 3–8 seconds…
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Re-hosting progress */}
           {rehosting && (
@@ -522,7 +584,7 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                       className="px-5 py-2.5 bg-gray-900 text-white text-[0.62rem] uppercase tracking-[0.14em] hover:bg-gray-700 transition-colors disabled:opacity-40 shrink-0 flex items-center gap-2"
                     >
                       {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                      {loading ? "Fetching…" : "Fetch"}
+                      {loadStep === "fetching" ? "Fetching…" : loadStep === "parsing" ? "Parsing…" : loadStep === "enriching" ? "AI Enriching…" : "Fetch"}
                     </button>
                   </div>
                 </div>
@@ -577,7 +639,7 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                   className="w-full py-2.5 bg-gray-900 text-white text-[0.62rem] uppercase tracking-[0.14em] hover:bg-gray-700 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
                 >
                   {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                  {loading ? "Analyzing…" : "Analyze Pasted Source"}
+                  {loadStep === "parsing" ? "Parsing…" : loadStep === "enriching" ? "AI Enriching…" : loading ? "Analyzing…" : "Analyze Pasted Source"}
                 </button>
               </div>
             )}
@@ -594,6 +656,27 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
 
             {result && (
               <div className="space-y-4">
+                {/* AI enrichment status banner */}
+                {result.aiEnriched && (
+                  <div className="flex items-center justify-between bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 px-4 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                      <span className="text-[0.64rem] font-semibold text-amber-800 uppercase tracking-[0.1em]">AI Enriched by Claude</span>
+                    </div>
+                    {result.confidence && (
+                      <span className={`text-[0.58rem] uppercase tracking-[0.12em] font-bold px-2.5 py-1 rounded-full border ${
+                        result.confidence === "high"
+                          ? "bg-emerald-100 text-emerald-700 border-emerald-300"
+                          : result.confidence === "medium"
+                          ? "bg-amber-100 text-amber-700 border-amber-300"
+                          : "bg-gray-100 text-gray-600 border-gray-300"
+                      }`}>
+                        {result.confidence} confidence
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 {/* Generated title */}
                 <div className="bg-gray-50 border border-gray-100 p-4">
                   <p className="text-[0.56rem] uppercase tracking-[0.14em] text-gray-400 mb-1.5 flex items-center gap-1.5">
@@ -607,12 +690,17 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                       Supplier original: <span className="line-through decoration-gray-300 italic">{result.rawName.slice(0, 100)}</span>
                     </p>
                   )}
+                  {result.seoDescription && (
+                    <p className="text-[0.60rem] text-blue-600 mt-2 italic leading-relaxed line-clamp-2">
+                      SEO: {result.seoDescription}
+                    </p>
+                  )}
                 </div>
 
                 {/* Intelligence panel: all detected signals */}
                 <div className="bg-emerald-50 border border-emerald-100 p-4 space-y-3">
                   <p className="text-[0.56rem] uppercase tracking-[0.14em] text-emerald-700 flex items-center gap-1.5">
-                    <Layers className="h-3 w-3" /> Detected Product Intelligence
+                    <Layers className="h-3 w-3" /> Extracted Product Intelligence
                   </p>
 
                   {/* Core attributes row */}
@@ -620,6 +708,26 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                     {result.detectedType && (
                       <span className="px-2.5 py-1 bg-white border border-emerald-200 text-emerald-700 text-[0.62rem] font-medium">
                         Type: {IMPORT_TYPE_LABELS[result.detectedType] ?? result.detectedType}
+                      </span>
+                    )}
+                    {result.stoneShape && (
+                      <span className="px-2.5 py-1 bg-white border border-blue-200 text-blue-700 text-[0.62rem] font-medium capitalize">
+                        {result.stoneShape} cut
+                      </span>
+                    )}
+                    {result.metalPurity && (
+                      <span className="px-2.5 py-1 bg-white border border-yellow-200 text-yellow-700 text-[0.62rem] font-bold">
+                        {result.metalPurity}
+                      </span>
+                    )}
+                    {result.clarity && (
+                      <span className="px-2.5 py-1 bg-white border border-purple-200 text-purple-700 text-[0.62rem] font-medium">
+                        {result.clarity} clarity
+                      </span>
+                    )}
+                    {result.colorGrade && (
+                      <span className="px-2.5 py-1 bg-white border border-purple-200 text-purple-700 text-[0.62rem] font-medium">
+                        Color {result.colorGrade}
                       </span>
                     )}
                     {result.detectedColors.map(c => (
@@ -669,12 +777,12 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                     </div>
                   )}
 
-                  {/* Suggested price */}
+                  {/* Suggested retail price */}
                   {result.suggestedPrice && (
                     <div className="flex items-center gap-2 pt-1 border-t border-emerald-100">
                       <Tag className="h-3 w-3 text-emerald-600 shrink-0" />
                       <p className="text-[0.65rem] text-emerald-700">
-                        Suggested base price: <strong>${result.suggestedPrice}</strong> (based on detected type × metal)
+                        Suggested retail: <strong>${result.suggestedPrice}</strong> (based on detected type × metal)
                       </p>
                     </div>
                   )}
@@ -685,6 +793,33 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                     </p>
                   )}
                 </div>
+
+                {/* Supplier cost panel — admin eyes only */}
+                {result.supplierPrice && (
+                  <div className="border border-dashed border-gray-300 bg-gray-900 p-4 space-y-2">
+                    <p className="text-[0.56rem] uppercase tracking-[0.14em] text-gray-400 flex items-center gap-1.5">
+                      <Tag className="h-3 w-3 text-amber-400" />
+                      <span className="text-amber-400">Admin Only</span> — Supplier Cost Intelligence
+                    </p>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-gray-800 rounded p-2.5 text-center">
+                        <p className="text-[0.52rem] uppercase tracking-[0.10em] text-gray-500 mb-1">Supplier Cost</p>
+                        <p className="text-base font-bold text-white">${result.supplierPrice.toFixed(2)}</p>
+                      </div>
+                      <div className="bg-gray-800 rounded p-2.5 text-center">
+                        <p className="text-[0.52rem] uppercase tracking-[0.10em] text-gray-500 mb-1">4× Markup</p>
+                        <p className="text-base font-bold text-amber-400">${(result.supplierPrice * 4).toFixed(2)}</p>
+                      </div>
+                      <div className="bg-gray-800 rounded p-2.5 text-center">
+                        <p className="text-[0.52rem] uppercase tracking-[0.10em] text-gray-500 mb-1">8× Markup</p>
+                        <p className="text-base font-bold text-emerald-400">${(result.supplierPrice * 8).toFixed(2)}</p>
+                      </div>
+                    </div>
+                    <p className="text-[0.57rem] text-gray-500">
+                      Supplier pricing extracted from product page. These figures are never shown to customers.
+                    </p>
+                  </div>
+                )}
 
                 {/* Source privacy badge */}
                 <div className="flex items-center gap-2.5 bg-gray-900 text-white px-4 py-2.5">

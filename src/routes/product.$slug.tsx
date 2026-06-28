@@ -44,7 +44,31 @@ export const Route = createFileRoute("/product/$slug")({
       getProductVariants({ data: { slug: params.slug } }),
     ]);
     if (!res.product) throw notFound();
-    return { ...res, reviews: rev.reviews, galleryImages: gal.images, variants: vars.variants };
+
+    const p = res.product;
+    const isBraceletL = p.type === "bracelet";
+    const isEarringL  = p.type === "earring";
+    const isRingL     = p.type === "ring";
+    const sibSlug = isRingL ? null
+      : isBraceletL ? p.slug.replace("bracelet", "chain")
+      : isEarringL  ? p.slug.replace("stud-earrings", "tennis-chain")
+      : p.slug.replace("chain", "bracelet");
+
+    const [sibRes, sibGal] = sibSlug
+      ? await Promise.all([
+          getProductBySlug({ data: { slug: sibSlug } }),
+          getProductGallery({ data: { slug: sibSlug } }),
+        ])
+      : [{ product: null }, { images: [] }];
+
+    return {
+      ...res,
+      reviews: rev.reviews,
+      galleryImages: gal.images,
+      variants: vars.variants,
+      siblingProduct: (sibRes as any).product ?? null,
+      siblingImages: (sibGal as any).images ?? [],
+    };
   },
   head: ({ loaderData, params }) => {
     const p = loaderData?.product;
@@ -280,7 +304,7 @@ function ReviewForm({ slug, onSuccess }: { slug: string; onSuccess: () => void }
 }
 
 function ProductPage() {
-  const { product: p, reviews, galleryImages, variants } = Route.useLoaderData();
+  const { product: p, reviews, galleryImages, variants, siblingProduct, siblingImages } = Route.useLoaderData();
   const product = p!;
   const { slug } = Route.useParams();
   const navigate = useNavigate();
@@ -347,6 +371,10 @@ function ProductPage() {
   const earringVideo = isEarring ? productImages.earringVideo : null;
 
   const gallery = buildProductGallery(slug, galleryImages ?? [], product.image_url);
+
+  // Sibling ("Complete the set") — real product name + real image from loader
+  const siblingImg  = (siblingImages?.[0] as any)?.url ?? siblingProduct?.image_url ?? null;
+  const siblingName = siblingProduct?.name?.split("—")[0]?.trim() ?? null;
 
   // A matching variant's price_override (when set) is authoritative — it's
   // an exact admin-set price, not a derived one. Falls back to the formula
@@ -1056,12 +1084,18 @@ function ProductPage() {
               {!isRing && (
                 <div className="border border-border p-4 flex gap-4 items-center hover:border-foreground/20 transition-colors duration-300">
                   <div className="shrink-0 overflow-hidden bg-cream" style={{ width: 64, height: 64 }}>
-                    <img src={gallery[0]} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                    <img
+                      src={siblingImg ?? gallery[0]}
+                      alt={siblingName ?? ""}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
+                    />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[0.40rem] uppercase tracking-[0.28em] text-muted-foreground mb-1">Complete the set</p>
                     <p className="font-display text-[1.02rem] leading-snug">
-                      {isBracelet ? "Add the matching chain" : isEarring ? "Add the matching chain" : "Add the matching bracelet"}
+                      {siblingName ?? (isBracelet ? "Matching Chain" : isEarring ? "Matching Chain" : "Matching Bracelet")}
                     </p>
                     <p className="text-[0.42rem] uppercase tracking-[0.12em] text-muted-foreground/50 mt-0.5">
                       {colorInfo?.label ?? "Silver"} · S925 · VVS

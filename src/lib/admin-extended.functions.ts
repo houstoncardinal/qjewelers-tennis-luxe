@@ -7,6 +7,12 @@ import { createStripeRefund, isStripeConfigured } from "@/lib/payments/stripe.se
 import { createPaypalRefund, isPaypalConfigured } from "@/lib/payments/paypal.server";
 import { alertAdminOnError } from "@/lib/error-alert";
 import { AVAILABLE_SIZES, AVAILABLE_LENGTHS } from "@/lib/pricing";
+import Anthropic from "@anthropic-ai/sdk";
+
+// Lazy-init: only instantiated if ANTHROPIC_API_KEY is set in env
+const anthropic = process.env.ANTHROPIC_API_KEY
+  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  : null;
 
 // New tables (promo_codes, returns, store_settings) are not in generated types.
 const db = supabaseAdmin as any;
@@ -698,6 +704,239 @@ export const getDashboardExtended = createServerFn({ method: "GET" })
 // (moissanite + a known product type) to safely rewrite the title — otherwise
 // it falls back to a cleaned, title-cased version of whatever was scraped.
 
+// ─── Multi-strategy URL fetcher ───────────────────────────────────────────────
+// Tries up to 4 different browser fingerprints + mobile URL fallback before
+// giving up. Each attempt is independent; we continue on any network or HTTP
+// error so a single 403 or timeout doesn't abort the whole import.
+
+async function fetchWithRetry(url: string): Promise<string> {
+  const UAS: [string, Record<string, string>][] = [
+    // Chrome macOS — most common, try first
+    ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+     { "Sec-Fetch-Dest": "document", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-Site": "none" }],
+    // Chrome Windows + Google referer (helps with some bot checks)
+    ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+     { "Referer": "https://www.google.com/", "Cache-Control": "no-cache" }],
+    // Safari macOS — minimally fingerprinted
+    ["Mozilla/5.0 (Macintosh; Intel Mac OS X 13_4) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Safari/605.1.15",
+     { "Accept": "text/html,application/xhtml+xml,*/*;q=0.8" }],
+    // iPhone Safari — mobile product pages often have fewer bot walls
+    ["Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
+     { "Accept": "text/html,application/xhtml+xml,*/*;q=0.9" }],
+  ];
+
+  // Build the list of (url, ua, extraHeaders) attempts.
+  // Mobile variants of known marketplaces are inserted as additional attempts.
+  const mobileUrl = url
+    .replace("//www.alibaba.com/", "//m.alibaba.com/")
+    .replace("//www.aliexpress.com/", "//m.aliexpress.com/")
+    .replace("//www.1688.com/", "//m.1688.com/")
+    .replace("//www.dhgate.com/", "//m.dhgate.com/");
+  const hasMobile = mobileUrl !== url;
+
+  const attempts: Array<{ url: string; ua: string; extra: Record<string, string> }> = [
+    { url, ua: UAS[0][0], extra: UAS[0][1] },
+    { url, ua: UAS[1][0], extra: UAS[1][1] },
+    ...(hasMobile ? [{ url: mobileUrl, ua: UAS[3][0], extra: UAS[3][1] }] : []),
+    { url, ua: UAS[2][0], extra: UAS[2][1] },
+  ];
+
+  let lastError = "Unknown error";
+  for (const { url: targetUrl, ua, extra } of attempts) {
+    try {
+      const res = await fetch(targetUrl, {
+        headers: {
+          "User-Agent": ua,
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+          ...extra,
+        },
+        redirect: "follow",
+        signal: AbortSignal.timeout(16000),
+      });
+      if (!res.ok) { lastError = `HTTP ${res.status}`; await pause(600); continue; }
+      const html = await res.text();
+      if (html.length < 3000 && /captcha|robot|verify\s+you're\s+human|access\s+denied/i.test(html)) {
+        lastError = "Bot detection wall"; await pause(600); continue;
+      }
+      return html;
+    } catch (e: any) {
+      lastError = e?.message ?? "Network error";
+      await pause(600);
+    }
+  }
+  throw new Error(lastError);
+}
+
+const pause = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+// ─── Extended spec detectors ──────────────────────────────────────────────────
+
+function detectStoneShape(text: string): string | null {
+  if (/\bround\s*brilliant\b/i.test(text))   return "round brilliant";
+  if (/\boval\s*(?:cut|shape|brilliant)?\b/i.test(text)) return "oval";
+  if (/\bcushion\s*(?:cut|shape)?\b/i.test(text)) return "cushion";
+  if (/\bprincess\s*(?:cut|shape)?\b/i.test(text)) return "princess";
+  if (/\bpear\s*(?:cut|shape)?\b/i.test(text)) return "pear";
+  if (/\bemerald\s*cut\b/i.test(text))         return "emerald";
+  if (/\bradiant\s*(?:cut|shape)?\b/i.test(text)) return "radiant";
+  if (/\bheart\s*(?:cut|shape)?\b/i.test(text))  return "heart";
+  if (/\bmarquise\b/i.test(text))              return "marquise";
+  if (/\bround\b/i.test(text))                 return "round brilliant";
+  return null;
+}
+
+function detectMetalPurity(text: string): string | null {
+  if (/\b(?:s?925|sterling\s+silver|silver\s+925)\b/i.test(text)) return "S925";
+  if (/\b18\s*[Kk]\b|\b18\s*karat\b|\b750\b/i.test(text)) return "18K";
+  if (/\b14\s*[Kk]\b|\b14\s*karat\b|\b585\b/i.test(text)) return "14K";
+  if (/\b10\s*[Kk]\b|\b10\s*karat\b/i.test(text))          return "10K";
+  return null;
+}
+
+// Extract the supplier's wholesale unit price in USD (for markup calculation).
+function detectSupplierPrice(text: string): number | null {
+  // Price range: US $5.00 - $15.00, $3.50-$8.99/pc, etc.
+  const rangeRe = /US?\$\s*(\d+(?:\.\d{1,2})?)\s*[-–~to]+\s*US?\$?\s*(\d+(?:\.\d{1,2})?)/gi;
+  for (const m of text.matchAll(rangeRe)) {
+    const lo = parseFloat(m[1]), hi = parseFloat(m[2]);
+    if (lo > 0 && hi > 0 && hi < 500) return parseFloat(((lo + hi) / 2).toFixed(2));
+  }
+  // Single price: $12.99 /piece, US$8.50, etc.
+  const singleRe = /US?\$\s*(\d+(?:\.\d{1,2})?)\s*(?:\/\s*(?:pc|piece|unit|set|pair))?/gi;
+  for (const m of text.matchAll(singleRe)) {
+    const p = parseFloat(m[1]);
+    if (p > 0.5 && p < 500) return p;
+  }
+  return null;
+}
+
+// ─── Claude AI enrichment ─────────────────────────────────────────────────────
+// Sends extracted raw data to Claude claude-haiku-4-5 and gets back luxury retail
+// copy + precision spec extraction. Falls back gracefully (returns null) if
+// ANTHROPIC_API_KEY is not configured or the call fails/times out.
+
+interface ClaudeEnrichment {
+  luxuryTitle:      string;
+  shortDescription: string;
+  fullDescription:  string;
+  seoDescription:   string;
+  productType:      string | null;
+  stoneShape:       string | null;
+  metalPurity:      string | null;
+  supplierPrice:    number | null;
+  caratWeight:      string | null;
+  stoneDiameter:    string | null;
+  stoneCount:       number | null;
+  clarity:          string | null;
+  colorGrade:       string | null;
+  additionalTags:   string[];
+  confidence:       "high" | "medium" | "low";
+}
+
+async function enrichWithClaude(params: {
+  rawName:       string;
+  rawDescription: string;
+  attributes:    { name: string; value: string }[];
+  fullText:      string;
+  detectedType:  string | null;
+  detectedColors: string[];
+  sourceUrl:     string;
+}): Promise<ClaudeEnrichment | null> {
+  if (!anthropic) return null;
+
+  const COLOR_LABEL: Record<string, string> = {
+    silver: "S925 sterling silver", gold: "18K yellow gold",
+    rose_gold: "18K rose gold", white_gold: "18K white gold",
+  };
+  const colorHint = params.detectedColors.map(c => COLOR_LABEL[c] ?? c).join(", ") || "unknown metal";
+  const specBlock = params.attributes.slice(0, 25).map(a => `${a.name}: ${a.value}`).join("\n");
+
+  const prompt = `You are the senior product intelligence analyst and copywriter for Qureshi Jewelers, a luxury moissanite jewelry boutique. Our customers pay $89–$699 per piece. Our copy reads at the level of Tiffany & Co. — confident, precise, aspirational, never pushy. Competitors sell moissanite as "cheap diamonds" — we position it as the superior, ethical choice.
+
+I've scraped a product from a wholesale supplier. Extract specifications with expert precision and rewrite everything as original luxury retail copy. NEVER reveal the supplier or use wholesale language (no: wholesale, factory, MOQ, hot sale, OEM, dropship, bulk, pcs, lot, etc.).
+
+═══ SUPPLIER RAW DATA ═══
+Title: ${params.rawName || "(none)"}
+Description: ${params.rawDescription.slice(0, 700) || "(none)"}
+Specifications:
+${specBlock || "(none)"}
+Additional text: ${params.fullText.slice(0, 1000)}
+Detected finish: ${colorHint}
+Source: ${params.sourceUrl.replace(/[?#].*$/, "").slice(0, 120)}
+
+═══ STORE CONTEXT ═══
+Specialty: Exclusively moissanite (D-color, VVS1, GRA certifiable) unless clearly otherwise
+Metals: S925 sterling silver | 14K/18K gold plated | rose gold plated | white gold plated
+Product lines: tennis chains/necklaces, tennis bracelets, stud earrings, solitaire rings
+Price range: earrings $89–$199 | bracelets $129–$349 | necklaces $149–$399 | rings $199–$699
+Brand voice: "every stone placed to perfection" | "built to outshine" | "brilliance, without compromise"
+
+═══ INSTRUCTIONS ═══
+1. luxuryTitle: 60–130 chars, SEO-optimized, luxury language, includes key specs (stone size, metal, type)
+2. shortDescription: 1 sentence, 100–200 chars, elegant and precise — no filler words
+3. fullDescription: 4–6 paragraphs (double newline between each), weave in specs naturally, end with occasion/lifestyle line
+4. seoDescription: under 155 chars, includes primary keyword, conversion-focused
+5. Extract every spec you can identify with certainty; null for anything uncertain
+6. supplierPrice: extract USD unit price if visible in the raw data; null if not found
+7. additionalTags: 6–10 specific, lowercase, hyphenated tags relevant to this exact product
+8. confidence: "high" if you extracted 5+ concrete specs | "medium" if 2–4 | "low" if mostly guessing
+
+Return ONLY a raw JSON object — no markdown fences, no commentary:
+{"luxuryTitle":"...","shortDescription":"...","fullDescription":"...","seoDescription":"...","productType":"necklace|bracelet|earring|ring|null","stoneShape":"round brilliant|oval|cushion|princess|pear|emerald|radiant|heart|marquise|null","metalPurity":"S925|10K|14K|18K|null","supplierPrice":null,"caratWeight":"X.XX CTW or null","stoneDiameter":"Xmm or null","stoneCount":null,"clarity":"VVS1|VVS2|VS1|SI1|null","colorGrade":"D|E|F|G|null","additionalTags":[],"confidence":"high|medium|low"}`;
+
+  try {
+    const msg = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 2000,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const raw = msg.content[0]?.type === "text" ? msg.content[0].text.trim() : "";
+    // Strip accidental markdown fences
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+    return JSON.parse(cleaned) as ClaudeEnrichment;
+  } catch {
+    return null;
+  }
+}
+
+// Merge the base parse result with AI enrichment, preferring AI where available.
+function mergeWithAI(
+  base: {
+    name: string; rawName: string; shortDescription: string; description: string;
+    sourcePagePreview: string; images: string[]; attributes: { name: string; value: string }[];
+    detectedType: string | null; detectedColors: string[]; detectedSizes: string[];
+    detectedLengths: string[]; stoneCount: number | null; caratWeight: string | null;
+    stoneDiameter: string | null; chainType: string | null; suggestedTags: string[];
+    suggestedPrice: number | null; isBlocked: boolean;
+    stoneShape: string | null; metalPurity: string | null; supplierPrice: number | null;
+  },
+  ai: ClaudeEnrichment | null,
+  sourceUrl: string
+) {
+  const aiEnriched = ai !== null;
+  return {
+    ...base,
+    sourceUrl,
+    aiEnriched,
+    confidence:         ai?.confidence          ?? null,
+    name:               (ai?.luxuryTitle        || base.name),
+    shortDescription:   (ai?.shortDescription   || base.shortDescription),
+    description:        (ai?.fullDescription    || base.description),
+    seoDescription:     ai?.seoDescription      ?? "",
+    detectedType:       ai?.productType         ?? base.detectedType,
+    stoneCount:         ai?.stoneCount          ?? base.stoneCount,
+    caratWeight:        ai?.caratWeight         ?? base.caratWeight,
+    stoneDiameter:      ai?.stoneDiameter       ?? base.stoneDiameter,
+    stoneShape:         ai?.stoneShape          ?? base.stoneShape,
+    metalPurity:        ai?.metalPurity         ?? base.metalPurity,
+    supplierPrice:      base.supplierPrice      ?? ai?.supplierPrice  ?? null,
+    clarity:            ai?.clarity             ?? null,
+    colorGrade:         ai?.colorGrade          ?? null,
+    suggestedTags: [...new Set([...base.suggestedTags, ...(ai?.additionalTags ?? [])])].slice(0, 18),
+  };
+}
+
 function decodeHtmlEntities(s: string): string {
   return s
     .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
@@ -1354,6 +1593,11 @@ function parseProductPage(html: string, seed: string) {
   const stoneDiameter = detectStoneDiameter(fullText, attributes);
   const chainType     = detectChainType(fullText);
 
+  // Extended spec detection (new)
+  const stoneShape    = detectStoneShape(fullText);
+  const metalPurity   = detectMetalPurity(fullText);
+  const supplierPrice = detectSupplierPrice(html.slice(0, 12000));
+
   const name = generateSeoTitle(rawName, fullText, detectedType, detectedColors, {
     stoneCount, stoneDiameter, seed,
   });
@@ -1368,7 +1612,6 @@ function parseProductPage(html: string, seed: string) {
   const suggestedTags  = generateAutoTags({ type: detectedType, colors: detectedColors, isMoissanite, isVVS, isDColor, chainType, stoneCount });
   const suggestedPrice = suggestBasePrice(detectedType, detectedColors);
 
-  // Detect if the page is a bot wall so the caller can surface a clear error
   const isBlocked = (
     images.length === 0 && !rawName &&
     /captcha|robot|verify|human|not available|access denied|403 forbidden/i.test(html.slice(0, 5000))
@@ -1379,7 +1622,9 @@ function parseProductPage(html: string, seed: string) {
     sourcePagePreview: description.slice(0, 300),
     images: images.slice(0, 24),
     attributes, detectedType, detectedColors, detectedSizes, detectedLengths,
-    stoneCount, caratWeight, stoneDiameter, chainType, suggestedTags, suggestedPrice,
+    stoneCount, caratWeight, stoneDiameter, chainType,
+    stoneShape, metalPurity, supplierPrice,
+    suggestedTags, suggestedPrice,
     isBlocked,
   };
 }
@@ -1394,32 +1639,33 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
 
     let html: string;
     try {
-      const res = await fetch(url, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-          "Accept-Language": "en-US,en;q=0.9",
-          "Sec-Fetch-Dest": "document",
-          "Sec-Fetch-Mode": "navigate",
-          "Sec-Fetch-Site": "none",
-          "Cache-Control": "no-cache",
-        },
-        redirect: "follow",
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!res.ok) throw new Error(`Page returned HTTP ${res.status}`);
-      html = await res.text();
+      html = await fetchWithRetry(url);
     } catch (e: any) {
       throw new Error(`Could not fetch URL: ${e.message}`);
     }
 
-    const result = parseProductPage(html, url);
-    if (result.isBlocked) {
+    const base = parseProductPage(html, url);
+    if (base.isBlocked) {
       throw new Error(
         "BLOCKED: This supplier's website blocked the automatic fetch. Use the \"Paste Page Source\" tab instead — open the product URL in your browser, press Cmd+U (Mac) or Ctrl+U (Windows) to view source, select all, copy, and paste it there."
       );
     }
-    return { ...result, sourceUrl: url };
+
+    // AI enrichment — 10-second budget; degrades gracefully on timeout or error
+    const ai = await Promise.race([
+      enrichWithClaude({
+        rawName: base.rawName,
+        rawDescription: base.sourcePagePreview,
+        attributes: base.attributes,
+        fullText: `${base.rawName} ${base.sourcePagePreview} ${base.attributes.map(a => `${a.name} ${a.value}`).join(" ")}`,
+        detectedType: base.detectedType,
+        detectedColors: base.detectedColors,
+        sourceUrl: url,
+      }),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), 10000)),
+    ]);
+
+    return mergeWithAI(base, ai, url);
   });
 
 // Accepts raw HTML pasted from the user's browser — bypasses supplier bot
@@ -1429,8 +1675,23 @@ export const importProductFromHtml = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     requireAdmin(data.token);
     if (!data.html || data.html.trim().length < 200) throw new Error("Paste the full page source — it looks too short.");
-    const result = parseProductPage(data.html, data.sourceUrl ?? data.html.slice(0, 100));
-    return { ...result, sourceUrl: data.sourceUrl ?? "" };
+    const seed = data.sourceUrl ?? data.html.slice(0, 100);
+    const base = parseProductPage(data.html, seed);
+
+    const ai = await Promise.race([
+      enrichWithClaude({
+        rawName: base.rawName,
+        rawDescription: base.sourcePagePreview,
+        attributes: base.attributes,
+        fullText: `${base.rawName} ${base.sourcePagePreview} ${base.attributes.map(a => `${a.name} ${a.value}`).join(" ")}`,
+        detectedType: base.detectedType,
+        detectedColors: base.detectedColors,
+        sourceUrl: data.sourceUrl ?? "",
+      }),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), 10000)),
+    ]);
+
+    return mergeWithAI(base, ai, data.sourceUrl ?? "");
   });
 
 // ─── Image re-hosting — downloads external (Alibaba/AliExpress) images server-
