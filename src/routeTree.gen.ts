@@ -36,6 +36,7 @@ import { Route as AdminPromotionsRouteImport } from './routes/admin/promotions'
 import { Route as AdminProductsRouteImport } from './routes/admin/products'
 import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
 import { Route as AdminCustomersRouteImport } from './routes/admin/customers'
+import { Route as AdminContentRouteImport } from './routes/admin/content'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
 import { Route as AccountOrdersRouteImport } from './routes/account/orders'
 import { Route as AdminProductsIndexRouteImport } from './routes/admin/products.index'
@@ -180,6 +181,11 @@ const AdminCustomersRoute = AdminCustomersRouteImport.update({
   path: '/customers',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminContentRoute = AdminContentRouteImport.update({
+  id: '/content',
+  path: '/content',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
@@ -242,6 +248,7 @@ export interface FileRoutesByFullPath {
   '/track-order': typeof TrackOrderRoute
   '/account/orders': typeof AccountOrdersRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/content': typeof AdminContentRoute
   '/admin/customers': typeof AdminCustomersRouteWithChildren
   '/admin/orders': typeof AdminOrdersRouteWithChildren
   '/admin/products': typeof AdminProductsRouteWithChildren
@@ -278,6 +285,7 @@ export interface FileRoutesByTo {
   '/track-order': typeof TrackOrderRoute
   '/account/orders': typeof AccountOrdersRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/content': typeof AdminContentRoute
   '/admin/customers': typeof AdminCustomersRouteWithChildren
   '/admin/orders': typeof AdminOrdersRouteWithChildren
   '/admin/promotions': typeof AdminPromotionsRoute
@@ -315,6 +323,7 @@ export interface FileRoutesById {
   '/track-order': typeof TrackOrderRoute
   '/account/orders': typeof AccountOrdersRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/content': typeof AdminContentRoute
   '/admin/customers': typeof AdminCustomersRouteWithChildren
   '/admin/orders': typeof AdminOrdersRouteWithChildren
   '/admin/products': typeof AdminProductsRouteWithChildren
@@ -354,6 +363,7 @@ export interface FileRouteTypes {
     | '/track-order'
     | '/account/orders'
     | '/admin/analytics'
+    | '/admin/content'
     | '/admin/customers'
     | '/admin/orders'
     | '/admin/products'
@@ -390,6 +400,7 @@ export interface FileRouteTypes {
     | '/track-order'
     | '/account/orders'
     | '/admin/analytics'
+    | '/admin/content'
     | '/admin/customers'
     | '/admin/orders'
     | '/admin/promotions'
@@ -426,6 +437,7 @@ export interface FileRouteTypes {
     | '/track-order'
     | '/account/orders'
     | '/admin/analytics'
+    | '/admin/content'
     | '/admin/customers'
     | '/admin/orders'
     | '/admin/products'
@@ -656,6 +668,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCustomersRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/content': {
+      id: '/admin/content'
+      path: '/content'
+      fullPath: '/admin/content'
+      preLoaderRoute: typeof AdminContentRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/analytics': {
       id: '/admin/analytics'
       path: '/analytics'
@@ -780,6 +799,7 @@ const AdminReturnsRouteWithChildren = AdminReturnsRoute._addFileChildren(
 
 interface AdminRouteChildren {
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
+  AdminContentRoute: typeof AdminContentRoute
   AdminCustomersRoute: typeof AdminCustomersRouteWithChildren
   AdminOrdersRoute: typeof AdminOrdersRouteWithChildren
   AdminProductsRoute: typeof AdminProductsRouteWithChildren
@@ -793,6 +813,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAnalyticsRoute: AdminAnalyticsRoute,
+  AdminContentRoute: AdminContentRoute,
   AdminCustomersRoute: AdminCustomersRouteWithChildren,
   AdminOrdersRoute: AdminOrdersRouteWithChildren,
   AdminProductsRoute: AdminProductsRouteWithChildren,

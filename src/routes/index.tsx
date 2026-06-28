@@ -7,6 +7,7 @@ import { listProducts } from "@/lib/products.functions";
 import { images, getProductThumb } from "@/lib/product-images";
 import { formatUSD, COLOR_MAP, COLOR_SHORT, getTennisBraceletPrice } from "@/lib/pricing";
 import { EmailCapture } from "@/components/marketing/email-capture";
+import { EditableText, useCms } from "@/lib/cms-context";
 
 const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://qureshijewelers.com").replace(/\/$/, "");
 
@@ -342,6 +343,39 @@ function StatTile({ icon: Icon, stat, label }: { icon: React.ElementType; stat: 
   );
 }
 
+// ─── Hero trust row (uses CMS content) ───────────────────────────────────────
+
+function HeroTrustRow() {
+  const { getContent } = useCms();
+  const items = [
+    { icon: ShieldCheck, key: "home.trust.gra",      fallback: "GRA Certified"   },
+    { icon: Gem,         key: "home.trust.color",    fallback: "VVS1 D Color"    },
+    { icon: Truck,       key: "home.trust.shipping", fallback: "Free US Shipping" },
+  ];
+  return (
+    <div
+      className="hidden sm:flex items-center gap-5 mt-7 animate-fade-in"
+      style={{ animationDelay: "0.85s" }}
+    >
+      {items.map(({ icon: Icon, key, fallback }, i) => (
+        <span key={key} className="flex items-center gap-5">
+          {i > 0 && <span className="h-3 w-px bg-black/15" />}
+          <span className="flex items-center gap-1.5">
+            <Icon className="h-3 w-3 text-black/45" />
+            <EditableText
+              contentKey={key}
+              label={`Hero — Trust: ${fallback}`}
+              defaultValue={fallback}
+              tag="span"
+              className="text-[0.44rem] uppercase tracking-[0.16em] text-black/65 font-medium"
+            />
+          </span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 function Index() {
@@ -452,9 +486,13 @@ function Index() {
               {/* Eyebrow / certification micro-banner */}
               <div className="flex items-center gap-3 mb-3 sm:mb-4 animate-fade-in" style={{ animationDelay: "0.1s" }}>
                 <div className="h-px w-6 shrink-0" style={{ background: "linear-gradient(to right, oklch(0.60 0.092 68), transparent)" }} />
-                <span className="text-[0.44rem] uppercase tracking-[0.40em] text-black/70 font-semibold">
-                  VVS1 · D Color · GRA Certified
-                </span>
+                <EditableText
+                  contentKey="home.hero.badge"
+                  label="Hero — Certification Badge"
+                  defaultValue="VVS1 · D Color · GRA Certified"
+                  tag="span"
+                  className="text-[0.44rem] uppercase tracking-[0.40em] text-black/70 font-semibold"
+                />
               </div>
 
               {/* Headline — 2 lines guaranteed (whitespace-nowrap + safe clamp for Cormorant Garamond).
@@ -462,18 +500,22 @@ function Index() {
                   hard-splitting + clamp() guarantees the exact break point at every viewport —
                   a ch-width wrap point can't promise that and risks an orphaned word. */}
               <h1 className="font-display leading-[0.90] mb-4 sm:mb-5">
-                <span
+                <EditableText
+                  contentKey="home.hero.headline_line1"
+                  label="Hero — Headline Line 1"
+                  defaultValue="The World's Most"
+                  tag="span"
                   className="block text-black animate-fade-up whitespace-nowrap"
                   style={{ fontSize: "clamp(1.5rem, 5.5vw, 5rem)", animationDelay: "0.26s" }}
-                >
-                  The World's Most
-                </span>
-                <span
+                />
+                <EditableText
+                  contentKey="home.hero.headline_line2"
+                  label="Hero — Headline Line 2"
+                  defaultValue="Brilliant Gemstone."
+                  tag="span"
                   className="block text-black animate-fade-up whitespace-nowrap"
                   style={{ fontSize: "clamp(1.5rem, 5.5vw, 5rem)", animationDelay: "0.40s" }}
-                >
-                  Brilliant Gemstone.
-                </span>
+                />
               </h1>
 
               {/* Description — 2 lines on mobile to keep hero compact. max-w caps line length to ~45ch. */}
@@ -481,7 +523,12 @@ function Index() {
                 className="text-black/72 text-[0.79rem] leading-[1.70] max-w-[45ch] sm:max-w-[380px] mb-5 sm:mb-7 animate-fade-up line-clamp-2 sm:line-clamp-none"
                 style={{ animationDelay: "0.50s" }}
               >
-                D Colorless moissanite with more fire than diamond — hand-set in 18K gold-plated sterling silver. Every piece independently GRA certified.
+                <EditableText
+                  contentKey="home.hero.subheadline"
+                  label="Hero — Subheadline"
+                  defaultValue="D Colorless moissanite with more fire than diamond — hand-set in 18K gold-plated sterling silver. Every piece independently GRA certified."
+                  tag="span"
+                />
               </p>
 
               {/* CTAs */}
@@ -510,24 +557,7 @@ function Index() {
               </div>
 
               {/* Trust row — hidden on mobile to keep hero height compact */}
-              <div
-                className="hidden sm:flex items-center gap-5 mt-7 animate-fade-in"
-                style={{ animationDelay: "0.85s" }}
-              >
-                {[
-                  { icon: ShieldCheck, text: "GRA Certified" },
-                  { icon: Gem,         text: "VVS1 D Color" },
-                  { icon: Truck,       text: "Free US Shipping" },
-                ].map(({ icon: Icon, text }, i) => (
-                  <span key={text} className="flex items-center gap-5">
-                    {i > 0 && <span className="h-3 w-px bg-black/15" />}
-                    <span className="flex items-center gap-1.5">
-                      <Icon className="h-3 w-3 text-black/45" />
-                      <span className="text-[0.44rem] uppercase tracking-[0.16em] text-black/65 font-medium">{text}</span>
-                    </span>
-                  </span>
-                ))}
-              </div>
+              <HeroTrustRow />
             </div>
           </div>
         </div>

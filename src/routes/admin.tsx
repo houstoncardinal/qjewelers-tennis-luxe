@@ -4,7 +4,7 @@ import {
   LayoutDashboard, ShoppingBag, Package, LogOut, Store, ChevronRight,
   Menu, X, BarChart2, Users, RotateCcw, Tag, Settings, Gem,
   ArrowUpRight, Star, Mail, Lock, ShieldCheck,
-  ClipboardList, ArrowLeft,
+  ClipboardList, ArrowLeft, FileText,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -297,6 +297,12 @@ const NAV_SECTIONS = [
       { icon: Package, label: "Products",   to: "/admin/products" },
       { icon: Tag,     label: "Promotions", to: "/admin/promotions" },
       { icon: Star,    label: "Reviews",    to: "/admin/reviews" },
+    ],
+  },
+  {
+    label: "Site",
+    items: [
+      { icon: FileText, label: "Content", to: "/admin/content" },
     ],
   },
   {

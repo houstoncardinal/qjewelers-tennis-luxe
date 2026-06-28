@@ -17,6 +17,10 @@ import { CartProvider } from "@/lib/cart";
 import { Header, Footer } from "@/components/site-chrome";
 import { CookieConsent } from "@/components/cookie-consent";
 import { getAnnouncementBar } from "@/lib/products.functions";
+import { getSiteContent } from "@/lib/content.functions";
+import { checkAdminSession } from "@/lib/admin.functions";
+import { CmsProvider } from "@/lib/cms-context";
+import { CmsToolbar } from "@/components/cms/CmsToolbar";
 
 const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://qureshijewelers.com").replace(/\/$/, "");
 
@@ -89,10 +93,22 @@ function AnnouncementBar({ text }: { text: string }) {
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   loader: async () => {
     try {
-      const bar = await getAnnouncementBar();
-      return { announcementBar: bar };
+      const [bar, content, session] = await Promise.all([
+        getAnnouncementBar().catch(() => ({ enabled: false, text: "" })),
+        getSiteContent().catch(() => ({} as Record<string, string>)),
+        checkAdminSession().catch(() => ({ authenticated: false })),
+      ]);
+      return {
+        announcementBar: bar,
+        siteContent: content,
+        isAdminSession: session.authenticated,
+      };
     } catch {
-      return { announcementBar: { enabled: false, text: "" } };
+      return {
+        announcementBar: { enabled: false, text: "" },
+        siteContent: {} as Record<string, string>,
+        isAdminSession: false,
+      };
     }
   },
   head: () => ({
@@ -188,7 +204,9 @@ function RootComponent() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isAdmin = pathname.startsWith("/admin");
 
-  const bar = loaderData?.announcementBar;
+  const bar            = loaderData?.announcementBar;
+  const siteContent    = loaderData?.siteContent ?? {};
+  const isAdminSession = loaderData?.isAdminSession ?? false;
 
   if (isAdmin) {
     return (
@@ -201,16 +219,19 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <CartProvider>
-        <div className="flex min-h-screen flex-col">
-          {bar?.enabled && <AnnouncementBar text={bar.text} />}
-          <Header />
-          <main className="flex-1"><Outlet /></main>
-          <Footer />
-        </div>
-        <Toaster position="top-center" richColors />
-        <CookieConsent />
-      </CartProvider>
+      <CmsProvider initialContent={siteContent} isAdminSession={isAdminSession}>
+        <CartProvider>
+          <div className="flex min-h-screen flex-col">
+            {bar?.enabled && <AnnouncementBar text={bar.text} />}
+            <Header />
+            <main className="flex-1"><Outlet /></main>
+            <Footer />
+          </div>
+          <Toaster position="top-center" richColors />
+          <CookieConsent />
+          <CmsToolbar />
+        </CartProvider>
+      </CmsProvider>
     </QueryClientProvider>
   );
 }
