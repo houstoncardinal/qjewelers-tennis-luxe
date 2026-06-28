@@ -18,144 +18,366 @@ export const Route = createFileRoute("/admin")({
 
 // ─── Login ───────────────────────────────────────────────────────────────────
 
-// Luxury vault CSS injected once at the module level
 const VAULT_CSS = `
   @keyframes vault-spin-cw  { to { transform: rotate(360deg);  } }
   @keyframes vault-spin-ccw { to { transform: rotate(-360deg); } }
-  @keyframes vault-pulse    {
-    0%,100% { opacity: 0.35; }
-    50%      { opacity: 0.65; }
+  @keyframes vault-pulse    { 0%,100% { opacity: 0.28; } 50% { opacity: 0.65; } }
+  @keyframes glow-breathe   {
+    0%,100% { transform: scale(1);    opacity: 0.40; }
+    50%     { transform: scale(1.14); opacity: 0.75; }
   }
   @keyframes gold-shimmer {
-    0%   { transform: translateX(-120%) skewX(-20deg); opacity: 0; }
-    8%   { opacity: 0.6; }
-    92%  { opacity: 0.6; }
-    100% { transform: translateX(320%) skewX(-20deg); opacity: 0; }
+    0%   { transform: translateX(-160%) skewX(-15deg); opacity: 0;  }
+    6%   { opacity: 1;  }
+    94%  { opacity: 1;  }
+    100% { transform: translateX(360%) skewX(-15deg);  opacity: 0;  }
   }
   @keyframes vault-entrance {
-    from { opacity: 0; transform: scale(0.96) translateY(14px); }
-    to   { opacity: 1; transform: scale(1)    translateY(0);    }
+    from { opacity: 0; transform: scale(0.93) translateY(22px); filter: blur(5px); }
+    to   { opacity: 1; transform: scale(1)    translateY(0);    filter: blur(0);   }
   }
   @keyframes spark-float {
-    0%,100% { opacity: 0; transform: scale(0) rotate(0deg);   }
-    40%     { opacity: 1; transform: scale(1) rotate(45deg);  }
-    80%     { opacity: 0; transform: scale(0) rotate(90deg);  }
+    0%,100% { opacity: 0; transform: scale(0)   rotate(0deg);  }
+    40%     { opacity: 1; transform: scale(1)   rotate(45deg); }
+    80%     { opacity: 0; transform: scale(0.2) rotate(90deg); }
   }
   @keyframes needle-pulse {
-    0%,100% { box-shadow: 0 0 0 0 rgba(212,175,55,0.6); }
-    50%     { box-shadow: 0 0 0 6px rgba(212,175,55,0);  }
+    0%,100% { box-shadow: 0 0 0 0   rgba(74,222,128,0.7); }
+    50%     { box-shadow: 0 0 0 5px rgba(74,222,128,0);   }
   }
-  .vault-entrance { animation: vault-entrance 0.7s cubic-bezier(0.16,1,0.3,1) both; }
+  @keyframes gold-pulse {
+    0%,100% { box-shadow: 0 0 0 0   rgba(212,175,55,0.5); }
+    50%     { box-shadow: 0 0 0 7px rgba(212,175,55,0);   }
+  }
+  @keyframes scan-line {
+    0%   { top: -2px;              opacity: 0; }
+    5%   { opacity: 1; }
+    95%  { opacity: 1; }
+    100% { top: calc(100% + 2px); opacity: 0; }
+  }
+  @keyframes bolt-breathe {
+    0%,100% { box-shadow: 0 2px  6px rgba(0,0,0,0.70), 0 0 0   rgba(212,175,55,0);    }
+    50%     { box-shadow: 0 2px 12px rgba(0,0,0,0.50), 0 0 8px rgba(212,175,55,0.10); }
+  }
+  @keyframes door-breathe {
+    0%,100% { transform: perspective(1400px) rotateY(-6.0deg) rotateX(2.5deg) scale(1);     }
+    50%     { transform: perspective(1400px) rotateY(-3.5deg) rotateX(1.2deg) scale(1.015); }
+  }
+  @keyframes spotlight-sweep {
+    0%,100% { opacity: 0.06; transform: skewX(-8deg) translateX(-8%); }
+    50%     { opacity: 0.11; transform: skewX(-8deg) translateX( 8%); }
+  }
+  @keyframes terminal-scroll {
+    from { transform: translateY(0);    }
+    to   { transform: translateY(-50%); }
+  }
+  @keyframes particle-rise {
+    0%   { transform: translateY(0)       scale(1);   opacity: 0;    }
+    8%   { opacity: 0.75; }
+    85%  { opacity: 0.15; }
+    100% { transform: translateY(-100px)  scale(0.1); opacity: 0;    }
+  }
+  .vault-entrance { animation: vault-entrance 0.95s cubic-bezier(0.16,1,0.3,1) both; }
   .gold-shimmer-card { position: relative; overflow: hidden; }
   .gold-shimmer-card::after {
     content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(105deg, transparent 40%, rgba(212,175,55,0.07) 50%, transparent 60%);
-    animation: gold-shimmer 6s ease-in-out 1.5s infinite;
+    position: absolute; inset: 0;
+    background: linear-gradient(108deg, transparent 36%, rgba(212,175,55,0.055) 50%, transparent 64%);
+    animation: gold-shimmer 8s ease-in-out 2.5s infinite;
     pointer-events: none;
+  }
+  .vault-door-3d {
+    animation: door-breathe 12s ease-in-out infinite;
+    transform-style: preserve-3d;
+    will-change: transform;
   }
 `;
 
-// Vault dial rings ─────────────────────────────────────────────────────────────
+// ── 3D Vault Door ─────────────────────────────────────────────────────────────
 function VaultDoor() {
-  const rings = [
-    { d: 580, border: "1px solid rgba(212,175,55,0.07)", anim: "vault-spin-cw 220s linear infinite" },
-    { d: 480, border: "1px solid rgba(212,175,55,0.12)", anim: "vault-spin-ccw 160s linear infinite" },
-    { d: 390, border: "2px solid rgba(212,175,55,0.10)", anim: "vault-spin-cw 120s linear infinite" },
-    { d: 300, border: "1px solid rgba(212,175,55,0.18)", anim: "vault-spin-ccw 90s linear infinite" },
-    { d: 218, border: "1px solid rgba(212,175,55,0.22)", anim: "vault-spin-cw 60s linear infinite" },
-    { d: 146, border: "2px solid rgba(212,175,55,0.28)", anim: "vault-spin-ccw 40s linear infinite" },
-  ];
-  // bolt positions on the 480 ring
-  const bolts = Array.from({ length: 12 }, (_, i) => i * 30);
+  const DOOR = 318;
+  const dialNumbers = Array.from({ length: 10 }, (_, i) => ({ deg: i * 36, num: i * 10 }));
+  const dialTicks   = Array.from({ length: 60 },  (_, i) => i * 6);
 
   return (
     <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-      {/* Ambient glow behind vault */}
+      {/* Deep ambient glow */}
       <div
         className="absolute rounded-full"
         style={{
-          width: 500, height: 500,
-          background: "radial-gradient(circle, rgba(212,175,55,0.09) 0%, rgba(212,175,55,0.03) 40%, transparent 70%)",
-          animation: "vault-pulse 4s ease-in-out infinite",
+          width: 560, height: 560,
+          background: "radial-gradient(circle, rgba(212,175,55,0.09) 0%, rgba(212,175,55,0.03) 40%, transparent 68%)",
+          animation: "glow-breathe 6s ease-in-out infinite",
         }}
       />
-      {/* Rings */}
-      {rings.map((r, i) => (
-        <div
-          key={i}
-          className="absolute rounded-full"
-          style={{ width: r.d, height: r.d, border: r.border, animation: r.anim }}
-        >
-          {/* Tick marks on each ring */}
-          {i === 1 && bolts.map((deg) => (
-            <div
-              key={deg}
-              className="absolute"
-              style={{
-                width: 6, height: 6,
-                borderRadius: "50%",
-                background: "rgba(212,175,55,0.35)",
-                top: "50%", left: "50%",
-                transform: `rotate(${deg}deg) translateX(${r.d / 2 - 10}px) translateY(-50%)`,
-                transformOrigin: "0 50%",
-              }}
-            />
-          ))}
-          {/* Spokes on the 390 ring */}
-          {i === 2 && [0, 45, 90, 135].map((deg) => (
-            <div
-              key={deg}
-              className="absolute top-1/2 left-1/2 origin-left"
-              style={{
-                width: r.d / 2 - 30,
-                height: 1,
-                marginTop: -0.5,
-                background: "linear-gradient(to right, rgba(212,175,55,0.20), transparent)",
-                transform: `rotate(${deg}deg)`,
-              }}
-            />
-          ))}
-        </div>
-      ))}
-      {/* Center medallion */}
+      {/* Spotlight cone from above */}
       <div
-        className="absolute flex items-center justify-center rounded-full"
+        className="absolute"
         style={{
-          width: 100, height: 100,
-          background: "radial-gradient(circle, rgba(212,175,55,0.14) 0%, rgba(0,0,0,0) 70%)",
-          border: "1px solid rgba(212,175,55,0.30)",
-          boxShadow: "0 0 30px rgba(212,175,55,0.12), inset 0 0 20px rgba(0,0,0,0.6)",
+          top: 0, left: "20%", right: "20%", height: "70%",
+          background: "linear-gradient(to bottom, rgba(212,175,55,0.08) 0%, transparent 100%)",
+          clipPath: "polygon(28% 0, 72% 0, 100% 100%, 0% 100%)",
+          animation: "spotlight-sweep 9s ease-in-out infinite",
         }}
-      >
-        <Gem className="h-9 w-9" style={{ color: "rgba(212,175,55,0.55)" }} />
+      />
+
+      {/* 3D door wrapper */}
+      <div className="vault-door-3d relative" style={{ width: DOOR, height: DOOR }}>
+
+        {/* Wall cavity / surround frame */}
+        <div
+          className="absolute"
+          style={{
+            inset: -28,
+            background: "linear-gradient(145deg, #080608 0%, #0e0b0a 55%, #080708 100%)",
+            border: "1px solid rgba(212,175,55,0.06)",
+            boxShadow: "inset 0 0 60px rgba(0,0,0,0.95), inset 0 0 120px rgba(0,0,0,0.8)",
+          }}
+        />
+        {/* Hinge depth shadow — door hinges on left */}
+        <div
+          className="absolute"
+          style={{
+            left: -28, top: -28, bottom: -28, width: 28,
+            background: "linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,0.72))",
+          }}
+        />
+
+        {/* Door slab */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: "linear-gradient(152deg, #211f1c 0%, #181512 35%, #101009 65%, #1c1a17 100%)",
+            border: "2px solid rgba(212,175,55,0.13)",
+            boxShadow: [
+              "inset 0 2px 6px rgba(255,255,255,0.045)",
+              "inset 0 -3px 8px rgba(0,0,0,0.65)",
+              "inset 2px 0 5px rgba(255,255,255,0.022)",
+              "inset -3px 0 8px rgba(0,0,0,0.55)",
+              "0 12px 50px rgba(0,0,0,0.85)",
+            ].join(", "),
+          }}
+        >
+          {/* Brushed steel texture */}
+          <div
+            className="absolute inset-0 opacity-20"
+            style={{ background: "repeating-linear-gradient(0deg, transparent 0px, transparent 3px, rgba(255,255,255,0.006) 3px, rgba(255,255,255,0.006) 4px)" }}
+          />
+          {/* Gold inlay border 1 */}
+          <div className="absolute" style={{ inset: 13, border: "1px solid rgba(212,175,55,0.20)", boxShadow: "inset 0 0 24px rgba(0,0,0,0.5)" }} />
+          {/* Gold inlay border 2 */}
+          <div className="absolute" style={{ inset: 19, border: "1px solid rgba(212,175,55,0.07)" }} />
+        </div>
+
+        {/* ── BOLT BARS ─────────────────────────────────── */}
+        {/* Right — 3 bolts */}
+        {[0.27, 0.50, 0.73].map((frac, i) => (
+          <div
+            key={`r${i}`}
+            className="absolute"
+            style={{
+              right: -44, top: `calc(${frac * 100}% - 8px)`,
+              width: 44, height: 16,
+              background: "linear-gradient(to right, #2e2b27 0%, #201e1b 60%, #161412 100%)",
+              border: "1px solid rgba(212,175,55,0.16)", borderLeft: "none",
+              borderRadius: "0 3px 3px 0",
+              animation: `bolt-breathe ${3.6 + i * 0.45}s ease-in-out ${i * 0.35}s infinite`,
+            }}
+          >
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm" style={{ width: 16, height: 8, background: "rgba(0,0,0,0.45)", border: "1px solid rgba(212,175,55,0.10)" }} />
+          </div>
+        ))}
+        {/* Left — 2 bolts */}
+        {[0.35, 0.65].map((frac, i) => (
+          <div
+            key={`l${i}`}
+            className="absolute"
+            style={{
+              left: -40, top: `calc(${frac * 100}% - 8px)`,
+              width: 40, height: 16,
+              background: "linear-gradient(to left, #2e2b27 0%, #201e1b 60%, #161412 100%)",
+              border: "1px solid rgba(212,175,55,0.13)", borderRight: "none",
+              borderRadius: "3px 0 0 3px",
+              animation: `bolt-breathe ${4.1 + i * 0.5}s ease-in-out ${i * 0.5 + 0.2}s infinite`,
+            }}
+          />
+        ))}
+        {/* Top — 2 bolts */}
+        {[0.33, 0.67].map((frac, i) => (
+          <div
+            key={`t${i}`}
+            className="absolute"
+            style={{
+              top: -36, left: `calc(${frac * 100}% - 8px)`,
+              width: 16, height: 36,
+              background: "linear-gradient(to top, #2e2b27, #161412)",
+              border: "1px solid rgba(212,175,55,0.12)", borderBottom: "none",
+              borderRadius: "3px 3px 0 0",
+              animation: `bolt-breathe ${3.9 + i * 0.3}s ease-in-out ${i * 0.4 + 0.1}s infinite`,
+            }}
+          />
+        ))}
+        {/* Bottom — 2 bolts */}
+        {[0.33, 0.67].map((frac, i) => (
+          <div
+            key={`b${i}`}
+            className="absolute"
+            style={{
+              bottom: -36, left: `calc(${frac * 100}% - 8px)`,
+              width: 16, height: 36,
+              background: "linear-gradient(to bottom, #2e2b27, #161412)",
+              border: "1px solid rgba(212,175,55,0.12)", borderTop: "none",
+              borderRadius: "0 0 3px 3px",
+              animation: `bolt-breathe ${4.3 + i * 0.4}s ease-in-out ${i * 0.6 + 0.3}s infinite`,
+            }}
+          />
+        ))}
+
+        {/* ── COMBINATION DIAL ─────────────────────────── */}
+        <div className="absolute inset-0 flex items-center justify-center">
+
+          {/* Outer number ring — rotates slowly */}
+          <div className="absolute rounded-full" style={{ width: 252, height: 252, animation: "vault-spin-cw 200s linear infinite" }}>
+            {dialTicks.map((deg) => {
+              const major = deg % 36 === 0;
+              return (
+                <div key={deg} className="absolute" style={{ width: "100%", height: "100%", transform: `rotate(${deg}deg)` }}>
+                  <div style={{ position: "absolute", top: major ? 10 : 14, left: "50%", width: major ? 1.5 : 1, height: major ? 10 : 5, background: major ? "rgba(212,175,55,0.55)" : "rgba(212,175,55,0.18)", transform: "translateX(-50%)" }} />
+                </div>
+              );
+            })}
+            {dialNumbers.map(({ deg, num }) => (
+              <div key={deg} className="absolute" style={{ width: "100%", height: "100%", transform: `rotate(${deg}deg)` }}>
+                <span style={{ position: "absolute", top: 23, left: "50%", transform: `translateX(-50%) rotate(-${deg}deg)`, fontSize: "0.39rem", color: "rgba(212,175,55,0.52)", fontFamily: "monospace", fontWeight: 600, letterSpacing: "0.04em" }}>
+                  {String(num).padStart(2, "0")}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Outer ring border circle */}
+          <div className="absolute rounded-full" style={{ width: 252, height: 252, border: "1.5px solid rgba(212,175,55,0.22)", boxShadow: "0 0 0 1px rgba(212,175,55,0.06), inset 0 0 24px rgba(0,0,0,0.6)" }} />
+
+          {/* Middle mechanism ring — 8 spokes + rivets, counter-rotates */}
+          <div
+            className="absolute rounded-full"
+            style={{
+              width: 188, height: 188,
+              border: "2px solid rgba(212,175,55,0.18)",
+              background: "radial-gradient(circle at 42% 38%, rgba(28,24,18,1) 0%, rgba(10,8,6,1) 100%)",
+              boxShadow: "inset 0 4px 18px rgba(0,0,0,0.80), 0 0 0 1.5px rgba(0,0,0,0.6)",
+              animation: "vault-spin-ccw 130s linear infinite",
+            }}
+          >
+            {Array.from({ length: 8 }, (_, i) => (
+              <div
+                key={i}
+                className="absolute top-1/2 left-1/2"
+                style={{ width: 85, height: 1.5, marginTop: -0.75, background: "linear-gradient(to right, rgba(212,175,55,0.40), rgba(212,175,55,0.04))", transform: `rotate(${i * 45}deg)`, transformOrigin: "0 50%" }}
+              />
+            ))}
+            {Array.from({ length: 8 }, (_, i) => {
+              const a = (i * 45 * Math.PI) / 180;
+              const r = 79;
+              return (
+                <div key={i} className="absolute rounded-full" style={{ width: 7, height: 7, top: `calc(50% + ${Math.sin(a) * r}px - 3.5px)`, left: `calc(50% + ${Math.cos(a) * r}px - 3.5px)`, background: "radial-gradient(circle, rgba(212,175,55,0.70) 0%, rgba(212,175,55,0.18) 100%)", boxShadow: "0 0 5px rgba(212,175,55,0.32)" }} />
+              );
+            })}
+          </div>
+
+          {/* Inner handle grip ring */}
+          <div
+            className="absolute rounded-full"
+            style={{
+              width: 118, height: 118,
+              border: "2px solid rgba(212,175,55,0.26)",
+              background: "radial-gradient(circle at 38% 33%, rgba(38,32,22,1) 0%, rgba(14,11,7,1) 100%)",
+              boxShadow: ["inset 0 2px 10px rgba(255,255,255,0.055)", "inset 0 -4px 14px rgba(0,0,0,0.75)", "0 0 0 3.5px rgba(0,0,0,0.85)", "0 0 0 5px rgba(212,175,55,0.10)", "0 0 20px rgba(212,175,55,0.08)"].join(", "),
+              animation: "vault-spin-cw 70s linear infinite",
+            }}
+          >
+            {[0, 90].map((deg) => (
+              <div
+                key={deg}
+                className="absolute top-1/2 left-1/2"
+                style={{
+                  width: 76, height: 13, marginTop: -6.5, marginLeft: -38,
+                  background: "linear-gradient(to bottom, rgba(212,175,55,0.38) 0%, rgba(212,175,55,0.18) 55%, rgba(212,175,55,0.06) 100%)",
+                  border: "1px solid rgba(212,175,55,0.24)",
+                  borderRadius: 3,
+                  transform: `rotate(${deg}deg)`,
+                  transformOrigin: "50% 50%",
+                  boxShadow: "inset 0 1px 3px rgba(255,255,255,0.07)",
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Center gem medallion */}
+          <div
+            className="absolute flex items-center justify-center rounded-full"
+            style={{
+              width: 58, height: 58,
+              background: "radial-gradient(circle at 38% 32%, rgba(212,175,55,0.22) 0%, rgba(0,0,0,0.85) 72%)",
+              border: "2px solid rgba(212,175,55,0.44)",
+              boxShadow: ["0 0 0 3px rgba(0,0,0,0.92)", "0 0 0 4.5px rgba(212,175,55,0.14)", "0 0 22px rgba(212,175,55,0.18)", "inset 0 0 14px rgba(0,0,0,0.75)"].join(", "),
+              animation: "vault-pulse 3.5s ease-in-out infinite",
+            }}
+          >
+            <Gem className="h-5 w-5" style={{ color: "rgba(212,175,55,0.82)" }} />
+          </div>
+        </div>
+
+        {/* Corner reinforcement plates */}
+        {([
+          { top: 0,    left:  0, bt: "top",    bl: "left"  },
+          { top: 0,    right: 0, bt: "top",    bl: "right" },
+          { bottom: 0, left:  0, bt: "bottom", bl: "left"  },
+          { bottom: 0, right: 0, bt: "bottom", bl: "right" },
+        ] as const).map(({ bt, bl, ...pos }, i) => (
+          <div
+            key={i}
+            className="absolute"
+            style={{
+              ...pos,
+              width: 30, height: 30,
+              [bt === "top" ? "borderTop" : "borderBottom"]: "2px solid rgba(212,175,55,0.30)",
+              [bl === "left" ? "borderLeft" : "borderRight"]: "2px solid rgba(212,175,55,0.30)",
+            }}
+          />
+        ))}
+
+        {/* Engraved serial number */}
+        <div className="absolute bottom-7 left-0 right-0 text-center">
+          <span style={{ fontSize: "0.36rem", letterSpacing: "0.42em", color: "rgba(212,175,55,0.18)", fontFamily: "monospace" }}>
+            SN · QJ‑2024‑001
+          </span>
+        </div>
       </div>
     </div>
   );
 }
 
-// Decorative gold divider ──────────────────────────────────────────────────────
+// ── Gold divider ───────────────────────────────────────────────────────────────
 function GoldRule({ label }: { label?: string }) {
   return (
     <div className="flex items-center gap-3 my-1">
-      <div className="flex-1 h-px" style={{ background: "linear-gradient(to right, transparent, rgba(212,175,55,0.30))" }} />
+      <div className="flex-1 h-px" style={{ background: "linear-gradient(to right, transparent, rgba(212,175,55,0.32))" }} />
       {label ? (
-        <span className="text-[0.42rem] uppercase tracking-[0.38em] font-semibold" style={{ color: "rgba(212,175,55,0.45)" }}>
+        <span className="text-[0.42rem] uppercase tracking-[0.38em] font-semibold" style={{ color: "rgba(212,175,55,0.48)" }}>
           {label}
         </span>
       ) : (
-        <span style={{ color: "rgba(212,175,55,0.40)", fontSize: "0.45rem" }}>◆</span>
+        <span style={{ color: "rgba(212,175,55,0.42)", fontSize: "0.44rem" }}>◆</span>
       )}
-      <div className="flex-1 h-px" style={{ background: "linear-gradient(to left, transparent, rgba(212,175,55,0.30))" }} />
+      <div className="flex-1 h-px" style={{ background: "linear-gradient(to left, transparent, rgba(212,175,55,0.32))" }} />
     </div>
   );
 }
 
-// Corner gold inlay marks ──────────────────────────────────────────────────────
+// ── Corner accent marks ────────────────────────────────────────────────────────
 function CornerAccents({ size = 20, opacity = 0.5 }: { size?: number; opacity?: number }) {
   const s = `rgba(212,175,55,${opacity})`;
-  const b = `${size}px`;
   const shared: React.CSSProperties = { position: "absolute", width: size, height: size };
   return (
     <>
@@ -167,13 +389,15 @@ function CornerAccents({ size = 20, opacity = 0.5 }: { size?: number; opacity?: 
   );
 }
 
-// Floating diamond sparks ──────────────────────────────────────────────────────
+// ── Diamond sparks ─────────────────────────────────────────────────────────────
 const SPARKS = [
-  { top: "12%",  left: "8%",  delay: "0s",   dur: "3.5s" },
-  { top: "28%",  left: "91%", delay: "1.2s", dur: "4.1s" },
-  { top: "72%",  left: "6%",  delay: "2.0s", dur: "3.2s" },
-  { top: "85%",  left: "88%", delay: "0.6s", dur: "4.8s" },
-  { top: "48%",  left: "96%", delay: "3.1s", dur: "3.0s" },
+  { top: "10%", left: "7%",  delay: "0s",   dur: "3.5s" },
+  { top: "22%", left: "92%", delay: "1.3s", dur: "4.2s" },
+  { top: "68%", left: "5%",  delay: "2.0s", dur: "3.1s" },
+  { top: "82%", left: "89%", delay: "0.7s", dur: "4.7s" },
+  { top: "45%", left: "97%", delay: "3.2s", dur: "2.9s" },
+  { top: "55%", left: "3%",  delay: "1.8s", dur: "3.8s" },
+  { top: "35%", left: "95%", delay: "2.6s", dur: "3.4s" },
 ];
 
 function DiamondSparks() {
@@ -183,13 +407,7 @@ function DiamondSparks() {
         <div
           key={i}
           className="absolute pointer-events-none select-none"
-          style={{
-            top: s.top, left: s.left,
-            width: 8, height: 8,
-            fontSize: "0.5rem",
-            color: "rgba(212,175,55,0.55)",
-            animation: `spark-float ${s.dur} ease-in-out ${s.delay} infinite`,
-          }}
+          style={{ top: s.top, left: s.left, width: 8, height: 8, fontSize: "0.50rem", color: "rgba(212,175,55,0.60)", animation: `spark-float ${s.dur} ease-in-out ${s.delay} infinite` }}
         >
           ◆
         </div>
@@ -198,17 +416,90 @@ function DiamondSparks() {
   );
 }
 
-// Security credential row ──────────────────────────────────────────────────────
-function CredentialRow({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
+// ── Security credential row ────────────────────────────────────────────────────
+function CredentialRow({ icon: Icon, label, sublabel }: { icon: React.ElementType; label: string; sublabel?: string }) {
   return (
     <div className="flex items-center gap-3">
       <div
-        className="w-6 h-6 rounded flex items-center justify-center shrink-0"
-        style={{ background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.18)" }}
+        className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+        style={{ background: "rgba(212,175,55,0.07)", border: "1px solid rgba(212,175,55,0.20)" }}
       >
-        <Icon className="h-3 w-3" style={{ color: "rgba(212,175,55,0.70)" }} />
+        <Icon className="h-3.5 w-3.5" style={{ color: "rgba(212,175,55,0.72)" }} />
       </div>
-      <span className="text-[0.60rem] tracking-[0.06em]" style={{ color: "rgba(255,255,255,0.38)" }}>{label}</span>
+      <div>
+        <p className="text-[0.60rem] tracking-[0.06em]" style={{ color: "rgba(255,255,255,0.40)" }}>{label}</p>
+        {sublabel && (
+          <p className="text-[0.44rem] tracking-[0.10em] mt-0.5 font-mono" style={{ color: "rgba(212,175,55,0.30)" }}>{sublabel}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Terminal security log ──────────────────────────────────────────────────────
+const TERMINAL_LINES = [
+  "[AUTH]    HSM module initialized · OK",
+  "[VAULT]   Locking mechanism engaged · SECURE",
+  "[CERT]    TLS 1.3 chain verified · PASS",
+  "[SESSION] Ephemeral key generated · AES-256",
+  "[AUDIT]   Chronicle node synced · ACTIVE",
+  "[TOTP]    HMAC-SHA1 seed loaded · READY",
+  "[HSM]     Key derivation online · FIPS 140-2",
+  "[VAULT]   Bolt array nominal · 9/9",
+  "[BIOM]    Input layer armed · WAITING",
+  "[NET]     Tunnel established · TLS 1.3",
+  "[AUTH]    Session token rotated · OK",
+  "[VAULT]   Combination dial calibrated · 00",
+];
+
+function TerminalLog() {
+  const doubled = [...TERMINAL_LINES, ...TERMINAL_LINES];
+  return (
+    <div
+      className="relative overflow-hidden"
+      style={{ height: 76, maskImage: "linear-gradient(to bottom, transparent 0%, black 22%, black 78%, transparent 100%)" }}
+    >
+      <div style={{ animation: "terminal-scroll 24s linear infinite" }}>
+        {doubled.map((line, i) => (
+          <p
+            key={i}
+            className="font-mono leading-relaxed"
+            style={{
+              fontSize: "0.39rem",
+              color: i % 3 === 0 ? "rgba(212,175,55,0.38)" : i % 3 === 1 ? "rgba(74,222,128,0.30)" : "rgba(255,255,255,0.20)",
+              letterSpacing: "0.04em",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {line}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Rising gold particles ──────────────────────────────────────────────────────
+const PARTICLES = [
+  { left: "15%", delay: "0s",   dur: "4.0s", size: 3 },
+  { left: "32%", delay: "1.5s", dur: "3.3s", size: 2 },
+  { left: "50%", delay: "0.8s", dur: "4.8s", size: 4 },
+  { left: "68%", delay: "2.2s", dur: "3.7s", size: 2 },
+  { left: "84%", delay: "0.3s", dur: "5.1s", size: 3 },
+  { left: "24%", delay: "3.1s", dur: "4.2s", size: 2 },
+  { left: "76%", delay: "1.9s", dur: "3.5s", size: 3 },
+];
+
+function RisingParticles() {
+  return (
+    <div className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none select-none overflow-hidden">
+      {PARTICLES.map((p, i) => (
+        <div
+          key={i}
+          className="absolute bottom-0 rounded-full"
+          style={{ left: p.left, width: p.size, height: p.size, background: "rgba(212,175,55,0.55)", boxShadow: "0 0 4px rgba(212,175,55,0.4)", animation: `particle-rise ${p.dur} ease-out ${p.delay} infinite` }}
+        />
+      ))}
     </div>
   );
 }
@@ -216,12 +507,12 @@ function CredentialRow({ icon: Icon, label }: { icon: React.ElementType; label: 
 // ─── Main Login ───────────────────────────────────────────────────────────────
 
 function AdminLogin({ onLogin }: { onLogin: () => void }) {
-  const [pin, setPin] = useState("");
-  const [code, setCode] = useState("");
+  const [pin, setPin]             = useState("");
+  const [code, setCode]           = useState("");
   const [needsTotp, setNeedsTotp] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const auth = useServerFn(adminAuth);
+  const [error, setError]         = useState("");
+  const [loading, setLoading]     = useState(false);
+  const auth       = useServerFn(adminAuth);
   const verifyTotp = useServerFn(verifyTotpLogin);
 
   const submit = async (e?: React.FormEvent | React.MouseEvent) => {
@@ -237,11 +528,7 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
       }
       if (!pin) return;
       const result = await auth({ data: { pin } });
-      if (result.requiresTotp) {
-        setNeedsTotp(true);
-      } else {
-        onLogin();
-      }
+      if (result.requiresTotp) { setNeedsTotp(true); } else { onLogin(); }
     } catch (err: any) {
       const msg: string = err?.message ?? "";
       if (msg.includes("Too many") || msg.includes("misconfigured")) {
@@ -256,47 +543,33 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
 
   const backToLogin = () => { setNeedsTotp(false); setCode(""); setError(""); };
 
-  // Gold palette
-  const GOLD       = "rgba(212,175,55,1)";
-  const GOLD_MID   = "rgba(212,175,55,0.55)";
-  const GOLD_DIM   = "rgba(212,175,55,0.22)";
-  const GOLD_FAINT = "rgba(212,175,55,0.08)";
+  const GOLD     = "rgba(212,175,55,1)";
+  const GOLD_MID = "rgba(212,175,55,0.60)";
+  const GOLD_DIM = "rgba(212,175,55,0.22)";
 
   return (
     <>
       <style>{VAULT_CSS}</style>
 
-      <div
-        className="min-h-screen flex"
-        style={{ background: "linear-gradient(160deg, #07060a 0%, #0d0b08 55%, #0a0908 100%)" }}
-      >
-        {/* ══════════════════════════════════════════════════
-            LEFT PANEL — vault door + brand identity
-        ══════════════════════════════════════════════════ */}
+      <div className="min-h-screen flex" style={{ background: "linear-gradient(160deg, #060408 0%, #0c0a07 55%, #090807 100%)" }}>
+
+        {/* ══ LEFT PANEL ══════════════════════════════════════════════════════ */}
         <div
-          className="hidden lg:flex lg:w-[46%] relative overflow-hidden flex-col justify-between"
-          style={{
-            background: "linear-gradient(145deg, #060509 0%, #0e0c07 60%, #090808 100%)",
-            borderRight: `1px solid ${GOLD_DIM}`,
-          }}
+          className="hidden lg:flex lg:w-[48%] relative overflow-hidden flex-col justify-between"
+          style={{ background: "linear-gradient(152deg, #050308 0%, #0d0b07 55%, #080708 100%)", borderRight: `1px solid ${GOLD_DIM}` }}
         >
-          {/* Vault door graphic */}
           <VaultDoor />
-
-          {/* Diamond sparks */}
           <DiamondSparks />
+          <RisingParticles />
 
-          {/* Large background radial gold bloom */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: "radial-gradient(ellipse 70% 60% at 50% 50%, rgba(212,175,55,0.07) 0%, transparent 70%)",
-            }}
-          />
+          {/* Radial bloom */}
+          <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 75% 65% at 50% 50%, rgba(212,175,55,0.065) 0%, transparent 70%)" }} />
+          {/* Floor reflection */}
+          <div className="absolute bottom-0 left-0 right-0 h-36 pointer-events-none" style={{ background: "linear-gradient(to top, rgba(212,175,55,0.04) 0%, transparent 100%)" }} />
 
-          {/* Top brand mark */}
+          {/* Top brand */}
           <div className="relative z-10 p-12">
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-3 mb-4">
               <img
                 src="/QURESHIJEWELERSLOGO.png"
                 alt="Qureshi Jewelers"
@@ -307,84 +580,69 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
             <GoldRule label="Private Vault Console" />
           </div>
 
-          {/* Bottom copy */}
-          <div className="relative z-10 p-12 pb-14">
+          {/* Bottom copy + credentials + terminal */}
+          <div className="relative z-10 p-12 pb-10">
             <p
-              className="font-display text-[2.1rem] leading-[1.15] mb-5"
-              style={{
-                color: "rgba(255,255,255,0.88)",
-                textShadow: `0 0 60px ${GOLD_FAINT}`,
-              }}
+              className="font-display text-[2.0rem] leading-[1.16] mb-4"
+              style={{ color: "rgba(255,255,255,0.88)", textShadow: "0 0 80px rgba(212,175,55,0.08)" }}
             >
               Every flawless piece.<br />
-              <span style={{ color: GOLD_MID }}>Every operation.</span><br />
+              <span style={{ background: "linear-gradient(90deg, rgba(212,175,55,0.90) 0%, rgba(212,175,55,0.55) 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                Every operation.
+              </span><br />
               One secure vault.
             </p>
-            <p className="text-[0.62rem] leading-relaxed mb-8" style={{ color: "rgba(255,255,255,0.28)" }}>
+            <p className="text-[0.60rem] leading-relaxed mb-7" style={{ color: "rgba(255,255,255,0.26)" }}>
               Military-grade access control protecting the world's finest moissanite collections.
             </p>
 
-            <div className="space-y-3">
-              <CredentialRow icon={ShieldCheck} label="TOTP dual-factor authentication" />
-              <CredentialRow icon={Lock}        label="AES-256 encrypted session vault" />
-              <CredentialRow icon={ClipboardList} label="Immutable audit chronicle" />
+            <div className="space-y-2.5 mb-7">
+              <CredentialRow icon={ShieldCheck}  label="TOTP dual-factor authentication"  sublabel="HMAC-SHA1 · RFC 6238"      />
+              <CredentialRow icon={Lock}          label="AES-256 encrypted session vault"  sublabel="FIPS 140-2 validated"      />
+              <CredentialRow icon={ClipboardList} label="Immutable audit chronicle"         sublabel="Tamper-evident log"        />
             </div>
 
-            <div className="mt-10 pt-6" style={{ borderTop: `1px solid ${GOLD_DIM}` }}>
-              <div className="flex items-center gap-2">
-                <span
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{ background: "#4ade80", boxShadow: "0 0 8px rgba(74,222,128,0.8)", animation: "needle-pulse 2.5s ease-in-out infinite" }}
-                />
-                <span className="text-[0.50rem] uppercase tracking-[0.36em]" style={{ color: "rgba(212,175,55,0.45)" }}>
-                  Vault Online · All Systems Secured
+            <div className="mb-6">
+              <p className="text-[0.40rem] uppercase tracking-[0.30em] font-semibold mb-2" style={{ color: "rgba(212,175,55,0.28)" }}>
+                Security Log
+              </p>
+              <TerminalLog />
+            </div>
+
+            <div className="pt-5" style={{ borderTop: `1px solid ${GOLD_DIM}` }}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#4ade80", boxShadow: "0 0 8px rgba(74,222,128,0.9)", animation: "needle-pulse 2.5s ease-in-out infinite" }} />
+                  <span className="text-[0.48rem] uppercase tracking-[0.34em]" style={{ color: "rgba(212,175,55,0.42)" }}>Vault Online</span>
+                </div>
+                <span className="text-[0.37rem] font-mono" style={{ color: "rgba(255,255,255,0.16)" }}>
+                  {new Date().toISOString().slice(0, 10)}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Vertical "VAULT" label — right edge */}
+          {/* Right-edge VAULT label */}
           <div
-            className="absolute right-[-1px] top-1/2 -translate-y-1/2 flex flex-col items-center gap-1 py-4 z-10"
+            className="absolute right-[-1px] top-1/2 -translate-y-1/2 flex flex-col items-center gap-1 py-5 z-10"
             style={{ borderLeft: `1px solid ${GOLD_DIM}` }}
           >
             {"VAULT".split("").map((c, i) => (
-              <span
-                key={i}
-                className="text-[0.38rem] font-semibold uppercase tracking-widest"
-                style={{ color: GOLD_DIM, writingMode: "vertical-lr" }}
-              >
-                {c}
-              </span>
+              <span key={i} style={{ fontSize: "0.37rem", fontWeight: 600, color: GOLD_DIM, writingMode: "vertical-lr", letterSpacing: "0.3em" }}>{c}</span>
             ))}
           </div>
         </div>
 
-        {/* ══════════════════════════════════════════════════
-            RIGHT PANEL — login form
-        ══════════════════════════════════════════════════ */}
+        {/* ══ RIGHT PANEL ═════════════════════════════════════════════════════ */}
         <div className="flex-1 flex items-center justify-center p-6 relative overflow-hidden">
 
-          {/* Background bloom on the right */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: "radial-gradient(ellipse 80% 60% at 60% 40%, rgba(212,175,55,0.05) 0%, transparent 70%)",
-            }}
-          />
+          {/* Background bloom */}
+          <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 90% 65% at 55% 42%, rgba(212,175,55,0.045) 0%, transparent 70%)" }} />
 
-          {/* Mobile vault rings (small, decorative) */}
+          {/* Mobile vault rings */}
           <div className="lg:hidden absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
-            {[300, 220, 150].map((d, i) => (
-              <div
-                key={i}
-                className="absolute rounded-full"
-                style={{
-                  width: d, height: d,
-                  border: "1px solid rgba(212,175,55,0.4)",
-                  animation: `${i % 2 === 0 ? "vault-spin-cw" : "vault-spin-ccw"} ${120 - i * 30}s linear infinite`,
-                }}
-              />
+            {[280, 200, 130].map((d, i) => (
+              <div key={i} className="absolute rounded-full" style={{ width: d, height: d, border: "1px solid rgba(212,175,55,0.45)", animation: `${i % 2 === 0 ? "vault-spin-cw" : "vault-spin-ccw"} ${130 - i * 35}s linear infinite` }} />
             ))}
           </div>
 
@@ -392,215 +650,152 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
 
           <div className="w-full max-w-[380px] relative z-10 vault-entrance">
 
-            {/* Logo emblem (mobile + desktop top) */}
-            <div className="flex flex-col items-center mb-9">
+            {/* Logo medallion */}
+            <div className="flex flex-col items-center mb-8">
               <div
                 className="relative flex items-center justify-center mb-5"
                 style={{
-                  width: 72, height: 72,
-                  borderRadius: "50%",
-                  background: `radial-gradient(circle, rgba(212,175,55,0.13) 0%, transparent 70%)`,
-                  border: `1px solid ${GOLD_DIM}`,
-                  boxShadow: `0 0 40px rgba(212,175,55,0.08)`,
+                  width: 76, height: 76, borderRadius: "50%",
+                  background: "radial-gradient(circle at 38% 34%, rgba(212,175,55,0.16) 0%, rgba(0,0,0,0) 70%)",
+                  border: `1.5px solid ${GOLD_DIM}`,
+                  boxShadow: "0 0 50px rgba(212,175,55,0.08), inset 0 0 20px rgba(0,0,0,0.6)",
                 }}
               >
-                <img
-                  src="/QURESHIJEWELERSLOGO.png"
-                  alt="Qureshi Jewelers"
-                  className="h-8 w-auto"
-                  style={{ filter: "brightness(0) saturate(100%) invert(78%) sepia(38%) saturate(600%) hue-rotate(5deg) brightness(95%)" }}
-                />
-                {/* Orbital ring */}
-                <div
-                  className="absolute inset-[-10px] rounded-full"
-                  style={{
-                    border: `1px dashed rgba(212,175,55,0.18)`,
-                    animation: "vault-spin-cw 30s linear infinite",
-                  }}
-                />
+                <img src="/QURESHIJEWELERSLOGO.png" alt="Qureshi Jewelers" className="h-9 w-auto" style={{ filter: "brightness(0) saturate(100%) invert(78%) sepia(38%) saturate(600%) hue-rotate(5deg) brightness(95%)" }} />
+                {/* Dashed orbital ring */}
+                <div className="absolute rounded-full" style={{ inset: -12, border: "1px dashed rgba(212,175,55,0.20)", animation: "vault-spin-cw 28s linear infinite" }} />
               </div>
-              <p
-                className="text-[0.46rem] uppercase tracking-[0.50em] font-semibold"
-                style={{ color: GOLD_MID }}
-              >
-                Qureshi Jewelers
-              </p>
-              <p className="text-[0.40rem] uppercase tracking-[0.38em] mt-1" style={{ color: "rgba(255,255,255,0.22)" }}>
-                Private Vault Console
-              </p>
+              <p className="text-[0.46rem] uppercase tracking-[0.50em] font-semibold" style={{ color: GOLD_MID }}>Qureshi Jewelers</p>
+              <p className="text-[0.40rem] uppercase tracking-[0.38em] mt-1" style={{ color: "rgba(255,255,255,0.20)" }}>Private Vault Console</p>
             </div>
 
             {/* Heading */}
-            <div className="text-center mb-7">
-              <h1
-                className="font-display text-[1.7rem] leading-tight mb-2"
-                style={{ color: "rgba(255,255,255,0.90)", textShadow: `0 0 40px rgba(212,175,55,0.12)` }}
-              >
+            <div className="text-center mb-6">
+              <h1 className="font-display text-[1.75rem] leading-tight mb-2" style={{ color: "rgba(255,255,255,0.90)", textShadow: "0 0 50px rgba(212,175,55,0.14)" }}>
                 {needsTotp ? "Identity Verification" : "Vault Access"}
               </h1>
-              <p className="text-[0.60rem] tracking-[0.08em]" style={{ color: "rgba(255,255,255,0.30)" }}>
-                {needsTotp
-                  ? "Enter the 6-digit code from your authenticator"
-                  : "Authorised personnel only · Enter your access code"}
+              <p className="text-[0.58rem] tracking-[0.08em]" style={{ color: "rgba(255,255,255,0.28)" }}>
+                {needsTotp ? "Enter the 6-digit code from your authenticator app" : "Authorised personnel only · Enter your secure access code"}
               </p>
             </div>
 
-            {/* Main card */}
+            {/* Card */}
             <div
               className="relative px-8 pt-7 pb-8 gold-shimmer-card"
               style={{
-                background: "linear-gradient(160deg, rgba(255,255,255,0.030) 0%, rgba(255,255,255,0.018) 100%)",
-                border: `1px solid rgba(212,175,55,0.22)`,
+                background: "linear-gradient(158deg, rgba(255,255,255,0.028) 0%, rgba(255,255,255,0.015) 100%)",
+                border: "1px solid rgba(212,175,55,0.24)",
                 boxShadow: [
-                  "0 0 0 4px rgba(8,7,10,1)",
-                  `0 0 0 5px rgba(212,175,55,0.10)`,
-                  "0 40px 80px rgba(0,0,0,0.70)",
-                  "0 8px 32px rgba(0,0,0,0.50)",
-                  "inset 0 0 60px rgba(0,0,0,0.25)",
+                  "0 0 0 4px rgba(7,6,9,1)",
+                  "0 0 0 5px rgba(212,175,55,0.11)",
+                  "0 0 0 6px rgba(7,6,9,0.8)",
+                  "0 50px 90px rgba(0,0,0,0.75)",
+                  "0 8px 36px rgba(0,0,0,0.55)",
+                  "inset 0 0 60px rgba(0,0,0,0.22)",
+                  "inset 0 1px 0 rgba(255,255,255,0.04)",
                 ].join(", "),
-                backdropFilter: "blur(24px)",
+                backdropFilter: "blur(28px)",
               }}
             >
-              <CornerAccents size={18} opacity={0.55} />
-
+              <CornerAccents size={18} opacity={0.52} />
               <GoldRule label={needsTotp ? "Dual Factor" : "Secure Entry"} />
 
               <div className="mt-6 mb-6">
-                {needsTotp ? (
-                  <>
-                    <div className="flex justify-center mb-5">
-                      <div
-                        className="w-14 h-14 rounded-full flex items-center justify-center"
-                        style={{
-                          background: "radial-gradient(circle, rgba(212,175,55,0.14) 0%, transparent 70%)",
-                          border: `1px solid rgba(212,175,55,0.30)`,
-                          boxShadow: "0 0 24px rgba(212,175,55,0.10)",
-                        }}
-                      >
-                        <ShieldCheck className="h-6 w-6" style={{ color: GOLD_MID }} />
-                      </div>
-                    </div>
-                    <label
-                      className="block text-[0.46rem] uppercase tracking-[0.36em] font-semibold mb-3 text-center"
-                      style={{ color: GOLD_MID }}
-                    >
-                      Authenticator Code
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={code}
-                        onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                        onKeyDown={e => e.key === "Enter" && submit(e)}
-                        className="w-full px-4 py-4 text-xl text-center tracking-[0.55em] font-semibold focus:outline-none transition-all text-white"
-                        style={{
-                          background: "rgba(0,0,0,0.35)",
-                          border: `1px solid rgba(212,175,55,0.22)`,
-                          boxShadow: "inset 0 2px 8px rgba(0,0,0,0.35)",
-                          caretColor: GOLD,
-                        }}
-                        placeholder="· · · · · ·"
-                        autoFocus
-                        maxLength={6}
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex justify-center mb-5">
-                      <div
-                        className="w-14 h-14 rounded-full flex items-center justify-center"
-                        style={{
-                          background: "radial-gradient(circle, rgba(212,175,55,0.14) 0%, transparent 70%)",
-                          border: `1px solid rgba(212,175,55,0.30)`,
-                          boxShadow: "0 0 24px rgba(212,175,55,0.10)",
-                        }}
-                      >
-                        <Lock className="h-6 w-6" style={{ color: GOLD_MID }} />
-                      </div>
-                    </div>
-                    <label
-                      className="block text-[0.46rem] uppercase tracking-[0.36em] font-semibold mb-3 text-center"
-                      style={{ color: GOLD_MID }}
-                    >
-                      Access Code
-                    </label>
-                    <div className="relative">
+                {/* Icon medallion */}
+                <div className="flex justify-center mb-5">
+                  <div
+                    className="flex items-center justify-center rounded-full"
+                    style={{
+                      width: 56, height: 56,
+                      background: "radial-gradient(circle at 38% 34%, rgba(212,175,55,0.18) 0%, transparent 70%)",
+                      border: "1.5px solid rgba(212,175,55,0.32)",
+                      boxShadow: "0 0 28px rgba(212,175,55,0.12), inset 0 0 16px rgba(0,0,0,0.5)",
+                      animation: "gold-pulse 3s ease-in-out infinite",
+                    }}
+                  >
+                    {needsTotp
+                      ? <ShieldCheck className="h-6 w-6" style={{ color: GOLD_MID }} />
+                      : <Lock        className="h-6 w-6" style={{ color: GOLD_MID }} />
+                    }
+                  </div>
+                </div>
+
+                <label className="block text-[0.44rem] uppercase tracking-[0.38em] font-semibold mb-3 text-center" style={{ color: GOLD_MID }}>
+                  {needsTotp ? "Authenticator Code" : "Access Code"}
+                </label>
+
+                {/* Input with animated scan line */}
+                <div className="relative" style={{ overflow: "hidden" }}>
+                  <div
+                    className="absolute left-0 right-0 pointer-events-none z-10"
+                    style={{ height: 1, background: "linear-gradient(to right, transparent, rgba(212,175,55,0.45), transparent)", animation: "scan-line 3.5s linear infinite" }}
+                  />
+                  {needsTotp ? (
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={code}
+                      onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      onKeyDown={e => e.key === "Enter" && submit(e)}
+                      className="w-full px-4 py-4 text-xl text-center tracking-[0.60em] font-semibold focus:outline-none text-white"
+                      style={{ background: "rgba(0,0,0,0.40)", border: "1px solid rgba(212,175,55,0.24)", boxShadow: "inset 0 3px 10px rgba(0,0,0,0.40)", caretColor: GOLD }}
+                      onFocus={e => { e.target.style.borderColor = "rgba(212,175,55,0.52)"; e.target.style.boxShadow = "inset 0 3px 10px rgba(0,0,0,0.40), 0 0 0 2px rgba(212,175,55,0.08)"; }}
+                      onBlur={e  => { e.target.style.borderColor = "rgba(212,175,55,0.24)"; e.target.style.boxShadow = "inset 0 3px 10px rgba(0,0,0,0.40)"; }}
+                      placeholder="· · · · · ·"
+                      autoFocus
+                      maxLength={6}
+                    />
+                  ) : (
+                    <>
                       <input
                         type="password"
                         value={pin}
                         onChange={e => setPin(e.target.value)}
                         onKeyDown={e => e.key === "Enter" && submit(e)}
-                        className="w-full pl-4 pr-10 py-4 text-base tracking-[0.22em] focus:outline-none transition-all text-white"
-                        style={{
-                          background: "rgba(0,0,0,0.35)",
-                          border: `1px solid rgba(212,175,55,0.22)`,
-                          boxShadow: "inset 0 2px 8px rgba(0,0,0,0.35)",
-                          caretColor: GOLD,
-                        }}
+                        className="w-full pl-4 pr-11 py-4 text-base tracking-[0.22em] focus:outline-none text-white"
+                        style={{ background: "rgba(0,0,0,0.40)", border: "1px solid rgba(212,175,55,0.24)", boxShadow: "inset 0 3px 10px rgba(0,0,0,0.40)", caretColor: GOLD }}
+                        onFocus={e => { e.target.style.borderColor = "rgba(212,175,55,0.52)"; e.target.style.boxShadow = "inset 0 3px 10px rgba(0,0,0,0.40), 0 0 0 2px rgba(212,175,55,0.08)"; }}
+                        onBlur={e  => { e.target.style.borderColor = "rgba(212,175,55,0.24)"; e.target.style.boxShadow = "inset 0 3px 10px rgba(0,0,0,0.40)"; }}
                         placeholder="••••••••••••"
                         autoFocus
                       />
-                      <Lock
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
-                        style={{ color: GOLD_DIM }}
-                      />
-                    </div>
-                  </>
-                )}
+                      <Lock className="absolute right-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none" style={{ color: GOLD_DIM }} />
+                    </>
+                  )}
+                </div>
               </div>
 
               {error && (
-                <div
-                  className="flex items-start gap-2.5 px-3.5 py-3 mb-5 text-[0.62rem]"
-                  style={{
-                    background: "rgba(239,68,68,0.07)",
-                    border: "1px solid rgba(239,68,68,0.20)",
-                    color: "rgba(252,165,165,0.90)",
-                  }}
-                >
+                <div className="flex items-start gap-2.5 px-3.5 py-3 mb-5 text-[0.60rem]" style={{ background: "rgba(239,68,68,0.065)", border: "1px solid rgba(239,68,68,0.22)", color: "rgba(252,165,165,0.90)" }}>
                   <span className="w-1.5 h-1.5 rounded-full bg-red-400 mt-0.5 shrink-0" />
                   {error}
                 </div>
               )}
 
-              {/* Submit button */}
+              {/* Submit button — gold 3D press */}
               <button
                 type="button"
                 onClick={submit}
                 disabled={loading || (needsTotp ? code.length !== 6 : pin.length === 0)}
-                className="w-full py-4 text-[0.60rem] font-bold uppercase tracking-[0.28em] transition-all disabled:opacity-40 disabled:cursor-not-allowed relative overflow-hidden group"
+                className="w-full py-4 text-[0.58rem] font-bold uppercase tracking-[0.30em] disabled:opacity-40 disabled:cursor-not-allowed relative overflow-hidden group"
                 style={{
-                  background: "linear-gradient(to bottom, #e8cc6a 0%, #c9a84c 45%, #a07830 100%)",
-                  color: "#1a1008",
+                  background: "linear-gradient(to bottom, #edd96a 0%, #c9a845 42%, #9f7528 100%)",
+                  color: "#180f04",
                   boxShadow: loading
-                    ? "0 2px 0 #7a5c1e, 0 6px 20px rgba(212,175,55,0.20)"
-                    : "0 4px 0 #7a5c1e, 0 12px 32px rgba(212,175,55,0.28)",
-                  transform: loading ? "translateY(2px)" : undefined,
+                    ? "0 2px 0 #6b4e18, 0 6px 22px rgba(212,175,55,0.18)"
+                    : "0 5px 0 #6b4e18, 0 14px 36px rgba(212,175,55,0.26), inset 0 1px 0 rgba(255,255,255,0.20)",
+                  transform: loading ? "translateY(3px)" : undefined,
+                  transition: "transform 0.12s, box-shadow 0.12s",
                 }}
               >
-                {/* Hover shimmer */}
-                <div
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-                  style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0.12), transparent)" }}
-                />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 pointer-events-none" style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0.14), transparent 60%)", transition: "opacity 0.3s" }} />
                 <span className="relative flex items-center justify-center gap-2.5">
                   {loading ? (
-                    <>
-                      <span className="w-3.5 h-3.5 border-2 border-[#1a1008]/25 border-t-[#1a1008] rounded-full animate-spin" />
-                      Authenticating…
-                    </>
+                    <><span className="w-3.5 h-3.5 border-2 border-[#180f04]/25 border-t-[#180f04] rounded-full animate-spin" />Authenticating…</>
                   ) : needsTotp ? (
-                    <>
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      Verify Identity
-                    </>
+                    <><ShieldCheck className="h-3.5 w-3.5" />Verify Identity</>
                   ) : (
-                    <>
-                      <Lock className="h-3.5 w-3.5" />
-                      Open Vault
-                    </>
+                    <><Lock className="h-3.5 w-3.5" />Open Vault</>
                   )}
                 </span>
               </button>
@@ -608,10 +803,10 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
               {needsTotp && (
                 <button
                   onClick={backToLogin}
-                  className="w-full flex items-center justify-center gap-1.5 mt-4 text-[0.52rem] uppercase tracking-[0.20em] transition-colors"
-                  style={{ color: "rgba(255,255,255,0.25)" }}
+                  className="w-full flex items-center justify-center gap-1.5 mt-4 text-[0.50rem] uppercase tracking-[0.22em]"
+                  style={{ color: "rgba(255,255,255,0.22)", transition: "color 0.2s" }}
                   onMouseEnter={e => (e.currentTarget.style.color = "rgba(212,175,55,0.55)")}
-                  onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.25)")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.22)")}
                 >
                   <ArrowLeft className="h-3 w-3" />
                   Return to vault entrance
@@ -622,20 +817,16 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
 
               {!needsTotp && (
                 <div className="flex items-center justify-center gap-5 mt-2">
-                  <span className="flex items-center gap-1.5 text-[0.48rem] uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.22)" }}>
-                    <Lock className="h-2.5 w-2.5" style={{ color: GOLD_DIM }} />
-                    AES-256
-                  </span>
-                  <span style={{ color: GOLD_DIM, fontSize: "0.4rem" }}>◆</span>
-                  <span className="flex items-center gap-1.5 text-[0.48rem] uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.22)" }}>
-                    <ShieldCheck className="h-2.5 w-2.5" style={{ color: GOLD_DIM }} />
-                    2FA Ready
-                  </span>
-                  <span style={{ color: GOLD_DIM, fontSize: "0.4rem" }}>◆</span>
-                  <span className="flex items-center gap-1.5 text-[0.48rem] uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.22)" }}>
-                    <ClipboardList className="h-2.5 w-2.5" style={{ color: GOLD_DIM }} />
-                    Audited
-                  </span>
+                  {([
+                    { icon: Lock,          text: "AES-256"  },
+                    { icon: ShieldCheck,   text: "2FA Ready" },
+                    { icon: ClipboardList, text: "Audited"   },
+                  ] as const).map(({ icon: Icon, text }) => (
+                    <span key={text} className="flex items-center gap-1.5 text-[0.46rem] uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.20)" }}>
+                      <Icon className="h-2.5 w-2.5" style={{ color: GOLD_DIM }} />
+                      {text}
+                    </span>
+                  ))}
                 </div>
               )}
             </div>
@@ -645,22 +836,17 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
               <div className="mt-7 flex items-center justify-between">
                 <Link
                   to="/"
-                  className="flex items-center gap-1.5 text-[0.52rem] uppercase tracking-[0.18em] transition-colors"
-                  style={{ color: "rgba(255,255,255,0.22)" }}
-                  onMouseEnter={e => (e.currentTarget.style.color = "rgba(212,175,55,0.50)")}
-                  onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.22)")}
+                  className="flex items-center gap-1.5 text-[0.50rem] uppercase tracking-[0.20em]"
+                  style={{ color: "rgba(255,255,255,0.20)", transition: "color 0.2s" }}
+                  onMouseEnter={e => (e.currentTarget.style.color = "rgba(212,175,55,0.52)")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.20)")}
                 >
                   <ArrowLeft className="h-3 w-3" />
                   Storefront
                 </Link>
                 <div className="flex items-center gap-1.5">
-                  <span
-                    className="w-1.5 h-1.5 rounded-full"
-                    style={{ background: "#4ade80", boxShadow: "0 0 6px rgba(74,222,128,0.8)", animation: "needle-pulse 2.5s ease-in-out infinite" }}
-                  />
-                  <span className="text-[0.44rem] uppercase tracking-[0.26em]" style={{ color: "rgba(255,255,255,0.22)" }}>
-                    Vault secured
-                  </span>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#4ade80", boxShadow: "0 0 7px rgba(74,222,128,0.9)", animation: "needle-pulse 2.5s ease-in-out infinite" }} />
+                  <span className="text-[0.42rem] uppercase tracking-[0.28em]" style={{ color: "rgba(255,255,255,0.20)" }}>Vault secured</span>
                 </div>
               </div>
             )}
