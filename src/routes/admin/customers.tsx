@@ -101,7 +101,7 @@ function AdminCustomers() {
     navigate({ to: "/admin/customers/$customerId", params: { customerId: btoa(c.email) } });
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-7">
         <div className="flex items-center gap-3">

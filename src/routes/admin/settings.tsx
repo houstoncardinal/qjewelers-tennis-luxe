@@ -457,29 +457,31 @@ function StaffCard({ token }: { token: string }) {
         </div>
 
         {showForm ? (
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-50">
+          <div className="pt-2 border-t border-gray-50 space-y-2">
             <input
               type="text" value={username} onChange={e => setUsername(e.target.value)}
               placeholder="Username"
-              className="border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-gray-400 bg-white"
+              className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 bg-white rounded"
             />
             <input
               type="password" value={password} onChange={e => setPassword(e.target.value)}
               placeholder="Password"
-              className="border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:border-gray-400 bg-white"
+              className="w-full border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:border-gray-400 bg-white rounded"
             />
             <select value={role} onChange={e => setRole(e.target.value as "admin" | "staff")}
-              className="border border-gray-200 px-3 py-2 text-sm bg-white">
+              className="w-full border border-gray-200 px-3 py-2.5 text-sm bg-white rounded">
               <option value="staff">Staff</option>
               <option value="admin">Admin</option>
             </select>
-            <button onClick={handleCreate} disabled={busy || !username || !password}
-              className="px-4 py-2 text-[0.62rem] uppercase tracking-[0.12em] bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-40">
-              Create
-            </button>
-            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-[0.62rem] uppercase tracking-[0.12em] text-gray-400 hover:text-gray-600">
-              Cancel
-            </button>
+            <div className="flex gap-2 pt-1">
+              <button onClick={handleCreate} disabled={busy || !username || !password}
+                className="flex-1 py-2.5 text-[0.62rem] uppercase tracking-[0.12em] bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-40 rounded">
+                Create Account
+              </button>
+              <button onClick={() => setShowForm(false)} className="px-4 py-2.5 text-[0.62rem] uppercase tracking-[0.12em] text-gray-400 hover:text-gray-600 border border-gray-200 rounded">
+                Cancel
+              </button>
+            </div>
           </div>
         ) : (
           <button
@@ -527,7 +529,7 @@ function AdminSettings() {
 
   if (isLoading) {
     return (
-      <div className="p-6 lg:p-8 max-w-3xl space-y-4">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-3xl space-y-4">
         {[...Array(4)].map((_, i) => (
           <div key={i} className="bg-white border border-gray-100 p-6 animate-pulse space-y-3">
             <div className="h-4 w-40 bg-gray-100 rounded" />
@@ -555,7 +557,7 @@ function AdminSettings() {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-5xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
       <div className="mb-8">
         <h1 className="text-xl font-semibold text-gray-900">Store Settings</h1>
         <p className="text-xs text-gray-400 mt-0.5">Configure your store's operational, appearance, and admin theme settings</p>

@@ -192,7 +192,7 @@ function AdminReturnDetail() {
   const items: any[] = Array.isArray(ret.items) ? ret.items : [];
 
   return (
-    <div className="p-6 lg:p-8 max-w-5xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
       <Link
         to="/admin/returns"
         className="inline-flex items-center gap-1.5 text-[0.62rem] uppercase tracking-[0.14em] text-gray-400 hover:text-gray-700 transition-colors mb-6"
@@ -271,7 +271,7 @@ function AdminReturnDetail() {
 
       <div className="grid lg:grid-cols-5 gap-5">
         {/* Left: details */}
-        <div className="lg:col-span-3 space-y-5">
+        <div className="lg:col-span-3 space-y-5 order-2 lg:order-1">
           {/* Customer */}
           <div className="bg-white border border-gray-100 p-5">
             <p className="text-[0.58rem] uppercase tracking-[0.18em] text-gray-400 mb-4">Customer</p>
@@ -315,7 +315,7 @@ function AdminReturnDetail() {
         </div>
 
         {/* Right: update form */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 order-1 lg:order-2">
           <div className="bg-white border border-gray-100 p-5">
             <p className="text-[0.58rem] uppercase tracking-[0.18em] text-gray-400 mb-5">Update Return</p>
             <div className="space-y-4">

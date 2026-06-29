@@ -563,7 +563,7 @@ function AdminDashboard() {
   })();
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl">
       {/* Header */}
       <div className="flex items-start justify-between mb-7">
         <div>
@@ -765,63 +765,94 @@ function AdminDashboard() {
         ) : recentOrders.length === 0 ? (
           <div className="px-6 py-14 text-center text-sm" style={{ color: "var(--at-text-muted)" }}>No orders yet</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm admin-table">
-              <thead>
-                <tr>
-                  {["", "Order #", "Date", "Customer", "Items", "Total", "Status", ""].map((h, i) => (
-                    <th
-                      key={i}
-                      className="px-4 py-3 text-left text-[0.55rem] uppercase tracking-[0.14em] font-medium"
-                      style={{ color: "var(--at-table-head)" }}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {recentOrders.map((o: any) => {
-                  const itemCount = Array.isArray(o.items)
-                    ? o.items.reduce((s: number, item: any) => s + (item.quantity ?? 1), 0)
-                    : 0;
-                  return (
-                    <tr
-                      key={o.id}
-                      onClick={() => navigate({ to: "/admin/orders/$orderId", params: { orderId: String(o.id) } })}
-                      className="group"
-                    >
-                      <td className="pl-4 pr-2 py-3.5">
-                        <CustomerAvatar name={o.customer_name ?? ""} />
-                      </td>
-                      <td className="px-4 py-3.5 font-mono text-xs whitespace-nowrap" style={{ color: "var(--at-text-body)" }}>{o.order_number}</td>
-                      <td className="px-4 py-3.5 text-xs whitespace-nowrap" style={{ color: "var(--at-text-muted)" }}>
-                        {new Date(o.created_at).toLocaleDateString("en-US", {
-                          month: "short", day: "numeric", year: "2-digit",
-                        })}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <div className="text-xs font-medium whitespace-nowrap" style={{ color: "var(--at-text-body)" }}>{o.customer_name}</div>
-                        <div className="text-[0.62rem]" style={{ color: "var(--at-text-muted)" }}>{o.customer_email}</div>
-                      </td>
-                      <td className="px-4 py-3.5 text-xs whitespace-nowrap" style={{ color: "var(--at-text-muted)" }}>
-                        {itemCount} item{itemCount !== 1 ? "s" : ""}
-                      </td>
-                      <td className="px-4 py-3.5 text-xs font-semibold whitespace-nowrap" style={{ color: "var(--at-text-heading)" }}>
-                        {formatUSD(Number(o.total))}
-                      </td>
-                      <td className="px-4 py-3.5">
+          <>
+            {/* Desktop table */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-sm admin-table">
+                <thead>
+                  <tr>
+                    {["", "Order #", "Date", "Customer", "Items", "Total", "Status", ""].map((h, i) => (
+                      <th
+                        key={i}
+                        className="px-4 py-3 text-left text-[0.55rem] uppercase tracking-[0.14em] font-medium"
+                        style={{ color: "var(--at-table-head)" }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentOrders.map((o: any) => {
+                    const itemCount = Array.isArray(o.items)
+                      ? o.items.reduce((s: number, item: any) => s + (item.quantity ?? 1), 0)
+                      : 0;
+                    return (
+                      <tr
+                        key={o.id}
+                        onClick={() => navigate({ to: "/admin/orders/$orderId", params: { orderId: String(o.id) } })}
+                        className="group"
+                      >
+                        <td className="pl-4 pr-2 py-3.5">
+                          <CustomerAvatar name={o.customer_name ?? ""} />
+                        </td>
+                        <td className="px-4 py-3.5 font-mono text-xs whitespace-nowrap" style={{ color: "var(--at-text-body)" }}>{o.order_number}</td>
+                        <td className="px-4 py-3.5 text-xs whitespace-nowrap" style={{ color: "var(--at-text-muted)" }}>
+                          {new Date(o.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" })}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <div className="text-xs font-medium whitespace-nowrap" style={{ color: "var(--at-text-body)" }}>{o.customer_name}</div>
+                          <div className="text-[0.62rem]" style={{ color: "var(--at-text-muted)" }}>{o.customer_email}</div>
+                        </td>
+                        <td className="px-4 py-3.5 text-xs whitespace-nowrap" style={{ color: "var(--at-text-muted)" }}>
+                          {itemCount} item{itemCount !== 1 ? "s" : ""}
+                        </td>
+                        <td className="px-4 py-3.5 text-xs font-semibold whitespace-nowrap" style={{ color: "var(--at-text-heading)" }}>
+                          {formatUSD(Number(o.total))}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <StatusBadge status={o.status} />
+                        </td>
+                        <td className="px-4 py-3.5 text-right pr-5">
+                          <ChevronRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform inline-block" style={{ color: "var(--at-text-muted)" }} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile card list */}
+            <div className="lg:hidden divide-y" style={{ borderColor: "var(--at-card-divider)" }}>
+              {recentOrders.map((o: any) => {
+                const itemCount = Array.isArray(o.items)
+                  ? o.items.reduce((s: number, item: any) => s + (item.quantity ?? 1), 0)
+                  : 0;
+                return (
+                  <button
+                    key={o.id}
+                    onClick={() => navigate({ to: "/admin/orders/$orderId", params: { orderId: String(o.id) } })}
+                    className="w-full flex items-center gap-3 px-4 py-3.5 active:opacity-70 transition-opacity text-left"
+                  >
+                    <CustomerAvatar name={o.customer_name ?? ""} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="font-mono text-[0.68rem] font-semibold" style={{ color: "var(--at-text-body)" }}>{o.order_number}</span>
                         <StatusBadge status={o.status} />
-                      </td>
-                      <td className="px-4 py-3.5 text-right pr-5">
-                        <ChevronRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform inline-block" style={{ color: "var(--at-text-muted)" }} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                      <p className="text-[0.70rem] truncate" style={{ color: "var(--at-text-muted)" }}>{o.customer_name}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-semibold" style={{ color: "var(--at-text-heading)" }}>{formatUSD(Number(o.total))}</p>
+                      <p className="text-[0.60rem]" style={{ color: "var(--at-text-muted)" }}>{itemCount} item{itemCount !== 1 ? "s" : ""}</p>
+                    </div>
+                    <ChevronRight className="h-3.5 w-3.5 shrink-0 ml-1" style={{ color: "var(--at-text-muted)" }} />
+                  </button>
+                );
+              })}
+            </div>
+          </>
         )}
 
         {!ordersLoading && recentOrders.length > 0 && (

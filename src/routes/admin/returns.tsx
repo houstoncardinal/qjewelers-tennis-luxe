@@ -67,7 +67,7 @@ function AdminReturns() {
   }, [returns]);
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-7">
         <div className="flex items-center gap-3">
@@ -111,12 +111,12 @@ function AdminReturns() {
         </div>
 
         {/* Search */}
-        <div className="px-4 py-3 border-b border-gray-50">
+        <div className="px-4 py-2 border-b border-gray-50">
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search by order #, customer name, or email…"
-            className="w-full text-sm text-gray-700 placeholder:text-gray-300 focus:outline-none"
+            className="w-full text-sm text-gray-700 placeholder:text-gray-300 focus:outline-none py-2.5"
           />
         </div>
 

@@ -72,7 +72,7 @@ function CreatePromoModal({ onClose, onCreated }: { onClose: () => void; onCreat
           </button>
         </div>
         <form onSubmit={save} className="px-6 py-5 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelCls}>Code *</label>
               <input
@@ -89,7 +89,7 @@ function CreatePromoModal({ onClose, onCreated }: { onClose: () => void; onCreat
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelCls}>Discount Type</label>
               <select value={form.discount_type} onChange={set("discount_type")} className={inputCls}>
@@ -111,7 +111,7 @@ function CreatePromoModal({ onClose, onCreated }: { onClose: () => void; onCreat
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelCls}>Min Order ($)</label>
               <input
@@ -202,7 +202,7 @@ function AdminPromotions() {
   const activeCount = codes.filter((c: any) => c.active).length;
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {showCreate && (
         <CreatePromoModal
           onClose={() => setShowCreate(false)}
@@ -267,90 +267,109 @@ function AdminPromotions() {
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-50">
-                  {["Code", "Type", "Discount", "Min Order", "Uses", "Expires", "Status", "Actions"].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-[0.55rem] uppercase tracking-[0.14em] text-gray-400 font-medium whitespace-nowrap">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {codes.map((c: any) => {
-                  const expired = c.expires_at && new Date(c.expires_at) < new Date();
-                  const maxedOut = c.max_uses !== null && c.used_count >= c.max_uses;
-                  const effectivelyInactive = !c.active || expired || maxedOut;
+          <>
+            {/* Desktop table */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-50">
+                    {["Code", "Type", "Discount", "Min Order", "Uses", "Expires", "Status", "Actions"].map(h => (
+                      <th key={h} className="px-4 py-3 text-left text-[0.55rem] uppercase tracking-[0.14em] text-gray-400 font-medium whitespace-nowrap">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {codes.map((c: any) => {
+                    const expired = c.expires_at && new Date(c.expires_at) < new Date();
+                    const maxedOut = c.max_uses !== null && c.used_count >= c.max_uses;
+                    const effectivelyInactive = !c.active || expired || maxedOut;
+                    return (
+                      <tr key={c.id} className={`transition-colors ${effectivelyInactive ? "opacity-60" : "hover:bg-gray-50/60"}`}>
+                        <td className="px-4 py-3.5">
+                          <span className="font-mono text-xs font-semibold text-gray-800 bg-gray-50 border border-gray-200 px-2 py-1">{c.code}</span>
+                          {c.name && c.name !== c.code && <p className="text-[0.60rem] text-gray-400 mt-0.5">{c.name}</p>}
+                        </td>
+                        <td className="px-4 py-3.5 text-xs text-gray-600 capitalize">{c.discount_type}</td>
+                        <td className="px-4 py-3.5 text-xs font-semibold text-gray-900">
+                          {c.discount_type === "percentage" ? `${c.discount_value}% off` : `${formatUSD(c.discount_value)} off`}
+                        </td>
+                        <td className="px-4 py-3.5 text-xs text-gray-600">{Number(c.min_order_amount) > 0 ? formatUSD(Number(c.min_order_amount)) : "—"}</td>
+                        <td className="px-4 py-3.5 text-xs text-gray-600 whitespace-nowrap">
+                          {c.used_count}{c.max_uses != null ? ` / ${c.max_uses}` : ""}{maxedOut && <span className="ml-1.5 text-red-500 text-[0.58rem]">maxed</span>}
+                        </td>
+                        <td className="px-4 py-3.5 text-xs text-gray-500 whitespace-nowrap">
+                          {c.expires_at ? <>{new Date(c.expires_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" })}{expired && <span className="ml-1.5 text-red-500 text-[0.58rem]">expired</span>}</> : "—"}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[0.58rem] uppercase tracking-[0.08em] font-medium rounded-sm ${c.active && !expired && !maxedOut ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-gray-50 text-gray-500 border border-gray-200"}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${c.active && !expired && !maxedOut ? "bg-emerald-400" : "bg-gray-400"}`} />
+                            {c.active && !expired && !maxedOut ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 pr-5">
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => toggle(c.id, c.active)} title={c.active ? "Deactivate" : "Activate"} className="text-gray-400 hover:text-gray-700 transition-colors">
+                              {c.active ? <ToggleRight className="text-emerald-500" style={{ width: 18, height: 18 }} /> : <ToggleLeft style={{ width: 18, height: 18 }} />}
+                            </button>
+                            <button onClick={() => remove(c.id, c.code)} title="Delete" className="text-gray-300 hover:text-red-500 transition-colors">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
 
-                  return (
-                    <tr key={c.id} className={`transition-colors ${effectivelyInactive ? "opacity-60" : "hover:bg-gray-50/60"}`}>
-                      <td className="px-4 py-3.5">
-                        <span className="font-mono text-xs font-semibold text-gray-800 bg-gray-50 border border-gray-200 px-2 py-1">
-                          {c.code}
+            {/* Mobile card list */}
+            <div className="lg:hidden divide-y divide-gray-50">
+              {codes.map((c: any) => {
+                const expired = c.expires_at && new Date(c.expires_at) < new Date();
+                const maxedOut = c.max_uses !== null && c.used_count >= c.max_uses;
+                const isLive = c.active && !expired && !maxedOut;
+                return (
+                  <div key={c.id} className={`px-4 py-4 ${!isLive ? "opacity-60" : ""}`}>
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div>
+                        <span className="font-mono text-sm font-bold text-gray-900 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded">{c.code}</span>
+                        {c.name && c.name !== c.code && <p className="text-[0.62rem] text-gray-400 mt-1">{c.name}</p>}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[0.58rem] uppercase tracking-[0.08em] font-semibold rounded-full ${isLive ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${isLive ? "bg-emerald-400" : "bg-gray-400"}`} />
+                          {isLive ? "Active" : "Off"}
                         </span>
-                        {c.name && c.name !== c.code && (
-                          <p className="text-[0.60rem] text-gray-400 mt-0.5">{c.name}</p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5 text-xs text-gray-600 capitalize">{c.discount_type}</td>
-                      <td className="px-4 py-3.5 text-xs font-semibold text-gray-900">
-                        {c.discount_type === "percentage"
-                          ? `${c.discount_value}% off`
-                          : `${formatUSD(c.discount_value)} off`}
-                      </td>
-                      <td className="px-4 py-3.5 text-xs text-gray-600">
-                        {Number(c.min_order_amount) > 0 ? formatUSD(Number(c.min_order_amount)) : "—"}
-                      </td>
-                      <td className="px-4 py-3.5 text-xs text-gray-600 whitespace-nowrap">
-                        {c.used_count}{c.max_uses != null ? ` / ${c.max_uses}` : ""}
-                        {maxedOut && <span className="ml-1.5 text-red-500 text-[0.58rem]">maxed</span>}
-                      </td>
-                      <td className="px-4 py-3.5 text-xs text-gray-500 whitespace-nowrap">
-                        {c.expires_at
-                          ? <>
-                              {new Date(c.expires_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" })}
-                              {expired && <span className="ml-1.5 text-red-500 text-[0.58rem]">expired</span>}
-                            </>
-                          : "—"}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[0.58rem] uppercase tracking-[0.08em] font-medium rounded-sm ${
-                          c.active && !expired && !maxedOut
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            : "bg-gray-50 text-gray-500 border border-gray-200"
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${c.active && !expired && !maxedOut ? "bg-emerald-400" : "bg-gray-400"}`} />
-                          {c.active && !expired && !maxedOut ? "Active" : "Inactive"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 pr-5">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => toggle(c.id, c.active)}
-                            title={c.active ? "Deactivate" : "Activate"}
-                            className="text-gray-400 hover:text-gray-700 transition-colors"
-                          >
-                            {c.active
-                              ? <ToggleRight className="h-4.5 w-4.5 text-emerald-500" style={{ width: 18, height: 18 }} />
-                              : <ToggleLeft className="h-4.5 w-4.5" style={{ width: 18, height: 18 }} />}
-                          </button>
-                          <button
-                            onClick={() => remove(c.id, c.code)}
-                            title="Delete"
-                            className="text-gray-300 hover:text-red-500 transition-colors"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        <button onClick={() => toggle(c.id, c.active)} className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors active:scale-90">
+                          {c.active ? <ToggleRight className="text-emerald-500" style={{ width: 20, height: 20 }} /> : <ToggleLeft style={{ width: 20, height: 20 }} />}
+                        </button>
+                        <button onClick={() => remove(c.id, c.code)} className="p-1.5 text-gray-300 hover:text-red-500 transition-colors active:scale-90">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 mt-2">
+                      <div>
+                        <p className="text-[0.50rem] uppercase tracking-[0.14em] text-gray-400 mb-0.5">Discount</p>
+                        <p className="text-xs font-semibold text-gray-800">{c.discount_type === "percentage" ? `${c.discount_value}% off` : `${formatUSD(c.discount_value)} off`}</p>
+                      </div>
+                      <div>
+                        <p className="text-[0.50rem] uppercase tracking-[0.14em] text-gray-400 mb-0.5">Uses</p>
+                        <p className="text-xs text-gray-700">{c.used_count}{c.max_uses != null ? `/${c.max_uses}` : ""}</p>
+                      </div>
+                      <div>
+                        <p className="text-[0.50rem] uppercase tracking-[0.14em] text-gray-400 mb-0.5">Expires</p>
+                        <p className="text-xs text-gray-700">{c.expires_at ? new Date(c.expires_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Never"}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
     </div>

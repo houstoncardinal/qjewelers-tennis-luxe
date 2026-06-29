@@ -211,7 +211,7 @@ function ContentDashboard() {
     <div className="min-h-screen bg-[#f8f8f7]">
 
       {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-6 py-5 flex items-center gap-4">
+      <div className="bg-white border-b border-gray-100 px-4 py-4 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center shrink-0">
             <FileText className="h-4 w-4 text-white" />
@@ -249,7 +249,7 @@ function ContentDashboard() {
         </div>
       </div>
 
-      <div className="px-6 py-6 max-w-5xl mx-auto space-y-5">
+      <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-5xl mx-auto space-y-5">
 
         {/* Info banner */}
         <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex items-start gap-3">
@@ -262,8 +262,8 @@ function ContentDashboard() {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1 max-w-xs">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-[160px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
             <input
               type="text"
@@ -332,7 +332,7 @@ function ContentDashboard() {
                       <p className="text-[0.72rem] font-medium text-gray-800 leading-snug">{row.label}</p>
                       <p className="text-[0.52rem] font-mono text-gray-300 mt-0.5 break-all">{row.key}</p>
                     </td>
-                    <td className="px-4 py-4 align-top min-w-[240px]">
+                    <td className="px-4 py-4 align-top w-full">
                       <EditableCell row={row} onSave={handleSave} />
                     </td>
                     <td className="px-4 py-4 align-top hidden sm:table-cell">

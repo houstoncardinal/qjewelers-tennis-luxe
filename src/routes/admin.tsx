@@ -4,7 +4,7 @@ import {
   LayoutDashboard, ShoppingBag, Package, LogOut, Store, ChevronRight,
   Menu, X, BarChart2, Users, RotateCcw, Tag, Settings, Gem,
   ArrowUpRight, Star, Mail, Lock, ShieldCheck,
-  ClipboardList, ArrowLeft, FileText,
+  ClipboardList, ArrowLeft, FileText, MoreHorizontal,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -1170,7 +1170,7 @@ function AdminSidebar({ onLogout, onClose }: { onLogout: () => void; onClose?: (
 
 // ─── Mobile Top Bar ──────────────────────────────────────────────────────────
 
-function MobileTopBar({ onMenu, onLogout }: { onMenu: () => void; onLogout: () => void }) {
+function MobileTopBar() {
   const { theme } = useAdminTheme();
   const router = useRouterState();
   const path = router.location.pathname;
@@ -1184,7 +1184,7 @@ function MobileTopBar({ onMenu, onLogout }: { onMenu: () => void; onLogout: () =
 
   return (
     <header
-      className="lg:hidden fixed top-0 left-0 right-0 h-12 flex items-center justify-between px-4 z-30"
+      className="lg:hidden fixed top-0 left-0 right-0 h-11 flex items-center px-4 z-30"
       style={{
         background: theme.mobileBar.bg,
         borderBottom: theme.mobileBar.borderBottom,
@@ -1192,48 +1192,233 @@ function MobileTopBar({ onMenu, onLogout }: { onMenu: () => void; onLogout: () =
       }}
     >
       <div className="flex items-center gap-2.5">
-        <button onClick={onMenu} className="transition-colors p-1 -ml-1" style={{ color: theme.sidebar.navInactiveColor }}>
-          <Menu className="h-5 w-5" />
-        </button>
-        <div className="w-px h-4" style={{ background: theme.sidebar.dividerColor }} />
-        <div className="flex items-center gap-2">
-          <Gem className="h-3.5 w-3.5" style={{ color: theme.sidebar.brandSubColor }} />
-          <span className="text-[0.70rem] font-medium" style={{ color: theme.sidebar.navInactiveColor }}>QJ</span>
-          {activeNav && (
-            <>
-              <ChevronRight className="h-3 w-3" style={{ color: theme.sidebar.dividerColor }} />
-              <span className="text-[0.62rem] uppercase tracking-[0.10em]" style={{ color: theme.sidebar.sectionLabelColor }}>
-                {activeNav.label}
-              </span>
-            </>
-          )}
+        <div
+          className="w-7 h-7 flex items-center justify-center shrink-0"
+          style={{
+            background: theme.sidebar.brandBg,
+            border: `1px solid ${theme.sidebar.brandBorder}`,
+            borderRadius: "7px",
+          }}
+        >
+          <Gem className="h-3.5 w-3.5" style={{ color: theme.sidebar.brandIconColor }} />
         </div>
+        <div className="w-px h-4 mx-0.5" style={{ background: theme.sidebar.dividerColor }} />
+        {activeNav ? (
+          <span className="text-[0.72rem] font-semibold tracking-tight" style={{ color: theme.sidebar.navActiveColor }}>
+            {activeNav.label}
+          </span>
+        ) : (
+          <span className="text-[0.65rem] font-medium" style={{ color: theme.sidebar.navInactiveColor }}>Qureshi Jewelers</span>
+        )}
       </div>
-      <button
-        onClick={onLogout}
-        className="text-[0.58rem] uppercase tracking-[0.14em] transition-colors"
-        style={{ color: theme.sidebar.bottomLinkColor }}
-      >
-        Sign Out
-      </button>
     </header>
   );
 }
 
-// ─── Mobile Overlay ──────────────────────────────────────────────────────────
+// ─── Mobile Bottom Nav ───────────────────────────────────────────────────────
 
-function MobileOverlay({ open, onClose, onLogout }: { open: boolean; onClose: () => void; onLogout: () => void }) {
+const BOTTOM_NAV_PRIMARY = [
+  { icon: LayoutDashboard, label: "Home",      to: "/admin/",          exact: true },
+  { icon: ShoppingBag,     label: "Orders",    to: "/admin/orders" },
+  { icon: Package,         label: "Products",  to: "/admin/products" },
+  { icon: BarChart2,       label: "Analytics", to: "/admin/analytics" },
+];
+
+const MORE_NAV_ITEMS = [
+  { icon: RotateCcw, label: "Returns",      to: "/admin/returns" },
+  { icon: Users,     label: "Customers",    to: "/admin/customers" },
+  { icon: Mail,      label: "Inner Circle", to: "/admin/subscribers" },
+  { icon: Tag,       label: "Promotions",   to: "/admin/promotions" },
+  { icon: Star,      label: "Reviews",      to: "/admin/reviews" },
+  { icon: FileText,  label: "Content",      to: "/admin/content" },
+  { icon: Settings,  label: "Settings",     to: "/admin/settings" },
+];
+
+function MobileMoreSheet({
+  open, onClose, onLogout,
+}: { open: boolean; onClose: () => void; onLogout: () => void }) {
+  const { theme } = useAdminTheme();
+  const s = theme.sidebar;
+  const router = useRouterState();
+  const path = router.location.pathname;
+
+  const isActive = (to: string) => path.startsWith(to);
+
   if (!open) return null;
   return (
     <>
       <div
-        className="fixed inset-0 z-30 lg:hidden"
-        style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }}
+        className="fixed inset-0 z-40 lg:hidden"
+        style={{ background: "rgba(0,0,0,0.60)", backdropFilter: "blur(6px)" }}
         onClick={onClose}
       />
-      <div className="fixed inset-y-0 left-0 w-[220px] z-40 lg:hidden">
-        <AdminSidebar onLogout={onLogout} onClose={onClose} />
+      <div
+        className="fixed bottom-0 left-0 right-0 z-50 lg:hidden rounded-t-2xl overflow-hidden"
+        style={{ background: s.bg, border: `1px solid ${s.dividerColor}`, borderBottom: "none" }}
+      >
+        {/* Sheet handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full" style={{ background: s.dividerColor }} />
+        </div>
+
+        {/* Section label */}
+        <p className="px-5 py-2 text-[0.47rem] uppercase tracking-[0.32em] font-bold" style={{ color: s.sectionLabelColor }}>
+          More
+        </p>
+
+        {/* Grid of nav items */}
+        <div className="grid grid-cols-4 gap-1 px-3 pb-2">
+          {MORE_NAV_ITEMS.map(({ icon: Icon, label, to }) => {
+            const active = isActive(to);
+            return (
+              <Link
+                key={to}
+                to={to as any}
+                onClick={onClose}
+                className="flex flex-col items-center gap-1.5 py-3.5 px-1 rounded-xl transition-all active:scale-95"
+                style={{
+                  background: active ? s.navActiveBg : "transparent",
+                }}
+              >
+                <Icon
+                  className="h-5 w-5 shrink-0"
+                  style={{
+                    color: active ? s.navIconActive : s.navIconInactive,
+                    filter: active ? `drop-shadow(0 0 5px ${s.navIconActive}80)` : "none",
+                  }}
+                />
+                <span
+                  className="text-[0.52rem] uppercase tracking-[0.10em] text-center leading-tight"
+                  style={{ color: active ? s.navActiveColor : s.navInactiveColor, fontWeight: active ? 600 : 400 }}
+                >
+                  {label}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Divider */}
+        <div className="mx-5 mb-2" style={{ height: 1, background: s.dividerColor }} />
+
+        {/* Bottom actions */}
+        <div className="flex px-3 pb-6 gap-2">
+          <Link
+            to="/"
+            onClick={onClose}
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[0.62rem] uppercase tracking-[0.10em] transition-all active:scale-95"
+            style={{ background: s.navHoverBg, color: s.bottomLinkColor }}
+          >
+            <Store className="h-4 w-4" />
+            View Store
+          </Link>
+          <button
+            onClick={() => { onClose(); onLogout(); }}
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[0.62rem] uppercase tracking-[0.10em] transition-all active:scale-95"
+            style={{ background: "rgba(239,68,68,0.10)", color: s.logoutHoverColor }}
+          >
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </button>
+        </div>
       </div>
+    </>
+  );
+}
+
+function MobileBottomNav({ onLogout }: { onLogout: () => void }) {
+  const { theme } = useAdminTheme();
+  const s = theme.sidebar;
+  const router = useRouterState();
+  const path = router.location.pathname;
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  const isActive = (to: string, exact?: boolean) =>
+    exact ? (path === "/admin" || path === "/admin/") : path.startsWith(to);
+
+  const moreIsActive = MORE_NAV_ITEMS.some(({ to }) => path.startsWith(to));
+
+  return (
+    <>
+      <MobileMoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} onLogout={onLogout} />
+
+      <nav
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 flex items-stretch"
+        style={{
+          background: s.bg,
+          borderTop: `1px solid ${s.dividerColor}`,
+          boxShadow: "0 -8px 32px rgba(0,0,0,0.40)",
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        }}
+      >
+        {BOTTOM_NAV_PRIMARY.map(({ icon: Icon, label, to, exact }) => {
+          const active = isActive(to, exact);
+          return (
+            <Link
+              key={to}
+              to={to as any}
+              className="flex-1 flex flex-col items-center justify-center gap-1 py-2.5 transition-all active:scale-90 relative"
+              style={{ minHeight: 56 }}
+            >
+              {active && (
+                <span
+                  className="absolute top-0 left-[20%] right-[20%] h-[2px] rounded-full"
+                  style={{ background: s.activeBarBg, boxShadow: s.activeBarShadow }}
+                />
+              )}
+              <Icon
+                className="h-[20px] w-[20px] shrink-0 transition-all"
+                style={{
+                  color: active ? s.navIconActive : s.navIconInactive,
+                  filter: active ? `drop-shadow(0 0 6px ${s.navIconActive}90)` : "none",
+                  transform: active ? "scale(1.12)" : "scale(1)",
+                }}
+              />
+              <span
+                className="text-[0.48rem] uppercase tracking-[0.10em] transition-all"
+                style={{
+                  color: active ? s.navActiveColor : s.navInactiveColor,
+                  fontWeight: active ? 700 : 400,
+                  textShadow: active ? `0 0 10px ${s.navIconActive}70` : "none",
+                }}
+              >
+                {label}
+              </span>
+            </Link>
+          );
+        })}
+
+        {/* More tab */}
+        <button
+          onClick={() => setMoreOpen(true)}
+          className="flex-1 flex flex-col items-center justify-center gap-1 py-2.5 transition-all active:scale-90 relative"
+          style={{ minHeight: 56 }}
+        >
+          {moreIsActive && (
+            <span
+              className="absolute top-0 left-[20%] right-[20%] h-[2px] rounded-full"
+              style={{ background: s.activeBarBg, boxShadow: s.activeBarShadow }}
+            />
+          )}
+          <MoreHorizontal
+            className="h-[20px] w-[20px] shrink-0 transition-all"
+            style={{
+              color: moreIsActive ? s.navIconActive : s.navIconInactive,
+              filter: moreIsActive ? `drop-shadow(0 0 6px ${s.navIconActive}90)` : "none",
+            }}
+          />
+          <span
+            className="text-[0.48rem] uppercase tracking-[0.10em]"
+            style={{
+              color: moreIsActive ? s.navActiveColor : s.navInactiveColor,
+              fontWeight: moreIsActive ? 700 : 400,
+              textShadow: moreIsActive ? `0 0 10px ${s.navIconActive}70` : "none",
+            }}
+          >
+            More
+          </span>
+        </button>
+      </nav>
     </>
   );
 }
@@ -1242,7 +1427,6 @@ function MobileOverlay({ open, onClose, onLogout }: { open: boolean; onClose: ()
 
 function AdminRoot() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [themeId, setThemeIdState] = useState("dark-noir");
   const checkSession = useServerFn(checkAdminSession);
   const doLogout = useServerFn(adminLogout);
@@ -1265,7 +1449,6 @@ function AdminRoot() {
   const logout = () => {
     doLogout().catch(() => {});
     setAuthenticated(false);
-    setMobileOpen(false);
     toast.success("Signed out");
   };
 
@@ -1297,15 +1480,15 @@ function AdminRoot() {
             <AdminSidebar onLogout={logout} />
           </div>
 
-          {/* Mobile top bar */}
-          <MobileTopBar onMenu={() => setMobileOpen(true)} onLogout={logout} />
+          {/* Mobile top bar (title only) */}
+          <MobileTopBar />
 
-          {/* Mobile overlay */}
-          <MobileOverlay open={mobileOpen} onClose={() => setMobileOpen(false)} onLogout={logout} />
+          {/* Mobile bottom nav */}
+          <MobileBottomNav onLogout={logout} />
 
           {/* Main content */}
           <main
-            className="lg:ml-[220px] min-h-screen pt-12 lg:pt-0 overflow-auto"
+            className="lg:ml-[220px] min-h-screen pt-11 pb-20 lg:pt-0 lg:pb-0 overflow-auto"
             style={{ background: "transparent", transition: "background 0.4s ease" }}
           >
             <Outlet />

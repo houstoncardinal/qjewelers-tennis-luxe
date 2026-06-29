@@ -78,7 +78,7 @@ function AdminReviews() {
   ];
 
   return (
-    <div className="p-6 lg:p-8 max-w-5xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
@@ -97,7 +97,7 @@ function AdminReviews() {
       </div>
 
       {/* Stats strip */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
         {[
           { label: "Total Reviews",     value: (data?.reviews ?? []).length > 0 ? String(data!.reviews.length) : "—" },
           { label: "Pending Approval",  value: pendingCount > 0 ? String(pendingCount) : "0", accent: pendingCount > 0 },
@@ -121,7 +121,7 @@ function AdminReviews() {
 
       {/* Filter tabs */}
       <div
-        className="flex gap-1.5 mb-5 p-1.5 rounded-xl w-fit"
+        className="flex gap-1.5 mb-5 p-1.5 rounded-xl overflow-x-auto"
         style={{ background: "rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.07)" }}
       >
         {FILTER_TABS.map(tab => (

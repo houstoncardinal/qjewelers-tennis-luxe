@@ -283,7 +283,7 @@ function AdminOrderDetail() {
   // ── Loading ─────────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="p-6 lg:p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="animate-pulse space-y-4 max-w-5xl">
           <div className="h-4 w-24 bg-gray-100 rounded" />
           <div className="h-14 bg-gray-100 rounded" />
@@ -396,7 +396,7 @@ function AdminOrderDetail() {
   };
 
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="max-w-5xl">
         {/* Back link */}
         <Link
@@ -439,7 +439,7 @@ function AdminOrderDetail() {
         {/* 2-column layout */}
         <div className="grid lg:grid-cols-5 gap-5">
           {/* Left column: customer + shipping + items */}
-          <div className="lg:col-span-3 space-y-5">
+          <div className="lg:col-span-3 space-y-5 order-2 lg:order-1">
             {/* Customer card */}
             <div className="bg-white border border-gray-100 p-5">
               <p className="text-[0.58rem] uppercase tracking-[0.18em] text-gray-400 mb-4 flex items-center gap-2">
@@ -569,7 +569,7 @@ function AdminOrderDetail() {
           </div>
 
           {/* Right column: update form */}
-          <div className="lg:col-span-2 space-y-5">
+          <div className="lg:col-span-2 space-y-5 order-1 lg:order-2">
             <div className="bg-white border border-gray-100 p-5">
               <p className="text-[0.58rem] uppercase tracking-[0.18em] text-gray-400 mb-5">Update Order</p>
 

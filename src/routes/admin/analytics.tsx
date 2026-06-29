@@ -366,7 +366,7 @@ function AdminAnalytics() {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl">
       <div className="mb-8">
         <h1 className="text-lg font-semibold tracking-tight" style={{ color: "var(--at-text-heading)" }}>Analytics</h1>
         <p className="text-[0.72rem] mt-0.5" style={{ color: "var(--at-text-muted)" }}>Revenue, customers & product performance</p>

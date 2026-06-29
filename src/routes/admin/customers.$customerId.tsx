@@ -207,7 +207,7 @@ function AdminCustomerDetail() {
   const initials = customer.name.split(" ").filter(Boolean).slice(0, 2).map((w: string) => w[0]?.toUpperCase()).join("");
 
   return (
-    <div className="p-6 lg:p-8 max-w-5xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
       <Link
         to="/admin/customers"
         className="inline-flex items-center gap-1.5 text-[0.62rem] uppercase tracking-[0.14em] text-gray-400 hover:text-gray-700 transition-colors mb-6"
@@ -263,7 +263,9 @@ function AdminCustomerDetail() {
             Order History · {customerOrders.length} orders
           </p>
         </div>
-        <div className="overflow-x-auto">
+
+        {/* Desktop table */}
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-50">
@@ -304,6 +306,39 @@ function AdminCustomerDetail() {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile card list */}
+        <div className="lg:hidden divide-y divide-gray-50">
+          {customerOrders.map((o: any) => {
+            const itemCount = Array.isArray(o.items)
+              ? o.items.reduce((s: number, i: any) => s + (i.quantity ?? 1), 0) : 0;
+            return (
+              <button
+                key={o.id}
+                onClick={() => navigate({ to: "/admin/orders/$orderId", params: { orderId: String(o.id) } })}
+                className="w-full flex items-center gap-3 px-4 py-3.5 active:bg-gray-50 transition-colors text-left"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-mono text-xs font-semibold text-gray-800">{o.order_number}</span>
+                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[0.55rem] uppercase tracking-[0.08em] font-medium rounded-sm ${STATUS_COLORS[o.status] ?? STATUS_COLORS.pending}`}>
+                      <span className={`w-1 h-1 rounded-full ${STATUS_DOT[o.status] ?? "bg-gray-400"}`} />
+                      {o.status}
+                    </span>
+                  </div>
+                  <p className="text-[0.65rem] text-gray-500">
+                    {new Date(o.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    {" · "}{itemCount} item{itemCount !== 1 ? "s" : ""}
+                  </p>
+                </div>
+                <div className="text-right shrink-0 flex items-center gap-2">
+                  <span className="text-sm font-semibold text-gray-900">{formatUSD(Number(o.total))}</span>
+                  <ChevronRight className="h-3.5 w-3.5 text-gray-300" />
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

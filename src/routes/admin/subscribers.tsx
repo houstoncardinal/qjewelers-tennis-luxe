@@ -430,7 +430,7 @@ function CampaignComposer({
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-[0.58rem] uppercase tracking-wider text-gray-400 block mb-1.5">Campaign Title (internal)</label>
                   <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. June Drop Alert"
@@ -667,65 +667,99 @@ function AdminSubscribers() {
               <p className="text-sm mt-1">Adjust your filters or wait for signups.</p>
             </div>
           ) : (
-            <div className="admin-surface rounded-xl overflow-hidden">
-              <table className="w-full text-left">
-                <thead>
-                  <tr style={{ background: "#f9fafb", borderBottom: "2px solid #e5e7eb" }}>
-                    <th className="px-5 py-3.5 text-[0.55rem] uppercase tracking-[0.14em] text-gray-400 font-semibold">Subscriber</th>
-                    <th className="px-4 py-3.5 text-[0.55rem] uppercase tracking-[0.14em] text-gray-400 font-semibold">Tags</th>
-                    <th className="px-4 py-3.5 text-[0.55rem] uppercase tracking-[0.14em] text-gray-400 font-semibold">Source</th>
-                    <th className="px-4 py-3.5 text-[0.55rem] uppercase tracking-[0.14em] text-gray-400 font-semibold">Joined</th>
-                    <th className="px-4 py-3.5 text-[0.55rem] uppercase tracking-[0.14em] text-gray-400 font-semibold">Status</th>
-                    <th className="px-4 py-3.5 w-12"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((s, i) => (
-                    <tr key={s.id} className="border-b border-gray-50 hover:bg-amber-50/30 transition-colors cursor-pointer"
-                      style={{ borderLeft: `3px solid ${s.status === "active" ? "#f59e0b" : "#e5e7eb"}` }}
-                      onClick={() => setSelected(s)}>
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-[0.65rem] font-bold shrink-0"
-                            style={{ background: `hsl(${(s.email.charCodeAt(0) * 17) % 360},60%,92%)`, color: `hsl(${(s.email.charCodeAt(0) * 17) % 360},50%,35%)` }}>
-                            {s.name ? s.name[0].toUpperCase() : s.email[0].toUpperCase()}
+            <>
+              {/* Desktop table */}
+              <div className="hidden lg:block admin-surface rounded-xl overflow-hidden">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr style={{ background: "#f9fafb", borderBottom: "2px solid #e5e7eb" }}>
+                      <th className="px-5 py-3.5 text-[0.55rem] uppercase tracking-[0.14em] text-gray-400 font-semibold">Subscriber</th>
+                      <th className="px-4 py-3.5 text-[0.55rem] uppercase tracking-[0.14em] text-gray-400 font-semibold">Tags</th>
+                      <th className="px-4 py-3.5 text-[0.55rem] uppercase tracking-[0.14em] text-gray-400 font-semibold">Source</th>
+                      <th className="px-4 py-3.5 text-[0.55rem] uppercase tracking-[0.14em] text-gray-400 font-semibold">Joined</th>
+                      <th className="px-4 py-3.5 text-[0.55rem] uppercase tracking-[0.14em] text-gray-400 font-semibold">Status</th>
+                      <th className="px-4 py-3.5 w-12"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((s) => (
+                      <tr key={s.id} className="border-b border-gray-50 hover:bg-amber-50/30 transition-colors cursor-pointer"
+                        style={{ borderLeft: `3px solid ${s.status === "active" ? "#f59e0b" : "#e5e7eb"}` }}
+                        onClick={() => setSelected(s)}>
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-[0.65rem] font-bold shrink-0"
+                              style={{ background: `hsl(${(s.email.charCodeAt(0) * 17) % 360},60%,92%)`, color: `hsl(${(s.email.charCodeAt(0) * 17) % 360},50%,35%)` }}>
+                              {s.name ? s.name[0].toUpperCase() : s.email[0].toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              {s.name && <p className="text-[0.72rem] font-semibold text-gray-900 truncate">{s.name}</p>}
+                              <p className={`text-[0.68rem] truncate ${s.name ? "text-gray-400" : "font-medium text-gray-800"}`}>{s.email}</p>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            {s.name && <p className="text-[0.72rem] font-semibold text-gray-900 truncate">{s.name}</p>}
-                            <p className={`text-[0.68rem] truncate ${s.name ? "text-gray-400" : "font-medium text-gray-800"}`}>{s.email}</p>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex flex-wrap gap-1">
+                            {(s.tags ?? []).length === 0
+                              ? <span className="text-[0.55rem] text-gray-300">—</span>
+                              : (s.tags ?? []).slice(0, 3).map(t => (
+                                <span key={t} className={`text-[0.50rem] px-2 py-0.5 rounded-full border font-medium ${tagStyle(t)}`}>{t}</span>
+                              ))}
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex flex-wrap gap-1">
-                          {(s.tags ?? []).length === 0
-                            ? <span className="text-[0.55rem] text-gray-300">—</span>
-                            : (s.tags ?? []).slice(0, 3).map(t => (
-                              <span key={t} className={`text-[0.50rem] px-2 py-0.5 rounded-full border font-medium ${tagStyle(t)}`}>{t}</span>
-                            ))}
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className="text-[0.62rem] text-gray-500">{s.source}</span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className="text-[0.62rem] text-gray-500">{fmt(s.created_at)}</span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className={`text-[0.55rem] px-2.5 py-1 rounded-full font-semibold border ${s.status === "active" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-400 border-gray-200"}`}>
+                        </td>
+                        <td className="px-4 py-4"><span className="text-[0.62rem] text-gray-500">{s.source}</span></td>
+                        <td className="px-4 py-4"><span className="text-[0.62rem] text-gray-500">{fmt(s.created_at)}</span></td>
+                        <td className="px-4 py-4">
+                          <span className={`text-[0.55rem] px-2.5 py-1 rounded-full font-semibold border ${s.status === "active" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-400 border-gray-200"}`}>
+                            {s.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <button className="p-1.5 text-gray-300 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors">
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile card list */}
+              <div className="lg:hidden space-y-2">
+                {filtered.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => setSelected(s)}
+                    className="w-full flex items-center gap-3 p-4 rounded-xl bg-white border border-gray-100 active:bg-amber-50/40 transition-colors text-left"
+                    style={{ borderLeft: `3px solid ${s.status === "active" ? "#f59e0b" : "#e5e7eb"}` }}
+                  >
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                      style={{ background: `hsl(${(s.email.charCodeAt(0) * 17) % 360},60%,92%)`, color: `hsl(${(s.email.charCodeAt(0) * 17) % 360},50%,35%)` }}
+                    >
+                      {s.name ? s.name[0].toUpperCase() : s.email[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      {s.name && <p className="text-[0.78rem] font-semibold text-gray-900 truncate leading-tight">{s.name}</p>}
+                      <p className={`text-[0.68rem] truncate ${s.name ? "text-gray-400" : "font-medium text-gray-800"}`}>{s.email}</p>
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        <span className={`text-[0.52rem] px-2 py-0.5 rounded-full font-semibold border ${s.status === "active" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-gray-100 text-gray-400 border-gray-200"}`}>
                           {s.status}
                         </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <button className="p-1.5 text-gray-300 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors">
-                          <ArrowRight className="h-3.5 w-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                        {(s.tags ?? []).slice(0, 2).map(t => (
+                          <span key={t} className={`text-[0.50rem] px-1.5 py-0.5 rounded-full border font-medium ${tagStyle(t)}`}>{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-[0.60rem] text-gray-400">{fmt(s.created_at)}</p>
+                      <ArrowRight className="h-3.5 w-3.5 text-gray-300 mt-1 ml-auto" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </>
           )}
         </>
       )}
