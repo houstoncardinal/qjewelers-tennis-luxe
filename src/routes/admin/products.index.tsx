@@ -1297,11 +1297,11 @@ function AdminProducts() {
         <div className="fixed inset-0 z-10" onClick={() => { setShowSortMenu(false); setShowBulkMenu(false); }} />
       )}
 
-      <div className="p-6 lg:p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         {/* Header */}
-        <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
+        <div className="mb-4 sm:mb-6 flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">Products</h1>
+            <h1 className="text-lg sm:text-xl font-semibold text-gray-900">Products</h1>
             <p className="text-xs text-gray-400 mt-0.5">
               {counts.active} active · {counts.hidden} hidden · {counts.featured} featured
             </p>
@@ -1309,29 +1309,34 @@ function AdminProducts() {
           <div className="flex items-center gap-2 flex-wrap shrink-0">
             <button
               onClick={doExport}
-              className="inline-flex items-center gap-2 border border-gray-200 text-gray-600 px-3 py-2.5 text-[0.62rem] uppercase tracking-[0.14em] hover:border-gray-400 hover:text-gray-900 transition-colors"
+              className="inline-flex items-center gap-1.5 border border-gray-200 text-gray-600 px-2.5 py-2 text-[0.60rem] uppercase tracking-[0.10em] hover:border-gray-400 hover:text-gray-900 transition-colors"
               title={someSelected ? "Export selected products to CSV" : "Export all filtered products to CSV"}
             >
               <Download className="h-3.5 w-3.5" />
-              {someSelected ? `Export (${selected.size})` : "Export CSV"}
+              <span className="hidden sm:inline">{someSelected ? `Export (${selected.size})` : "Export CSV"}</span>
             </button>
             <button
               onClick={() => setShowDeleteAll(true)}
-              className="inline-flex items-center gap-2 border border-red-200 text-red-500 px-3 py-2.5 text-[0.62rem] uppercase tracking-[0.14em] hover:border-red-400 hover:bg-red-50 transition-colors"
+              className="inline-flex items-center gap-1.5 border border-red-200 text-red-500 px-2.5 py-2 text-[0.60rem] uppercase tracking-[0.10em] hover:border-red-400 hover:bg-red-50 transition-colors"
             >
-              <Trash2 className="h-3.5 w-3.5" /> Delete All
+              <Trash2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Delete All</span>
             </button>
             <button
               onClick={() => setShowImport(true)}
-              className="inline-flex items-center gap-2 border border-gray-200 text-gray-600 px-4 py-2.5 text-[0.62rem] uppercase tracking-[0.14em] hover:border-gray-400 hover:text-gray-900 transition-colors"
+              className="inline-flex items-center gap-1.5 border border-gray-200 text-gray-600 px-2.5 py-2 text-[0.60rem] uppercase tracking-[0.10em] hover:border-gray-400 hover:text-gray-900 transition-colors"
             >
-              <Upload className="h-3.5 w-3.5" /> Import URL
+              <Upload className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Import URL</span>
+              <span className="sm:hidden">Import</span>
             </button>
             <Link
               to="/admin/products/new"
-              className="inline-flex items-center gap-2 bg-gray-900 text-white px-4 py-2.5 text-[0.65rem] uppercase tracking-[0.14em] hover:bg-gray-700 transition-colors"
+              className="inline-flex items-center gap-1.5 bg-gray-900 text-white px-3 py-2 text-[0.62rem] uppercase tracking-[0.12em] hover:bg-gray-700 transition-colors"
             >
-              <Plus className="h-3.5 w-3.5" /> New Product
+              <Plus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">New Product</span>
+              <span className="sm:hidden">New</span>
             </Link>
           </div>
         </div>
@@ -1585,8 +1590,8 @@ function AdminProducts() {
             </div>
           ) : viewMode === "grid" ? (
             /* ── GRID VIEW ── */
-            <div className="p-5">
-              <div className="flex items-center gap-3 mb-4">
+            <div className="p-3 sm:p-5">
+              <div className="flex items-center gap-3 mb-3 sm:mb-4">
                 <button onClick={toggleAll} className="flex items-center gap-2 text-[0.60rem] uppercase tracking-[0.10em] text-gray-400 hover:text-gray-700 transition-colors">
                   {allSelected
                     ? <CheckSquare className="h-4 w-4 text-blue-600" />
@@ -1595,7 +1600,7 @@ function AdminProducts() {
                   {allSelected ? "Deselect all" : `Select all (${filtered.length})`}
                 </button>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
                 {filtered.map(p => (
                   <ProductCard
                     key={p.slug}

@@ -1157,23 +1157,6 @@ const BASE_CSS = `
   50% { background-position: 100% 50%; }
 }
 
-/* Diamond refraction accent line at top of admin shell */
-.admin-shell::after {
-  content: '';
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: linear-gradient(90deg,
-    var(--at-diamond-red, #ef4444),
-    var(--at-diamond-accent, #fbbf24),
-    var(--at-diamond-green, #10b981),
-    var(--at-diamond-blue, #3b82f6),
-    var(--at-diamond-red, #ef4444));
-  background-size: 200% 100%;
-  animation: at-prism-flow 6s ease-in-out infinite;
-  z-index: 9998;
-  pointer-events: none;
-}
 
 /* Diamond refraction shimmer gradient on surfaces */
 .admin-shell .admin-surface {

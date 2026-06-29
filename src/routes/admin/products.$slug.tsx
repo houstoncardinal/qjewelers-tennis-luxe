@@ -2135,7 +2135,7 @@ function AdminProductEditor() {
   ];
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl">
       {/* Top bar */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <Link

@@ -500,7 +500,7 @@ function AdminNewProduct() {
   });
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl">
       <Link
         to="/admin/products"
         className="inline-flex items-center gap-1.5 text-[0.62rem] uppercase tracking-[0.14em] text-gray-400 hover:text-gray-700 transition-colors mb-6"
@@ -581,7 +581,7 @@ function AdminNewProduct() {
               </div>
 
               {/* Type & Color */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>Type *</label>
                   <select value={type} onChange={e => setType(e.target.value as any)} className={selectCls}>
@@ -606,7 +606,7 @@ function AdminNewProduct() {
               </p>
 
               {/* Size & Length */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>Size (optional)</label>
                   <input
