@@ -87,8 +87,10 @@ function AnnouncementBar({ text }: { text: string }) {
   );
 }
 
-// Analytics scripts (GA4/Meta/TikTok) are no longer injected here — they're
-// gated behind cookie consent and injected client-side by <CookieConsent />.
+// GA4 Measurement ID — public, safe to embed in HTML.
+// Consent Mode v2 loads the script unconditionally but blocks data collection
+// until the user grants consent via the CookieConsent banner.
+const GA4_ID = "G-F9J4XMHWPE";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   loader: async () => {
@@ -189,7 +191,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head><HeadContent /></head>
+      <head>
+        <HeadContent />
+        {/* GA4 — Consent Mode v2: script always present so tag checkers detect it,
+            but analytics_storage defaults to 'denied' until user accepts cookies. */}
+        <script dangerouslySetInnerHTML={{ __html:
+          `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}` +
+          `gtag('consent','default',{analytics_storage:'denied',ad_storage:'denied',wait_for_update:500});`
+        }} />
+        <script async src={`https://www.googletagmanager.com/gtag/js?id=${GA4_ID}`} />
+        <script dangerouslySetInnerHTML={{ __html: `gtag('js',new Date());gtag('config','${GA4_ID}');` }} />
+      </head>
       <body>
         {children}
         <Scripts />

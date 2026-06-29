@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
-const GA4_ID    = import.meta.env.VITE_GA4_ID ?? "";
+// GA4 is now always loaded in <head> via Consent Mode v2 — see __root.tsx.
+// Only Meta/TikTok pixels are injected here on-demand after consent.
 const META_ID   = import.meta.env.VITE_META_PIXEL_ID ?? "";
 const TIKTOK_ID = import.meta.env.VITE_TIKTOK_PIXEL_ID ?? "";
 
@@ -27,16 +28,17 @@ function injectScript(attrs: { src?: string; children?: string; async?: boolean 
 
 let analyticsInjected = false;
 
-// Mirrors the script markup previously built server-side by
-// buildAnalyticsScripts() in __root.tsx, now injected client-side only after
-// consent is granted.
 function injectAnalytics() {
   if (analyticsInjected) return;
   analyticsInjected = true;
 
-  if (GA4_ID && !GA4_ID.startsWith("G-YOUR")) {
-    injectScript({ src: `https://www.googletagmanager.com/gtag/js?id=${GA4_ID}`, async: true });
-    injectScript({ children: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA4_ID}');` });
+  // GA4 is loaded in <head> with Consent Mode v2 defaults ('denied').
+  // Granting consent here tells GA4 to start collecting data.
+  if (typeof (window as any).gtag === "function") {
+    (window as any).gtag("consent", "update", {
+      analytics_storage: "granted",
+      ad_storage: "granted",
+    });
   }
 
   if (META_ID && !META_ID.startsWith("YOUR")) {
