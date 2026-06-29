@@ -171,6 +171,14 @@ export const RING_SIZE_DESCRIPTIONS: Record<string, string> = {
 
 export const AVAILABLE_SIZES = ["2mm", "3mm", "4mm", "5mm", "6mm", "6.5mm", "8mm"];
 export const AVAILABLE_LENGTHS = ['6"', '6.5"', '7"', '7.5"', '8"', '8.5"', '9"', '16"', '18"', '20"', '22"', '24"'];
+export const AVAILABLE_RING_SIZES = [
+  "Ring Size 5", "Ring Size 6", "Ring Size 7", "Ring Size 8",
+  "Ring Size 9", "Ring Size 10", "Ring Size 11", "Ring Size 12",
+];
+export const DEFAULT_RING_SIZES = ["Ring Size 6", "Ring Size 7", "Ring Size 8", "Ring Size 9", "Ring Size 10", "Ring Size 11"];
+
+export const isRingType = (type: string | null | undefined) => type === "ring";
+export const isRingSlug = (slug: string) => /\bring\b/i.test(slug) && !slug.includes("earring");
 export const AVAILABLE_COLORS = ["silver", "gold", "rose_gold", "white_gold"];
 
 export const COLOR_LABELS: Record<string, string> = {

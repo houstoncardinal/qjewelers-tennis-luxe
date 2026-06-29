@@ -10,7 +10,9 @@ import { createProduct, upsertVariantsBulk, addProductImage, uploadAdminImage, l
 import { useAdminToken } from "@/lib/admin-context";
 import {
   AVAILABLE_SIZES, AVAILABLE_LENGTHS, AVAILABLE_COLORS, COLOR_LABELS, COLOR_HEX,
-  isTennisBraceletSlug, SIZES_TENNIS_BRACELET, LENGTHS_TENNIS_BRACELET, getTennisBraceletPrice,
+  AVAILABLE_RING_SIZES, DEFAULT_RING_SIZES,
+  isTennisBraceletSlug, isRingType, isRingSlug,
+  SIZES_TENNIS_BRACELET, LENGTHS_TENNIS_BRACELET, getTennisBraceletPrice,
   formatUSD,
 } from "@/lib/pricing";
 
@@ -225,9 +227,10 @@ function AdminNewProduct() {
   // Pricing & Variants
   const [basePrice,   setBasePrice]   = useState("");
   const [pricingMode, setPricingMode] = useState<"single" | "variants">("single");
-  const [selColors,   setSelColors]   = useState<string[]>([]);
-  const [selSizes,    setSelSizes]    = useState<string[]>([]);
-  const [selLengths,  setSelLengths]  = useState<string[]>([]);
+  const [selColors,    setSelColors]    = useState<string[]>([]);
+  const [selSizes,     setSelSizes]     = useState<string[]>([]);
+  const [selLengths,   setSelLengths]   = useState<string[]>([]);
+  const [selRingSizes, setSelRingSizes] = useState<string[]>([]);
   const [variantStock, setVariantStock] = useState("-1");
   // Images
   const [images,      setImages]      = useState<string[]>([]);
@@ -247,18 +250,22 @@ function AdminNewProduct() {
   const [saving,      setSaving]      = useState(false);
 
   const isTennis = isTennisBraceletSlug(slug);
-  const sizeOptions = isTennis ? [...SIZES_TENNIS_BRACELET] : AVAILABLE_SIZES;
+  const isRing   = isRingType(type) || isRingSlug(slug);
+  const sizeOptions   = isTennis ? [...SIZES_TENNIS_BRACELET] : AVAILABLE_SIZES;
   const lengthOptions = isTennis ? [...LENGTHS_TENNIS_BRACELET] : AVAILABLE_LENGTHS;
-  const hasVariantSelection = selColors.length > 0 || selSizes.length > 0 || selLengths.length > 0;
+  const hasVariantSelection = selColors.length > 0 || selSizes.length > 0 || selLengths.length > 0 || selRingSizes.length > 0;
 
   const combos = useMemo(() => {
-    const colors = selColors.length > 0 ? selColors : [null];
-    const sizes = selSizes.length > 0 ? selSizes : [null];
-    const lengths = selLengths.length > 0 ? selLengths : [null];
+    const colors  = selColors.length > 0    ? selColors    : [null];
+    // For rings, ring sizes go into the "size" slot; regular size/length axes are suppressed
+    const sizes   = isRing
+      ? (selRingSizes.length > 0 ? selRingSizes : [null])
+      : (selSizes.length > 0 ? selSizes : [null]);
+    const lengths = isRing ? [null] : (selLengths.length > 0 ? selLengths : [null]);
     const out: { color: string | null; size: string | null; length: string | null }[] = [];
     for (const c of colors) for (const s of sizes) for (const l of lengths) out.push({ color: c, size: s, length: l });
     return out;
-  }, [selColors, selSizes, selLengths]);
+  }, [selColors, selSizes, selLengths, selRingSizes, isRing]);
 
   // Pre-fill from URL import (sessionStorage set by ImportModal in products list)
   useEffect(() => {
@@ -287,6 +294,10 @@ function AdminNewProduct() {
         setImages([cover, ...allImages.filter(i => i !== cover)]);
       }
 
+      const detectedIsRing =
+        imp.detectedType === "ring" ||
+        /\bring\b/i.test(imp.name ?? "") && !/earring/i.test(imp.name ?? "");
+
       if (imp.detectedType && ["necklace", "bracelet", "earring", "ring"].includes(imp.detectedType)) {
         setType(imp.detectedType as any);
       }
@@ -295,25 +306,31 @@ function AdminNewProduct() {
         setSelColors(imp.detectedColors);
       }
 
-      // A single detected size/length is a fixed spec of the product (e.g.
-      // "this anklet is 6mm, 8 inches" — not a customer choice), so it goes
-      // on the product's own size/length field. Only genuinely *multiple*
-      // detected values represent a real variant axis the customer picks
-      // between — pushing a single value into the variant picker would
-      // create one redundant variant row and silently switch the product
-      // into variant-pricing mode it doesn't need.
-      const sizes = imp.detectedSizes ?? [];
-      const lengths = imp.detectedLengths ?? [];
-      if (sizes.length === 1) setSize(sizes[0]);
-      else if (sizes.length > 1) setSelSizes(sizes);
-      if (lengths.length === 1) setLength(lengths[0]);
-      else if (lengths.length > 1) setSelLengths(lengths);
+      // For rings: auto-populate default ring sizes (6–11) and switch to
+      // variant mode — rings almost always ship in multiple sizes.
+      if (detectedIsRing) {
+        setSelRingSizes([...DEFAULT_RING_SIZES]);
+        setPricingMode("variants");
+      } else {
+        // A single detected size/length is a fixed spec of the product (e.g.
+        // "this anklet is 6mm, 8 inches" — not a customer choice), so it goes
+        // on the product's own size/length field. Only genuinely *multiple*
+        // detected values represent a real variant axis the customer picks
+        // between — pushing a single value into the variant picker would
+        // create one redundant variant row and silently switch the product
+        // into variant-pricing mode it doesn't need.
+        const sizes = imp.detectedSizes ?? [];
+        const lengths = imp.detectedLengths ?? [];
+        if (sizes.length === 1) setSize(sizes[0]);
+        else if (sizes.length > 1) setSelSizes(sizes);
+        if (lengths.length === 1) setLength(lengths[0]);
+        else if (lengths.length > 1) setSelLengths(lengths);
 
-      // Variant pricing only makes sense when at least one axis genuinely
-      // has more than one option — not just because the total count of
-      // detected values (across axes) happens to exceed one.
-      const colorCount = imp.detectedColors?.length ?? 0;
-      if (colorCount > 1 || sizes.length > 1 || lengths.length > 1) setPricingMode("variants");
+        // Variant pricing only makes sense when at least one axis genuinely
+        // has more than one option.
+        const colorCount = imp.detectedColors?.length ?? 0;
+        if (colorCount > 1 || sizes.length > 1 || lengths.length > 1) setPricingMode("variants");
+      }
 
       // Auto-fill tags and suggested price from import intelligence.
       if (imp.suggestedTags && imp.suggestedTags.length > 0) setTags(imp.suggestedTags);
@@ -352,8 +369,9 @@ function AdminNewProduct() {
   const makeCover = (path: string) => setImages(prev => [path, ...prev.filter(p => p !== path)]);
 
   const toggleColor = (c: string) => setSelColors(p => p.includes(c) ? p.filter(x => x !== c) : [...p, c]);
-  const toggleSize = (s: string) => setSelSizes(p => p.includes(s) ? p.filter(x => x !== s) : [...p, s]);
-  const toggleLength = (l: string) => setSelLengths(p => p.includes(l) ? p.filter(x => x !== l) : [...p, l]);
+  const toggleSize     = (s: string) => setSelSizes(p => p.includes(s) ? p.filter(x => x !== s) : [...p, s]);
+  const toggleLength   = (l: string) => setSelLengths(p => p.includes(l) ? p.filter(x => x !== l) : [...p, l]);
+  const toggleRingSize = (s: string) => setSelRingSizes(p => p.includes(s) ? p.filter(x => x !== s) : [...p, s]);
 
   const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -797,6 +815,11 @@ function AdminNewProduct() {
                       Tennis bracelet detected — prices auto-fill from the size × length price table.
                     </p>
                   )}
+                  {isRing && (
+                    <p className="text-[0.6rem] text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded flex items-center gap-1.5">
+                      <span>💍</span> Ring detected — use Ring Sizes below. Sizes &amp; Lengths are hidden for rings.
+                    </p>
+                  )}
 
                   <div>
                     <label className={labelCls}>Colors</label>
@@ -811,27 +834,66 @@ function AdminNewProduct() {
                     />
                   </div>
 
-                  <div>
-                    <label className={labelCls}>Sizes</label>
-                    <ChipRow
-                      options={sizeOptions}
-                      selected={selSizes}
-                      onToggle={toggleSize}
-                      onAll={() => setSelSizes([...sizeOptions])}
-                      onClear={() => setSelSizes([])}
-                    />
-                  </div>
+                  {isRing ? (
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className={labelCls}>Ring Sizes</label>
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => setSelRingSizes([...AVAILABLE_RING_SIZES])}
+                            className="text-[0.55rem] uppercase tracking-[0.10em] text-gray-400 hover:text-gray-700">All</button>
+                          <span className="text-gray-200 text-[0.55rem]">|</span>
+                          <button type="button" onClick={() => setSelRingSizes([...DEFAULT_RING_SIZES])}
+                            className="text-[0.55rem] uppercase tracking-[0.10em] text-indigo-500 hover:text-indigo-700">Default (6–11)</button>
+                          <span className="text-gray-200 text-[0.55rem]">|</span>
+                          <button type="button" onClick={() => setSelRingSizes([])}
+                            className="text-[0.55rem] uppercase tracking-[0.10em] text-gray-400 hover:text-gray-700">Clear</button>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {AVAILABLE_RING_SIZES.map(s => {
+                          const active = selRingSizes.includes(s);
+                          return (
+                            <button
+                              key={s}
+                              type="button"
+                              onClick={() => toggleRingSize(s)}
+                              className={`px-3 py-1.5 text-[0.62rem] border rounded-md transition-all ${
+                                active
+                                  ? "bg-indigo-600 border-indigo-600 text-white font-semibold"
+                                  : "border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700"
+                              }`}
+                            >
+                              {s}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <label className={labelCls}>Sizes</label>
+                        <ChipRow
+                          options={sizeOptions}
+                          selected={selSizes}
+                          onToggle={toggleSize}
+                          onAll={() => setSelSizes([...sizeOptions])}
+                          onClear={() => setSelSizes([])}
+                        />
+                      </div>
 
-                  <div>
-                    <label className={labelCls}>Lengths</label>
-                    <ChipRow
-                      options={lengthOptions}
-                      selected={selLengths}
-                      onToggle={toggleLength}
-                      onAll={() => setSelLengths([...lengthOptions])}
-                      onClear={() => setSelLengths([])}
-                    />
-                  </div>
+                      <div>
+                        <label className={labelCls}>Lengths</label>
+                        <ChipRow
+                          options={lengthOptions}
+                          selected={selLengths}
+                          onToggle={toggleLength}
+                          onAll={() => setSelLengths([...lengthOptions])}
+                          onClear={() => setSelLengths([])}
+                        />
+                      </div>
+                    </>
+                  )}
 
                   <div>
                     <label className={labelCls}>Default Stock</label>
