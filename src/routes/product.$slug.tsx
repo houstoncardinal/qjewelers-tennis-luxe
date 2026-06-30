@@ -889,6 +889,52 @@ function ProductPage() {
                 </div>
               )}
 
+              {/* ── Metal selector (earrings) — must come before Size ── */}
+              {isEarring && (
+                <div className="mb-6">
+                  <div className="flex items-baseline justify-between mb-3.5">
+                    <p className="text-[0.52rem] uppercase tracking-[0.28em] font-semibold">Metal</p>
+                    <span className="text-[0.57rem] italic text-muted-foreground">
+                      {earringMetal === "white_gold" ? "Cool · Icy white brilliance" : "Warm · Classic yellow lustre"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {([
+                      { key: "gold"       as const, label: "18K Yellow Gold", hex: "#D4AF37" },
+                      { key: "white_gold" as const, label: "18K White Gold",  hex: "#E8E8F4" },
+                    ]).map(({ key, label, hex }) => {
+                      const active = earringMetal === key;
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => { setEarringMetal(key); showImage(key === "white_gold" ? 1 : 0); }}
+                          className={`relative py-5 text-center border transition-all duration-150 flex flex-col items-center justify-center gap-2 ${
+                            active
+                              ? "border-foreground bg-foreground text-background"
+                              : "border-border hover:border-foreground/40 hover:bg-cream"
+                          }`}
+                        >
+                          <span
+                            className="w-[18px] h-[18px] rounded-full shrink-0 ring-1 ring-black/10 shadow-sm"
+                            style={{ backgroundColor: hex }}
+                          />
+                          <span className="text-[0.70rem] font-semibold leading-none">{label}</span>
+                          <span className={`text-[0.40rem] uppercase tracking-[0.16em] ${active ? "text-background/50" : "text-muted-foreground/50"}`}>
+                            5× plated
+                          </span>
+                          {active && (
+                            <span
+                              className="absolute bottom-0 left-0 right-0 h-[2px]"
+                              style={{ background: "var(--gradient-gold-h)" }}
+                            />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* ── Size selector ────────────────────────── */}
               <div className="mb-6">
                 <div className="flex items-baseline justify-between mb-3.5">
@@ -996,52 +1042,6 @@ function ProductPage() {
                       Size guide →
                     </Link>
                   </p>
-                </div>
-              )}
-
-              {/* ── Metal selector (earrings) ─────────────── */}
-              {isEarring && (
-                <div className="mb-6">
-                  <div className="flex items-baseline justify-between mb-3.5">
-                    <p className="text-[0.52rem] uppercase tracking-[0.28em] font-semibold">Metal</p>
-                    <span className="text-[0.57rem] italic text-muted-foreground">
-                      {earringMetal === "white_gold" ? "Cool · Icy white brilliance" : "Warm · Classic yellow lustre"}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    {([
-                      { key: "gold"       as const, label: "18K Yellow Gold", hex: "#D4AF37" },
-                      { key: "white_gold" as const, label: "18K White Gold",  hex: "#E8E8F4" },
-                    ]).map(({ key, label, hex }) => {
-                      const active = earringMetal === key;
-                      return (
-                        <button
-                          key={key}
-                          onClick={() => { setEarringMetal(key); showImage(key === "white_gold" ? 1 : 0); }}
-                          className={`relative py-5 text-center border transition-all duration-150 flex flex-col items-center justify-center gap-2 ${
-                            active
-                              ? "border-foreground bg-foreground text-background"
-                              : "border-border hover:border-foreground/40 hover:bg-cream"
-                          }`}
-                        >
-                          <span
-                            className="w-[18px] h-[18px] rounded-full shrink-0 ring-1 ring-black/10 shadow-sm"
-                            style={{ backgroundColor: hex }}
-                          />
-                          <span className="text-[0.70rem] font-semibold leading-none">{label}</span>
-                          <span className={`text-[0.40rem] uppercase tracking-[0.16em] ${active ? "text-background/50" : "text-muted-foreground/50"}`}>
-                            5× plated
-                          </span>
-                          {active && (
-                            <span
-                              className="absolute bottom-0 left-0 right-0 h-[2px]"
-                              style={{ background: "var(--gradient-gold-h)" }}
-                            />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
               )}
 
