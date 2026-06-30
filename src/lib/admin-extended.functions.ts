@@ -695,7 +695,7 @@ export const getDashboardExtended = createServerFn({ method: "GET" })
   });
 
 // ─── URL Product Importer ─────────────────────────────────────────────────────
-// Scrapes a product page (Alibaba, AliExpress, 1688, or most other listing
+// Scrapes a product page (supplier sites or most other listing
 // sites) for images, description, and spec attributes via several
 // site-agnostic heuristics — meta tags, JSON-LD, and the embedded JSON blobs
 // these marketplaces ship product data in. There's no AI model involved: the
@@ -1020,7 +1020,7 @@ function extractAttributes(html: string): { name: string; value: string }[] {
     } catch {}
   }
 
-  // Strategy 2: embedded JSON attribute arrays — Alibaba/AliExpress-style
+  // Strategy 2: embedded JSON attribute arrays — supplier-style
   // product data blobs (key names vary by marketplace, so try several).
   const jsonAttrKeys = ["attributes", "productAttribute", "productProps", "attributeList", "skuProps", "saleProps"];
   for (const key of jsonAttrKeys) {
@@ -1538,7 +1538,7 @@ function parseProductPage(html: string, seed: string) {
   const ogImgRe = /<meta[^>]+(?:property)=["']og:image(?::url)?["'][^>]+content=["']([^"']+)["']|<meta[^>]+content=["']([^"']+)["'][^>]+(?:property)=["']og:image(?::url)?["']/gi;
   for (const m of html.matchAll(ogImgRe)) addImg((m[1] || m[2] || "").trim());
 
-  // 2. AliExpress: window.runParams JSON blob (most reliable source for AliExpress)
+  // 2. window.runParams JSON blob (most reliable source for some platforms)
   const runParamsM = html.match(/window\.runParams\s*=\s*(\{[\s\S]{200,200000}?\});\s*(?:window\.|var |\/\/)/);
   if (runParamsM) {
     try {
@@ -1551,7 +1551,7 @@ function parseProductPage(html: string, seed: string) {
     } catch {}
   }
 
-  // 3. Alibaba/AliExpress JSON image arrays in script tags
+  // 3. JSON image arrays in script tags
   const jsonImgKeys = [
     "imagePathList", "mainImageList", "imageList", "subjectImageList",
     "skuImageList", "imageInfo", "slideImageList", "detailImageList",
@@ -1813,7 +1813,7 @@ export const importProductFromText = createServerFn({ method: "POST" })
     return mergeWithAI(base, ai, data.sourceUrl ?? "");
   });
 
-// ─── Image re-hosting — downloads external (Alibaba/AliExpress) images server-
+// ─── Image re-hosting — downloads external supplier images server-
 // side and re-uploads them to our own Supabase Storage so customers never see
 // the supplier URL in browser devtools, network tabs, or image hover previews.
 // Each original URL is mapped to a clean hosted URL; failures are per-image

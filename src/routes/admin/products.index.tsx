@@ -574,7 +574,7 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                       value={url}
                       onChange={e => { setUrl(e.target.value); setError(""); setResult(null); setSelectedImgs([]); }}
                       onKeyDown={e => e.key === "Enter" && analyze()}
-                      placeholder="https://www.alibaba.com/product/..."
+                      placeholder="https://www.supplier.com/product/..."
                       disabled={loading || rehosting}
                       className="flex-1 border border-gray-200 px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-gray-400 transition-colors bg-white font-mono disabled:opacity-50"
                     />
@@ -590,7 +590,7 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                 </div>
                 {isSupplierUrl && !result && !loading && (
                   <div className="bg-emerald-50 border border-emerald-200 px-4 py-3 text-[0.65rem] text-emerald-800 leading-relaxed">
-                    <span className="font-semibold">Alibaba / AliExpress detected</span> — using enhanced fetch to bypass bot detection automatically.
+                    <span className="font-semibold">Supplier URL detected</span> — using enhanced fetch to bypass bot detection automatically.
                   </div>
                 )}
               </div>
@@ -608,7 +608,7 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                   <input
                     value={url}
                     onChange={e => setUrl(e.target.value)}
-                    placeholder="https://www.alibaba.com/product/... (optional)"
+                    placeholder="https://www.supplier.com/product/... (optional)"
                     disabled={loading || rehosting}
                     className="w-full border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-gray-400 bg-white font-mono disabled:opacity-50"
                   />

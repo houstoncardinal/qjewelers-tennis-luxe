@@ -907,8 +907,8 @@ function VariantsManager({
   const [preview, setPreview] = useState<Array<{ color: string | null; size: string | null; length: string | null }>>([]);
 
   // Smart pricing
-  const [alibabaUrl, setAlibabaUrl] = useState("");
-  const [pricingMode, setPricingMode] = useState<"none" | "alibaba" | "markup">("none");
+  const [supplierCostUrl, setSupplierCostUrl] = useState("");
+  const [pricingMode, setPricingMode] = useState<"none" | "supplier" | "markup">("none");
   const [markupPercent, setMarkupPercent] = useState<string>("500");
   const [fetchingCost, setFetchingCost] = useState(false);
   const isTennis = isTennisBraceletSlug(slug);
@@ -1157,13 +1157,13 @@ function VariantsManager({
     }
   };
 
-  // Smart pricing: Alibaba cost extraction + 5x markup
-  const handleAlibabaPricing = async () => {
-    if (!alibabaUrl.trim()) { toast.error("Enter an Alibaba listing URL"); return; }
+  // Smart pricing: supplier cost extraction + 5x markup
+  const handleSupplierPricing = async () => {
+    if (!supplierCostUrl.trim()) { toast.error("Enter a supplier listing URL"); return; }
     setFetchingCost(true);
     try {
       const fn = useServerFn(importProductFromUrl);
-      const res = await fn({ data: { token, url: alibabaUrl.trim() } });
+      const res = await fn({ data: { token, url: supplierCostUrl.trim() } });
       // Try to extract a price from the description or name
       const text = `${res.name} ${res.description}`;
       const priceMatch = text.match(/\$[\d,]+\.?\d*/g) || text.match(/USD\s*[\d,]+\.?\d*/gi) || text.match(/US\s*\$[\d,]+\.?\d*/gi);
@@ -1177,7 +1177,7 @@ function VariantsManager({
           await priceBulkFn({ data: { token, slug, ids: allIds, price_override: suggestedPrice } });
           toast.success(`Cost: ~${formatUSD(avgCost)} → Priced at ${formatUSD(suggestedPrice)} (5× markup)`);
           setPricingMode("none");
-          setAlibabaUrl("");
+          setSupplierCostUrl("");
           await loadVariants();
           onSaved();
         } else {
@@ -1353,12 +1353,12 @@ function VariantsManager({
           </div>
           <div className="grid sm:grid-cols-3 gap-4">
             <div className="rounded-lg p-4" style={{ background: "#f9fafb", border: "1px solid rgba(0,0,0,0.07)" }}>
-              <p className="text-[0.60rem] uppercase tracking-[0.12em] font-semibold text-gray-500 mb-3">Alibaba → 5× Markup</p>
+              <p className="text-[0.60rem] uppercase tracking-[0.12em] font-semibold text-gray-500 mb-3">Supplier Cost → 5× Markup</p>
               <div className="flex gap-2">
-                <input type="text" value={alibabaUrl} onChange={e => setAlibabaUrl(e.target.value)}
-                  placeholder="Paste listing URL…"
+                <input type="text" value={supplierCostUrl} onChange={e => setSupplierCostUrl(e.target.value)}
+                  placeholder="Paste supplier listing URL…"
                   className="flex-1 min-w-0 border border-gray-200 rounded-lg px-3 py-2 text-[0.65rem] focus:outline-none focus:border-gray-400 bg-white" />
-                <button onClick={handleAlibabaPricing} disabled={fetchingCost || !alibabaUrl.trim()}
+                <button onClick={handleSupplierPricing} disabled={fetchingCost || !supplierCostUrl.trim()}
                   className="px-3 py-2 rounded-lg bg-gray-900 text-white text-[0.55rem] uppercase tracking-wider hover:bg-gray-800 disabled:opacity-40 transition-colors shrink-0">
                   {fetchingCost ? <Loader2 className="h-3 w-3 animate-spin" /> : "Price"}
                 </button>
