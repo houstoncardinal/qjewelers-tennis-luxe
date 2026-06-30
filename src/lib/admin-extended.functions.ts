@@ -704,6 +704,45 @@ export const getDashboardExtended = createServerFn({ method: "GET" })
 // (moissanite + a known product type) to safely rewrite the title — otherwise
 // it falls back to a cleaned, title-cased version of whatever was scraped.
 
+// ─── Jina AI Reader — routes through headless browsers, bypasses bot walls ────
+// https://r.jina.ai/{url} — free tier, no API key required.
+// Set JINA_API_KEY env var for higher rate limits.
+async function fetchViaJina(url: string): Promise<{
+  title: string; content: string; images: string[];
+} | null> {
+  try {
+    const jinaUrl = `https://r.jina.ai/${url}`;
+    const headers: Record<string, string> = {
+      "Accept": "application/json",
+      "X-Return-Format": "markdown",
+      "X-No-Cache": "true",
+    };
+    const apiKey = process.env.JINA_API_KEY;
+    if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+
+    const res = await fetch(jinaUrl, {
+      headers,
+      signal: AbortSignal.timeout(28000),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (json.code !== 200 || !json.data) return null;
+
+    const images: string[] = Object.values(json.data.images ?? {})
+      .filter((u): u is string => typeof u === "string" && u.startsWith("http"))
+      .filter(u => /\.(jpe?g|png|webp|avif)/i.test(u) || u.includes("img") || u.includes("image"))
+      .slice(0, 15);
+
+    return {
+      title: String(json.data.title ?? ""),
+      content: String(json.data.content ?? json.data.description ?? ""),
+      images,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ─── Multi-strategy URL fetcher ───────────────────────────────────────────────
 // Tries up to 4 different browser fingerprints + mobile URL fallback before
 // giving up. Each attempt is independent; we continue on any network or HTTP
@@ -1629,35 +1668,86 @@ function parseProductPage(html: string, seed: string) {
   };
 }
 
+function buildBaseFromJina(title: string, content: string, images: string[], url: string) {
+  const fullText = `${title}\n\n${content}`;
+  const type = detectType(fullText);
+  const colors = detectColors(fullText);
+  const sizes = detectSizeOrLength([], /^size$/i, fullText, AVAILABLE_SIZES);
+  const lengths = detectSizeOrLength([], /^length$/i, fullText, AVAILABLE_LENGTHS);
+  const stoneShape = detectStoneShape(fullText);
+  const metalPurity = detectMetalPurity(fullText);
+  const supplierPrice = detectSupplierPrice(fullText);
+  return {
+    name: title,
+    rawName: title,
+    shortDescription: content.split("\n").find(l => l.trim().length > 30)?.trim().slice(0, 200) ?? title,
+    description: content.slice(0, 800),
+    sourcePagePreview: content.slice(0, 300),
+    images,
+    attributes: [] as Array<{ name: string; value: string }>,
+    detectedType: type,
+    detectedColors: colors,
+    detectedSizes: sizes,
+    detectedLengths: lengths,
+    stoneCount: null,
+    caratWeight: null,
+    stoneDiameter: null,
+    chainType: null,
+    suggestedTags: [] as string[],
+    suggestedPrice: null,
+    isBlocked: false,
+    stoneShape,
+    metalPurity,
+    supplierPrice,
+  };
+}
+
 export const importProductFromUrl = createServerFn({ method: "POST" })
   .inputValidator((d: { token: string; url: string }) => d)
   .handler(async ({ data }) => {
     requireAdmin(data.token);
-
     const url = data.url.trim();
     if (!url.startsWith("http")) throw new Error("Please enter a valid URL starting with http:// or https://");
 
+    // Try Jina Reader first — bypasses bot detection by using headless browsers
+    const jina = await fetchViaJina(url);
+
+    if (jina && jina.content.length > 200) {
+      const base = buildBaseFromJina(jina.title, jina.content, jina.images, url);
+      const ai = await Promise.race([
+        enrichWithClaude({
+          rawName: jina.title,
+          rawDescription: jina.content.slice(0, 600),
+          attributes: [],
+          fullText: `${jina.title}\n\n${jina.content}`.slice(0, 8000),
+          detectedType: base.detectedType,
+          detectedColors: base.detectedColors,
+          sourceUrl: url,
+        }),
+        new Promise<null>(resolve => setTimeout(() => resolve(null), 12000)),
+      ]);
+      return mergeWithAI(base, ai, url);
+    }
+
+    // Jina failed — fall back to direct HTML fetch
     let html: string;
     try {
       html = await fetchWithRetry(url);
     } catch (e: any) {
-      throw new Error(`Could not fetch URL: ${e.message}`);
+      throw new Error(`Could not fetch product page. Try again or check that the URL is correct. (${e.message})`);
     }
 
     const base = parseProductPage(html, url);
     if (base.isBlocked) {
-      throw new Error(
-        "BLOCKED: This supplier's website blocked the automatic fetch. Use the \"Paste Page Source\" tab instead — open the product URL in your browser, press Cmd+U (Mac) or Ctrl+U (Windows) to view source, select all, copy, and paste it there."
-      );
+      throw new Error("This supplier's page is heavily protected. Try again in a few seconds — each retry uses a different approach.");
     }
 
-    // AI enrichment — 10-second budget; degrades gracefully on timeout or error
     const ai = await Promise.race([
       enrichWithClaude({
         rawName: base.rawName,
         rawDescription: base.sourcePagePreview,
         attributes: base.attributes,
-        fullText: `${base.rawName} ${base.sourcePagePreview} ${base.attributes.map(a => `${a.name} ${a.value}`).join(" ")}`,
+        fullText: `${base.rawName} ${base.sourcePagePreview} ${base.attributes.map((a: any) => `${a.name} ${a.value}`).join(" ")}`,
         detectedType: base.detectedType,
         detectedColors: base.detectedColors,
         sourceUrl: url,
@@ -1691,6 +1781,35 @@ export const importProductFromHtml = createServerFn({ method: "POST" })
       new Promise<null>(resolve => setTimeout(() => resolve(null), 10000)),
     ]);
 
+    return mergeWithAI(base, ai, data.sourceUrl ?? "");
+  });
+
+// Simple fallback: accepts any pasted text about the product (title, description,
+// specs — no raw HTML required). Claude extracts all details from clean text.
+export const importProductFromText = createServerFn({ method: "POST" })
+  .inputValidator((d: { token: string; text: string; sourceUrl?: string }) => d)
+  .handler(async ({ data }) => {
+    requireAdmin(data.token);
+    if (!data.text || data.text.trim().length < 30) throw new Error("Paste at least some product details.");
+    const text = data.text.trim();
+    const base = buildBaseFromJina(
+      text.split("\n")[0].slice(0, 200),
+      text,
+      [],
+      data.sourceUrl ?? ""
+    );
+    const ai = await Promise.race([
+      enrichWithClaude({
+        rawName: base.rawName,
+        rawDescription: text.slice(0, 600),
+        attributes: [],
+        fullText: text.slice(0, 8000),
+        detectedType: base.detectedType,
+        detectedColors: base.detectedColors,
+        sourceUrl: data.sourceUrl ?? "",
+      }),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), 12000)),
+    ]);
     return mergeWithAI(base, ai, data.sourceUrl ?? "");
   });
 

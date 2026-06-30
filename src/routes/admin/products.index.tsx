@@ -13,7 +13,7 @@ import {
 import { toast } from "sonner";
 import {
   listAdminProductsAll, bulkUpdateProducts, bulkDeleteProducts,
-  deleteAllProducts, importProductFromUrl, importProductFromHtml, rehostImportImages, duplicateProduct, quickUpdateProduct,
+  deleteAllProducts, importProductFromUrl, importProductFromHtml, importProductFromText, rehostImportImages, duplicateProduct, quickUpdateProduct,
 } from "@/lib/admin-extended.functions";
 import { useAdminToken } from "@/lib/admin-context";
 import { formatUSD } from "@/lib/pricing";
@@ -349,6 +349,7 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const importUrlFn  = useServerFn(importProductFromUrl);
   const importHtmlFn = useServerFn(importProductFromHtml);
+  const importTextFn = useServerFn(importProductFromText);
   const rehostFn     = useServerFn(rehostImportImages);
 
   const loading = loadStep !== "idle" && loadStep !== "done";
@@ -370,12 +371,11 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
         }
       } else {
         if (!pastedHtml.trim()) { setLoadStep("idle"); return; }
-        setLoadStep("parsing");
-        const enrichTimer = setTimeout(() => setLoadStep("enriching"), 2000);
+        setLoadStep("enriching");
         try {
-          res = await importHtmlFn({ data: { token, html: pastedHtml.trim(), sourceUrl: url.trim() || undefined } }) as ImportResult;
+          res = await importTextFn({ data: { token, text: pastedHtml.trim(), sourceUrl: url.trim() || undefined } }) as ImportResult;
         } finally {
-          clearTimeout(enrichTimer);
+          // nothing to clear
         }
       }
       setLoadStep("done");
@@ -504,7 +504,7 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
               onClick={() => { setMode("paste"); setError(""); setResult(null); setSelectedImgs([]); setLoadStep("idle"); }}
               className={`flex-1 py-2.5 text-[0.60rem] uppercase tracking-[0.14em] transition-colors ${mode === "paste" ? "bg-gray-900 text-white" : "text-gray-400 hover:text-gray-700"}`}
             >
-              Paste Page Source
+              Paste Product Info
             </button>
           </div>
 
@@ -589,28 +589,22 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                   </div>
                 </div>
                 {isSupplierUrl && !result && !loading && (
-                  <div className="bg-amber-50 border border-amber-200 px-4 py-3 text-[0.65rem] text-amber-800 leading-relaxed">
-                    <strong>Heads up:</strong> Alibaba, AliExpress, 1688, and DHgate block server-side fetches.
-                    If this fails, switch to the <button className="underline font-semibold" onClick={() => setMode("paste")}>Paste Page Source</button> tab — it always works.
+                  <div className="bg-emerald-50 border border-emerald-200 px-4 py-3 text-[0.65rem] text-emerald-800 leading-relaxed">
+                    <span className="font-semibold">Alibaba / AliExpress detected</span> — using enhanced fetch to bypass bot detection automatically.
                   </div>
                 )}
               </div>
             )}
 
-            {/* Paste-source mode */}
+            {/* Paste-text mode */}
             {mode === "paste" && (
               <div className="space-y-3">
-                <div className="bg-gray-900 text-white px-4 py-3 space-y-2 text-[0.65rem] leading-relaxed">
-                  <p className="font-semibold">How to get the page source:</p>
-                  <ol className="list-decimal list-inside space-y-1 text-gray-300">
-                    <li>Open the product page in your browser (Chrome / Safari)</li>
-                    <li>Press <kbd className="bg-gray-700 px-1.5 py-0.5 font-mono text-[0.6rem]">Cmd+U</kbd> (Mac) or <kbd className="bg-gray-700 px-1.5 py-0.5 font-mono text-[0.6rem]">Ctrl+U</kbd> (Windows) to view source</li>
-                    <li>Press <kbd className="bg-gray-700 px-1.5 py-0.5 font-mono text-[0.6rem]">Cmd+A</kbd> then <kbd className="bg-gray-700 px-1.5 py-0.5 font-mono text-[0.6rem]">Cmd+C</kbd> to select all &amp; copy</li>
-                    <li>Click below and paste with <kbd className="bg-gray-700 px-1.5 py-0.5 font-mono text-[0.6rem]">Cmd+V</kbd></li>
-                  </ol>
+                <div className="bg-gray-50 border border-gray-200 px-4 py-3 text-[0.65rem] text-gray-700 leading-relaxed">
+                  <p className="font-semibold mb-1">Can't auto-fetch? Paste any product text instead:</p>
+                  <p className="text-gray-500">Copy the product title, description, and specs from the supplier page — no HTML or technical knowledge needed. Claude will extract everything.</p>
                 </div>
                 <div>
-                  <label className="block text-[0.58rem] uppercase tracking-[0.16em] text-gray-400 mb-1.5">Product URL <span className="normal-case tracking-normal text-gray-300">(optional)</span></label>
+                  <label className="block text-[0.58rem] uppercase tracking-[0.16em] text-gray-400 mb-1.5">Product URL <span className="normal-case tracking-normal text-gray-300">(optional — helps with image import)</span></label>
                   <input
                     value={url}
                     onChange={e => setUrl(e.target.value)}
@@ -621,13 +615,13 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                 </div>
                 <div>
                   <label className="block text-[0.58rem] uppercase tracking-[0.16em] text-gray-400 mb-1.5">
-                    Page Source {pastedHtml.length > 0 && <span className="normal-case tracking-normal text-emerald-600 font-medium">✓ {(pastedHtml.length / 1000).toFixed(0)}KB ready</span>}
+                    Product Text {pastedHtml.length > 0 && <span className="normal-case tracking-normal text-emerald-600 font-medium">✓ {pastedHtml.length} characters</span>}
                   </label>
                   <textarea
                     ref={textareaRef}
                     value={pastedHtml}
                     onChange={e => { setPastedHtml(e.target.value); setError(""); setResult(null); setSelectedImgs([]); }}
-                    placeholder="Paste the full page source here…"
+                    placeholder={"Paste product title, description, specs, materials — anything from the supplier page…"}
                     disabled={loading || rehosting}
                     rows={6}
                     className="w-full border border-gray-200 px-3 py-2.5 text-[0.65rem] text-gray-600 focus:outline-none focus:border-gray-400 bg-white font-mono resize-none disabled:opacity-50"
@@ -635,11 +629,11 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                 </div>
                 <button
                   onClick={analyze}
-                  disabled={loading || rehosting || pastedHtml.trim().length < 200}
+                  disabled={loading || rehosting || pastedHtml.trim().length < 30}
                   className="w-full py-2.5 bg-gray-900 text-white text-[0.62rem] uppercase tracking-[0.14em] hover:bg-gray-700 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
                 >
                   {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                  {loadStep === "parsing" ? "Parsing…" : loadStep === "enriching" ? "AI Enriching…" : loading ? "Analyzing…" : "Analyze Pasted Source"}
+                  {loadStep === "enriching" ? "AI Enriching…" : loading ? "Analyzing…" : "Analyze with AI"}
                 </button>
               </div>
             )}
