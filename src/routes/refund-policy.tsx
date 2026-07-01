@@ -6,22 +6,44 @@ const PAGE_URL = `${SITE_URL}/refund-policy`;
 export const Route = createFileRoute("/refund-policy")({
   head: () => ({
     meta: [
-      { title: "Refund Policy — Qureshi Jewelers" },
-      { name: "description", content: "14-day return and refund policy for Qureshi Jewelers moissanite jewelry." },
+      { title: "Refund Policy — 14-Day Returns | Qureshi Jewelers" },
+      { name: "description", content: "Qureshi Jewelers offers a 14-day return window on unworn moissanite jewelry. Full refunds processed within 3–5 business days. Free return shipping." },
+      { property: "og:title", content: "Refund Policy — Qureshi Jewelers" },
+      { property: "og:description", content: "14-day return window on unworn pieces. Free return shipping. Refunds within 3–5 business days." },
       { property: "og:url", content: PAGE_URL },
     ],
     links: [{ rel: "canonical", href: PAGE_URL }],
-    scripts: [{
-      type: "application/ld+json",
-      children: JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "BreadcrumbList",
-        itemListElement: [
-          { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
-          { "@type": "ListItem", position: 2, name: "Refund Policy", item: PAGE_URL },
-        ],
-      }),
-    }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "MerchantReturnPolicy",
+          "@id": `${SITE_URL}/#return-policy`,
+          name: "Qureshi Jewelers 14-Day Return Policy",
+          url: PAGE_URL,
+          applicableCountry: "US",
+          returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+          merchantReturnDays: 14,
+          returnMethod: "https://schema.org/ReturnByMail",
+          returnFees: "https://schema.org/FreeReturn",
+          refundType: "https://schema.org/FullRefund",
+          returnPolicyCountry: "US",
+          itemCondition: "https://schema.org/NewCondition",
+        }),
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+            { "@type": "ListItem", position: 2, name: "Refund Policy", item: PAGE_URL },
+          ],
+        }),
+      },
+    ],
   }),
   component: RefundPolicy,
 });

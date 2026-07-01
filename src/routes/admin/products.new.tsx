@@ -13,7 +13,7 @@ import {
   AVAILABLE_RING_SIZES, DEFAULT_RING_SIZES,
   isTennisBraceletSlug, isRingType, isRingSlug,
   SIZES_TENNIS_BRACELET, LENGTHS_TENNIS_BRACELET, getTennisBraceletPrice,
-  formatUSD,
+  formatUSD, TYPE_LABELS,
 } from "@/lib/pricing";
 
 export const Route = createFileRoute("/admin/products/new")({
@@ -34,10 +34,18 @@ function toSlug(s: string): string {
 
 function buildSeoTitle(name: string, type: string): string {
   const map: Record<string, string> = {
-    necklace: "Tennis Chain",
-    bracelet: "Tennis Bracelet",
-    earring: "Stud Earrings",
-    ring: "Solitaire Ring",
+    necklace:  "Tennis Chain",
+    bracelet:  "Tennis Bracelet",
+    earring:   "Stud Earrings",
+    ring:      "Solitaire Ring",
+    anklet:    "Anklet",
+    pendant:   "Pendant",
+    charm:     "Charm",
+    set:       "Jewelry Set",
+    cufflinks: "Cufflinks",
+    brooch:    "Brooch",
+    watch:     "Watch",
+    accessory: "Accessory",
   };
   const t = map[type] || "Jewelry";
   return name ? `${name} | VVS Moissanite ${t} | Qureshi Jewelers` : "";
@@ -45,16 +53,24 @@ function buildSeoTitle(name: string, type: string): string {
 
 function buildSeoDesc(name: string, type: string, color: string): string {
   const colorMap: Record<string, string> = {
-    silver: "Sterling Silver",
-    gold: "18K Yellow Gold",
-    rose_gold: "18K Rose Gold",
+    silver:     "Sterling Silver",
+    gold:       "18K Yellow Gold",
+    rose_gold:  "18K Rose Gold",
     white_gold: "18K White Gold",
   };
   const typeMap: Record<string, string> = {
-    necklace: "tennis chain",
-    bracelet: "tennis bracelet",
-    earring: "stud earrings",
-    ring: "solitaire ring",
+    necklace:  "tennis chain",
+    bracelet:  "tennis bracelet",
+    earring:   "stud earrings",
+    ring:      "solitaire ring",
+    anklet:    "anklet",
+    pendant:   "pendant",
+    charm:     "charm",
+    set:       "jewelry set",
+    cufflinks: "cufflinks",
+    brooch:    "brooch",
+    watch:     "watch",
+    accessory: "accessory",
   };
   const c = colorMap[color] || color;
   const t = typeMap[type] || "jewelry";
@@ -194,6 +210,121 @@ function ChipRow({
   );
 }
 
+// ─── SEO Keyword Suggester ────────────────────────────────────────────────────
+
+const SEO_KEYWORDS_BY_TYPE: Record<string, string[]> = {
+  necklace:  ["moissanite tennis chain", "VVS tennis chain", "iced out chain", "moissanite necklace", "diamond alternative chain", "S925 tennis necklace", "GRA certified chain"],
+  bracelet:  ["moissanite tennis bracelet", "VVS bracelet", "iced out bracelet", "diamond alternative bracelet", "S925 tennis bracelet", "GRA certified bracelet"],
+  earring:   ["moissanite stud earrings", "VVS earrings", "moissanite studs", "diamond alternative earrings", "S925 stud earrings", "screw back earrings", "GRA certified earrings"],
+  ring:      ["moissanite engagement ring", "VVS ring", "solitaire ring", "lab grown engagement ring", "diamond alternative ring", "S925 moissanite ring", "GRA certified ring"],
+  anklet:    ["moissanite anklet", "VVS anklet", "iced out anklet", "S925 anklet", "diamond alternative anklet"],
+  pendant:   ["moissanite pendant", "VVS pendant", "diamond pendant alternative", "S925 pendant", "moissanite necklace pendant"],
+  charm:     ["moissanite charm", "jewelry charm", "VVS charm", "S925 charm"],
+  set:       ["moissanite jewelry set", "matching jewelry set", "necklace and bracelet set", "VVS set", "S925 jewelry set"],
+  cufflinks: ["moissanite cufflinks", "luxury cufflinks", "VVS cufflinks", "wedding cufflinks", "iced out cufflinks"],
+  brooch:    ["moissanite brooch", "VVS brooch", "luxury lapel pin", "iced out brooch"],
+  watch:     ["moissanite watch", "iced out watch", "diamond watch alternative", "VVS watch bezel"],
+  accessory: ["moissanite accessory", "VVS accessory", "iced out accessory", "luxury moissanite"],
+};
+
+const SEO_KEYWORDS_BY_COLOR: Record<string, string[]> = {
+  silver:     ["sterling silver jewelry", "S925 silver", "silver moissanite", "white silver jewelry"],
+  gold:       ["yellow gold jewelry", "18K gold plated", "gold moissanite", "gold iced out"],
+  rose_gold:  ["rose gold jewelry", "18K rose gold", "pink gold moissanite", "rose gold iced out"],
+  white_gold: ["white gold jewelry", "18K white gold", "platinum look moissanite", "white gold iced out"],
+};
+
+const SEO_KEYWORDS_BRAND = [
+  "moissanite jewelry", "VVS moissanite", "D color moissanite", "GRA certified",
+  "S925 sterling silver", "lab grown gemstone", "iced out jewelry", "luxury moissanite",
+  "buy moissanite", "moissanite vs diamond", "VVS1 D color", "affordable luxury jewelry",
+  "Qureshi Jewelers", "free US shipping jewelry",
+];
+
+function SeoKeywordSuggester({
+  name, type, colors, keywords, onChange,
+}: {
+  name: string; type: string; colors: string[]; keywords: string[]; onChange: (kw: string[]) => void;
+}) {
+  const [customInput, setCustomInput] = useState("");
+
+  const suggestions = useMemo(() => {
+    const pool: string[] = [...SEO_KEYWORDS_BRAND, ...(SEO_KEYWORDS_BY_TYPE[type] ?? [])];
+    for (const c of colors) pool.push(...(SEO_KEYWORDS_BY_COLOR[c] ?? []));
+    const nameLower = name.trim().toLowerCase();
+    if (nameLower) { pool.push(nameLower); pool.push(`buy ${nameLower}`); pool.push(`shop ${nameLower}`); }
+    const seen = new Set(keywords.map(k => k.toLowerCase().trim()));
+    return [...new Set(pool)].filter(k => k && !seen.has(k.toLowerCase().trim()));
+  }, [name, type, colors, keywords]);
+
+  const addKeyword = (kw: string) => onChange([...keywords, kw]);
+  const removeKeyword = (kw: string) => onChange(keywords.filter(k => k !== kw));
+  const handleCustomAdd = () => {
+    const parts = customInput.split(",").map(k => k.trim()).filter(k => k && !keywords.includes(k));
+    if (parts.length > 0) onChange([...keywords, ...parts]);
+    setCustomInput("");
+  };
+
+  return (
+    <div className="space-y-3">
+      {keywords.length > 0 && (
+        <div>
+          <p className="text-[0.56rem] uppercase tracking-[0.14em] text-gray-400 mb-2">Selected ({keywords.length})</p>
+          <div className="flex flex-wrap gap-1.5">
+            {keywords.map(kw => (
+              <span key={kw} className="inline-flex items-center gap-1 bg-gray-900 text-white px-2 py-1 text-[0.62rem]">
+                {kw}
+                <button type="button" onClick={() => removeKeyword(kw)} className="text-white/60 hover:text-white ml-0.5">
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </span>
+            ))}
+            <button type="button" onClick={() => onChange([])} className="text-[0.56rem] uppercase tracking-[0.10em] text-gray-400 hover:text-red-500 px-1 transition-colors">
+              Clear all
+            </button>
+          </div>
+        </div>
+      )}
+
+      {suggestions.length > 0 && (
+        <div>
+          <p className="text-[0.56rem] uppercase tracking-[0.14em] text-gray-400 mb-2">Suggested — click to add</p>
+          <div className="flex flex-wrap gap-1.5">
+            {suggestions.slice(0, 32).map(kw => (
+              <button
+                key={kw}
+                type="button"
+                onClick={() => addKeyword(kw)}
+                className="inline-flex items-center gap-1 border border-gray-200 text-gray-500 hover:border-gray-800 hover:text-gray-900 px-2 py-1 text-[0.62rem] transition-colors"
+              >
+                <span className="text-gray-300 text-[0.55rem]">+</span> {kw}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <input
+          value={customInput}
+          onChange={e => setCustomInput(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); handleCustomAdd(); } }}
+          className="flex-1 border border-gray-200 px-3 py-2 text-[0.75rem] focus:outline-none focus:ring-1 focus:ring-gray-400 placeholder:text-gray-300"
+          placeholder="Type a custom keyword, press Enter or comma to add"
+        />
+        <button
+          type="button"
+          onClick={handleCustomAdd}
+          className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-[0.65rem] uppercase tracking-wider transition-colors"
+        >
+          Add
+        </button>
+      </div>
+      <p className="text-[0.58rem] text-gray-400">Keywords help internal search and structured data. More = better coverage.</p>
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 function AdminNewProduct() {
@@ -209,8 +340,8 @@ function AdminNewProduct() {
   const [name,        setName]        = useState("");
   const [slug,        setSlug]        = useState("");
   const [slugManual,  setSlugManual]  = useState(false);
-  const [type,        setType]        = useState<"necklace"|"bracelet"|"earring"|"ring">("necklace");
-  const [color,       setColor]       = useState<"silver"|"gold"|"rose_gold"|"white_gold">("silver");
+  const [type,        setType]        = useState("necklace");
+  const [colors,      setColors]      = useState<string[]>(["silver"]);
   const [size,        setSize]        = useState("");
   const [length,      setLength]      = useState("");
   // Descriptions
@@ -221,7 +352,7 @@ function AdminNewProduct() {
   const [seoTitleManual, setSeoTitleManual] = useState(false);
   const [seoDesc,     setSeoDesc]     = useState("");
   const [seoDescManual, setSeoDescManual]   = useState(false);
-  const [seoKeywords, setSeoKeywords] = useState("");
+  const [seoKeywords, setSeoKeywords] = useState<string[]>([]);
   // Tags
   const [tags,        setTags]        = useState<string[]>([]);
   // Pricing & Variants
@@ -298,11 +429,11 @@ function AdminNewProduct() {
         imp.detectedType === "ring" ||
         /\bring\b/i.test(imp.name ?? "") && !/earring/i.test(imp.name ?? "");
 
-      if (imp.detectedType && ["necklace", "bracelet", "earring", "ring"].includes(imp.detectedType)) {
-        setType(imp.detectedType as any);
+      if (imp.detectedType && Object.keys(TYPE_LABELS).includes(imp.detectedType)) {
+        setType(imp.detectedType);
       }
       if (imp.detectedColors && imp.detectedColors.length > 0) {
-        setColor(imp.detectedColors[0] as any);
+        setColors(imp.detectedColors);
         setSelColors(imp.detectedColors);
       }
 
@@ -350,8 +481,8 @@ function AdminNewProduct() {
 
   // Auto-suggest SEO description
   useEffect(() => {
-    if (!seoDescManual) setSeoDesc(buildSeoDesc(name, type, color));
-  }, [name, type, color, seoDescManual]);
+    if (!seoDescManual) setSeoDesc(buildSeoDesc(name, type, colors[0] ?? "silver"));
+  }, [name, type, colors, seoDescManual]);
 
   // Load gallery on demand
   useEffect(() => {
@@ -435,14 +566,14 @@ function AdminNewProduct() {
           token,
           slug: slug.trim(),
           name: name.trim(),
-          type, color,
+          type, color: colors.join(","),
           size: size.trim() || null,
           length: length.trim() || null,
           short_description: shortDesc.trim(),
           description: description.trim(),
           seo_title: seoTitle.trim() || name.trim(),
           seo_description: seoDesc.trim() || shortDesc.trim(),
-          seo_keywords: seoKeywords.trim(),
+          seo_keywords: seoKeywords.join(", "),
           tags,
           base_price: Number(basePrice),
           image_url: images[0] || "/main.jpg",
@@ -580,29 +711,42 @@ function AdminNewProduct() {
                 )}
               </div>
 
-              {/* Type & Color */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className={labelCls}>Type *</label>
-                  <select value={type} onChange={e => setType(e.target.value as any)} className={selectCls}>
-                    <option value="necklace">Chain / Necklace</option>
-                    <option value="bracelet">Bracelet</option>
-                    <option value="earring">Earring</option>
-                    <option value="ring">Ring</option>
-                  </select>
-                </div>
-                <div>
-                  <label className={labelCls}>Color *</label>
-                  <select value={color} onChange={e => setColor(e.target.value as any)} className={selectCls}>
-                    <option value="silver">S925 Sterling Silver</option>
-                    <option value="gold">18K Yellow Gold</option>
-                    <option value="rose_gold">18K Rose Gold</option>
-                    <option value="white_gold">18K White Gold</option>
-                  </select>
+              {/* Type */}
+              <div>
+                <label className={labelCls}>Type *</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(TYPE_LABELS).map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setType(key)}
+                      className={`px-2.5 py-1.5 text-[0.65rem] border transition-colors ${
+                        type === key
+                          ? "bg-gray-900 text-white border-gray-900"
+                          : "border-gray-200 text-gray-600 hover:border-gray-400"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
               </div>
+
+              {/* Color(s) */}
+              <div>
+                <label className={labelCls}>Color(s) *</label>
+                <ChipRow
+                  options={AVAILABLE_COLORS}
+                  selected={colors}
+                  onToggle={c => setColors(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])}
+                  onAll={() => setColors([...AVAILABLE_COLORS])}
+                  onClear={() => setColors([])}
+                  renderLabel={c => COLOR_LABELS[c] ?? c}
+                  renderSwatch={c => COLOR_HEX[c]}
+                />
+              </div>
               <p className="text-[0.58rem] text-gray-400 -mt-1">
-                Used as the default/fallback color{pricingMode === "variants" ? " when no variant is selected" : ""}.
+                Base color(s) stored on the product{pricingMode === "variants" ? ". Variants below can add more color options." : ""}.
               </p>
 
               {/* Size & Length */}
@@ -684,7 +828,7 @@ function AdminNewProduct() {
                     <CharCounter value={seoDesc} target={155} max={170} />
                     {seoDescManual && (
                       <button
-                        onClick={() => { setSeoDescManual(false); setSeoDesc(buildSeoDesc(name, type, color)); }}
+                        onClick={() => { setSeoDescManual(false); setSeoDesc(buildSeoDesc(name, type, colors[0] ?? "silver")); }}
                         className="text-[0.56rem] text-gray-400 hover:text-gray-600 flex items-center gap-0.5 transition-colors"
                       >
                         <Wand2 className="h-2.5 w-2.5" /> Auto
@@ -702,13 +846,13 @@ function AdminNewProduct() {
               </div>
               <div>
                 <label className={labelCls}>SEO Keywords</label>
-                <input
-                  value={seoKeywords}
-                  onChange={e => setSeoKeywords(e.target.value)}
-                  className={inputCls}
-                  placeholder="moissanite tennis chain, VVS bracelet, GRA certified…"
+                <SeoKeywordSuggester
+                  name={name}
+                  type={type}
+                  colors={colors}
+                  keywords={seoKeywords}
+                  onChange={setSeoKeywords}
                 />
-                <p className="mt-1 text-[0.58rem] text-gray-400">Comma-separated. Helps internal search and structured data.</p>
               </div>
             </div>
 

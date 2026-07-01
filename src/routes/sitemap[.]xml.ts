@@ -37,7 +37,7 @@ export const Route = createFileRoute("/sitemap.xml")({
       GET: async () => {
         const { data: products } = await supabaseAdmin
           .from("products")
-          .select("slug, updated_at")
+          .select("slug, name, updated_at, image_url")
           .eq("is_active", true);
 
         const staticEntries = STATIC_PAGES.map(
@@ -47,12 +47,16 @@ export const Route = createFileRoute("/sitemap.xml")({
 
         const productEntries = (products ?? []).map((p) => {
           const lastmod = p.updated_at ? `<lastmod>${new Date(p.updated_at).toISOString().slice(0, 10)}</lastmod>` : "";
-          return `  <url><loc>${escapeXml(`${SITE_URL}/product/${p.slug}`)}</loc>${lastmod}<changefreq>weekly</changefreq><priority>0.7</priority></url>`;
+          const imageUrl = p.image_url?.startsWith("http") ? p.image_url : p.image_url ? `${SITE_URL}${p.image_url}` : "";
+          const imageTag = imageUrl
+            ? `\n    <image:image><image:loc>${escapeXml(imageUrl)}</image:loc><image:title>${escapeXml(p.name ?? "")}</image:title><image:caption>${escapeXml(`${p.name ?? ""} — VVS Moissanite | Qureshi Jewelers`)}</image:caption></image:image>`
+            : "";
+          return `  <url><loc>${escapeXml(`${SITE_URL}/product/${p.slug}`)}</loc>${lastmod}<changefreq>weekly</changefreq><priority>0.7</priority>${imageTag}\n  </url>`;
         });
 
         const xml = [
           `<?xml version="1.0" encoding="UTF-8"?>`,
-          `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`,
+          `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">`,
           ...staticEntries,
           ...productEntries,
           `</urlset>`,

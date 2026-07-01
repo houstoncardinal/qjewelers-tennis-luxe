@@ -9,7 +9,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { Toaster } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 
 import appCss from "../styles.css?url";
@@ -118,7 +118,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Qureshi Jewelers — S925 VVS Moissanite Tennis Chains" },
-      { name: "description", content: "America's premier source for iced out S925 sterling silver, VVS moissanite tennis chains and bracelets. GRA certified. Free US shipping over $250." },
+      { name: "description", content: "Fine moissanite jewelry in solid S925 sterling silver — VVS1 D-color stones, 5× precious metal plating, GRA certified. Tennis chains, bracelets, earrings & rings. Free US shipping over $250." },
       { name: "author", content: "Qureshi Jewelers" },
       { name: "theme-color", content: "#FAF8F3" },
       { property: "og:site_name", content: "Qureshi Jewelers" },
@@ -128,9 +128,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:url", content: SITE_URL },
       { property: "og:image", content: `${SITE_URL}/QURESHIJEWELERSLOGO.png` },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Qureshi Jewelers — S925 VVS Moissanite Tennis Chains" },
+      { name: "twitter:description", content: "Fine moissanite jewelry in solid S925 sterling silver. VVS1 D-color, 5× precious metal plating, GRA certified. Tennis chains, bracelets, earrings & rings." },
       { name: "twitter:image", content: `${SITE_URL}/QURESHIJEWELERSLOGO.png` },
+      { name: "robots", content: "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" },
+      { name: "keywords", content: "moissanite jewelry, moissanite tennis chain, moissanite bracelet, VVS moissanite, S925 sterling silver, GRA certified moissanite, iced out jewelry, moissanite engagement rings" },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "preconnect", href: "https://www.googletagmanager.com" },
+      { rel: "dns-prefetch", href: "https://www.googletagmanager.com" },
+    ],
     scripts: [
       // JewelryStore (extends Organization) — the entity identity Google
       // attaches to every page on the site via the Knowledge Graph. Only
@@ -149,7 +157,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           logo: `${SITE_URL}/QURESHIJEWELERSLOGO.png`,
           image: `${SITE_URL}/QURESHIJEWELERSLOGO.png`,
           areaServed: "US",
-          priceRange: "$59-$1200",
+          priceRange: "$59-$2400",
           currenciesAccepted: "USD",
           paymentAccepted: "Credit Card, Apple Pay, Google Pay, PayPal",
           contactPoint: {
@@ -159,16 +167,39 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
             areaServed: "US",
             availableLanguage: "English",
           },
-          makesOffer: [
-            { "@type": "Offer", itemOffered: { "@type": "Product", name: "Moissanite Tennis Chains" } },
-            { "@type": "Offer", itemOffered: { "@type": "Product", name: "Moissanite Tennis Bracelets" } },
-            { "@type": "Offer", itemOffered: { "@type": "Product", name: "Moissanite Stud Earrings" } },
-            { "@type": "Offer", itemOffered: { "@type": "Product", name: "Moissanite Engagement Rings" } },
+          foundingDate: "2020",
+          knowsAbout: [
+            "Moissanite Jewelry",
+            "VVS Moissanite Tennis Chains",
+            "Moissanite Tennis Bracelets",
+            "Moissanite Stud Earrings",
+            "Moissanite Engagement Rings",
+            "S925 Sterling Silver Jewelry",
+            "Lab-Grown Gemstones",
+            "GRA Certified Moissanite",
+            "Iced Out Jewelry",
+            "Moissanite vs Diamond",
           ],
+          makesOffer: [
+            { "@type": "Offer", itemOffered: { "@type": "Product", name: "Moissanite Tennis Chains", description: "VVS moissanite tennis chains in S925 sterling silver, 2mm–5mm widths, 16\"–24\" lengths" } },
+            { "@type": "Offer", itemOffered: { "@type": "Product", name: "Moissanite Tennis Bracelets", description: "VVS moissanite tennis bracelets in S925 sterling silver with double-lock clasp" } },
+            { "@type": "Offer", itemOffered: { "@type": "Product", name: "Moissanite Stud Earrings", description: "VVS1 D Color moissanite stud earrings in S925 sterling silver with screw-back closure" } },
+            { "@type": "Offer", itemOffered: { "@type": "Product", name: "Moissanite Engagement Rings", description: "VVS moissanite engagement rings in S925 sterling silver and 18K gold" } },
+          ],
+          hasOfferCatalog: {
+            "@type": "OfferCatalog",
+            name: "Moissanite Jewelry Collection",
+            itemListElement: [
+              { "@type": "OfferCatalog", name: "Moissanite Tennis Chains", url: `${SITE_URL}/shop?type=necklace` },
+              { "@type": "OfferCatalog", name: "Moissanite Tennis Bracelets", url: `${SITE_URL}/shop?type=bracelet` },
+              { "@type": "OfferCatalog", name: "Moissanite Stud Earrings", url: `${SITE_URL}/shop?type=earring` },
+              { "@type": "OfferCatalog", name: "Moissanite Engagement Rings", url: `${SITE_URL}/shop?type=ring` },
+            ],
+          },
         }),
       },
-      // WebSite entity — lets Google associate the site name with the
-      // domain independent of any single page's title.
+      // WebSite entity with SearchAction — enables Google Sitelinks Searchbox
+      // in search results, allowing users to search the shop directly from the SERP.
       {
         type: "application/ld+json",
         children: JSON.stringify({
@@ -176,8 +207,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "@type": "WebSite",
           "@id": `${SITE_URL}/#website`,
           name: "Qureshi Jewelers",
+          alternateName: "QJ Moissanite",
           url: SITE_URL,
           publisher: { "@id": `${SITE_URL}/#organization` },
+          potentialAction: {
+            "@type": "SearchAction",
+            target: {
+              "@type": "EntryPoint",
+              urlTemplate: `${SITE_URL}/shop?q={search_term_string}`,
+            },
+            "query-input": "required name=search_term_string",
+          },
         }),
       },
     ],
@@ -215,6 +255,11 @@ function RootComponent() {
   const loaderData = Route.useLoaderData();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isAdmin = pathname.startsWith("/admin");
+
+  // Scroll to top on every new page navigation
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [pathname]);
 
   const bar            = loaderData?.announcementBar;
   const siteContent    = loaderData?.siteContent ?? {};

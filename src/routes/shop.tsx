@@ -4,8 +4,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { listProducts } from "@/lib/products.functions";
 import { getProductThumb } from "@/lib/product-images";
-import { formatUSD, COLOR_MAP, COLOR_SHORT, SIZES_NECKLACE, SIZES_EARRING, SIZES_RING, getTennisBraceletPrice } from "@/lib/pricing";
-import { ArrowRight, SlidersHorizontal } from "lucide-react";
+import { formatUSD, COLOR_MAP, COLOR_SHORT, SIZES_NECKLACE, SIZES_EARRING, SIZES_RING, getTennisBraceletPrice, getTennisChainPrice } from "@/lib/pricing";
+import { useState, useEffect } from "react";
+import { ArrowRight, SlidersHorizontal, ChevronDown } from "lucide-react";
 
 const search = z.object({
   type: z.enum(["necklace", "bracelet", "earring", "ring"]).optional(),
@@ -45,7 +46,15 @@ const CATEGORY_SEO: Record<string, { title: string; description: string; h1Keywo
 
 export const Route = createFileRoute("/shop")({
   validateSearch: search,
-  head: ({ match }) => {
+  // SSR the catalog so crawlers that don't execute JS (GPTBot, ClaudeBot,
+  // PerplexityBot, and Google's first indexing pass) see real products and
+  // links in the initial HTML, not just an empty shell waiting on a client
+  // fetch. The client useQuery below reuses this as initialData.
+  loader: async () => {
+    const res = await listProducts();
+    return res;
+  },
+  head: ({ match, loaderData }) => {
     const type = match.search?.type as string | undefined;
     const cat = type ? CATEGORY_SEO[type] : undefined;
     const pageUrl = `${SITE_URL}/shop${type ? `?type=${type}` : ""}`;
@@ -59,6 +68,31 @@ export const Route = createFileRoute("/shop")({
     ];
     if (cat) breadcrumbItems.push({ "@type": "ListItem", position: 3, name: cat.h1Keyword, item: pageUrl });
 
+    const allProducts = ((loaderData as any)?.products ?? []) as any[];
+    const categoryProducts = (type ? allProducts.filter((p) => p.type === type) : allProducts).slice(0, 24);
+    const itemListElement = categoryProducts.map((p, idx) => {
+      const productUrl = `${SITE_URL}/product/${p.slug}`;
+      const imageUrl = p.image_url?.startsWith("http") ? p.image_url : `${SITE_URL}${p.image_url || "/QURESHIJEWELERSLOGO.png"}`;
+      return {
+        "@type": "ListItem",
+        position: idx + 1,
+        item: {
+          "@type": "Product",
+          "@id": `${productUrl}#product`,
+          name: p.name,
+          url: productUrl,
+          image: imageUrl,
+          offers: {
+            "@type": "Offer",
+            priceCurrency: "USD",
+            price: Number(p.sale_active && p.sale_price ? p.sale_price : p.base_price),
+            availability: p.is_active ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+            url: productUrl,
+          },
+        },
+      };
+    });
+
     return {
       meta: [
         { title },
@@ -67,6 +101,11 @@ export const Route = createFileRoute("/shop")({
         { property: "og:description", content: description },
         { property: "og:url", content: pageUrl },
         { property: "og:type", content: "website" },
+        { property: "og:image", content: `${SITE_URL}/QURESHIJEWELERSLOGO.png` },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: title },
+        { name: "twitter:description", content: description },
+        { name: "twitter:image", content: `${SITE_URL}/QURESHIJEWELERSLOGO.png` },
       ],
       links: [{ rel: "canonical", href: pageUrl }],
       scripts: [
@@ -81,6 +120,20 @@ export const Route = createFileRoute("/shop")({
             isPartOf: { "@id": `${SITE_URL}/#website` },
           }),
         },
+        // Real product entities — lets Google build a product carousel /
+        // item-list rich result for this category page, and gives non-JS
+        // crawlers (AI bots) the actual catalog instead of an empty page.
+        ...(itemListElement.length > 0 ? [{
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            name: cat?.h1Keyword ?? "Moissanite Jewelry Collection",
+            url: pageUrl,
+            numberOfItems: itemListElement.length,
+            itemListElement,
+          }),
+        }] : []),
         {
           type: "application/ld+json",
           children: JSON.stringify({
@@ -102,6 +155,13 @@ const TYPE_LABELS: Record<string, string> = {
   ring:     "Engagement Rings",
 };
 
+const TYPE_SHORT: Record<string, string> = {
+  necklace: "Chains",
+  bracelet: "Bracelets",
+  earring:  "Earrings",
+  ring:     "Rings",
+};
+
 const COLOR_LABELS: Record<string, string> = {
   silver:     "Sterling Silver",
   gold:       "Yellow Gold",
@@ -111,15 +171,22 @@ const COLOR_LABELS: Record<string, string> = {
 
 function Shop() {
   const { type, color, size } = Route.useSearch();
+  const loaderData = Route.useLoaderData();
   const fetchProducts = useServerFn(listProducts);
   const { data, isLoading } = useQuery({
     queryKey: ["products"],
     queryFn: () => fetchProducts(),
+    initialData: loaderData,
   });
+
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Close mobile panel when any filter changes
+  useEffect(() => { setMobileOpen(false); }, [type, color, size]);
 
   let products = (data?.products ?? []) as any[];
   if (type)  products = products.filter((p: any) => p.type === type);
-  if (color) products = products.filter((p: any) => p.color === color);
+  if (color) products = products.filter((p: any) => (p.color ?? "").split(",").map((c: string) => c.trim()).includes(color));
   if (size)  products = products.filter((p: any) => p.size === size || !p.size);
 
   const displaySizes =
@@ -131,10 +198,11 @@ function Shop() {
     type ? TYPE_LABELS[type] ?? "Collection" : "All Pieces";
 
   const hasFilters = !!(type || color || size);
+  const activeCount = [type, color, size].filter(Boolean).length;
 
   // Active filter summary for display
   const activeLabels = [
-    type  ? TYPE_LABELS[type]   : null,
+    type  ? TYPE_SHORT[type]    : null,
     color ? COLOR_LABELS[color] : null,
     size  ? size                : null,
   ].filter(Boolean);
@@ -151,92 +219,145 @@ function Shop() {
           S925 sterling silver. VVS moissanite. GRA certified. Four precious metal finishes.
         </p>
 
-        {/* Active filter summary */}
-        {hasFilters && activeLabels.length > 0 && (
-          <div className="mt-5 flex items-center gap-3 text-[0.6rem] uppercase tracking-[0.2em] text-muted-foreground">
-            <SlidersHorizontal className="h-3 w-3" />
-            <span>{activeLabels.join("  ·  ")}</span>
-            <Link
-              to="/shop"
-              className="text-foreground border-b border-foreground pb-0 leading-none hover:text-muted-foreground transition-colors"
-            >
-              Clear
-            </Link>
-          </div>
-        )}
       </section>
 
-      {/* ── Filters ────────────────────────────────────── */}
-      <div className="border-y border-border bg-cream">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-4 sm:py-5 space-y-3">
+      {/* ── Filters — compact sticky bar ───────────────── */}
+      <div className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur-sm">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10">
 
-          {/* Type filters */}
-          <div className="flex flex-wrap gap-2">
-            {(["", "necklace", "bracelet", "earring", "ring"] as const).map(t => {
-              const active = (!t && !type) || t === type;
-              const label = t ? TYPE_LABELS[t] : "All";
-              return (
-                <Link
-                  key={label}
-                  to="/shop"
-                  search={t ? { type: t as any, color, size } : { color, size }}
-                  className={`px-5 py-2 text-[0.65rem] uppercase tracking-[0.2em] border transition-all duration-200 ${
-                    active
-                      ? "bg-foreground text-background border-foreground"
-                      : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground"
-                    }`}
-                >
-                  {label}
-                </Link>
-              );
-            })}
+          {/* ── Mobile trigger row ── */}
+          <div className="flex lg:hidden items-center h-11 gap-3">
+            <button
+              onClick={() => setMobileOpen(o => !o)}
+              className="flex items-center gap-1.5 shrink-0 text-[0.60rem] uppercase tracking-[0.2em] text-foreground"
+            >
+              <SlidersHorizontal className="h-3 w-3" />
+              Filters
+              {activeCount > 0 && (
+                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-foreground text-background text-[0.44rem] font-semibold">
+                  {activeCount}
+                </span>
+              )}
+              <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform duration-200 ${mobileOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {/* Active filter pills */}
+            {hasFilters && (
+              <div className="flex items-center gap-1.5 overflow-x-auto flex-1 min-w-0 scrollbar-none">
+                {activeLabels.map(label => (
+                  <span key={label as string} className="shrink-0 px-2 py-0.5 text-[0.48rem] uppercase tracking-[0.14em] bg-foreground text-background leading-none">
+                    {label}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {hasFilters && (
+              <Link
+                to="/shop"
+                className="shrink-0 text-[0.58rem] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Clear
+              </Link>
+            )}
           </div>
 
-          {/* Color filters */}
-          <div className="flex flex-wrap gap-2">
-            {Object.entries(COLOR_MAP).map(([key, val]) => {
-              const active = color === key;
-              return (
-                <Link
-                  key={key}
-                  to="/shop"
-                  search={{ type, color: key as any, size }}
-                  className={`flex items-center gap-2 px-4 py-2 text-[0.65rem] uppercase tracking-[0.2em] border transition-all duration-200 ${
-                    active
-                      ? "bg-foreground text-background border-foreground"
-                      : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground"
-                    }`}
-                >
-                  <span
-                    className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: val.hex }}
-                  />
-                  {COLOR_SHORT[key]}
+          {/* ── Mobile expanded panel ── */}
+          {mobileOpen && (
+            <div className="lg:hidden border-t border-border py-3 pb-4 space-y-2">
+              <div className="flex flex-wrap gap-1.5">
+                {(["", "necklace", "bracelet", "earring", "ring"] as const).map(t => {
+                  const active = (!t && !type) || t === type;
+                  return (
+                    <Link key={t || "all"} to="/shop" search={t ? { type: t as any, color, size } : { color, size }}
+                      className={`px-3 py-1.5 text-[0.56rem] uppercase tracking-[0.18em] border transition-colors duration-150 ${active ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"}`}>
+                      {t ? TYPE_SHORT[t] : "All"}
+                    </Link>
+                  );
+                })}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(COLOR_MAP).map(([key, val]) => {
+                  const active = color === key;
+                  return (
+                    <Link key={key} to="/shop" search={{ type, color: key as any, size }}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 text-[0.56rem] uppercase tracking-[0.18em] border transition-colors duration-150 ${active ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"}`}>
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: val.hex }} />
+                      {COLOR_SHORT[key]}
+                    </Link>
+                  );
+                })}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {displaySizes.map(s => {
+                  const active = size === s;
+                  return (
+                    <Link key={s} to="/shop" search={{ type, color, size: s as any }}
+                      className={`px-3 py-1.5 text-[0.56rem] uppercase tracking-[0.18em] border transition-colors duration-150 ${active ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground"}`}>
+                      {s}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── Desktop: all groups on one line with dividers ── */}
+          <div className="hidden lg:flex items-center h-11 divide-x divide-border overflow-x-auto scrollbar-none">
+
+            {/* Category */}
+            <div className="flex items-center gap-1.5 pr-5 shrink-0">
+              <span className="text-[0.44rem] uppercase tracking-[0.22em] text-muted-foreground/50 mr-1 shrink-0">Category</span>
+              {(["", "necklace", "bracelet", "earring", "ring"] as const).map(t => {
+                const active = (!t && !type) || t === type;
+                return (
+                  <Link key={t || "all"} to="/shop" search={t ? { type: t as any, color, size } : { color, size }}
+                    className={`px-2.5 py-1 text-[0.53rem] uppercase tracking-[0.16em] border transition-colors duration-150 whitespace-nowrap ${active ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground"}`}>
+                    {t ? TYPE_SHORT[t] : "All"}
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Metal */}
+            <div className="flex items-center gap-1.5 px-5 shrink-0">
+              <span className="text-[0.44rem] uppercase tracking-[0.22em] text-muted-foreground/50 mr-1 shrink-0">Metal</span>
+              {Object.entries(COLOR_MAP).map(([key, val]) => {
+                const active = color === key;
+                return (
+                  <Link key={key} to="/shop" search={{ type, color: key as any, size }}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 text-[0.53rem] uppercase tracking-[0.16em] border transition-colors duration-150 whitespace-nowrap ${active ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground"}`}>
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: val.hex }} />
+                    {COLOR_SHORT[key]}
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Size */}
+            <div className="flex items-center gap-1.5 px-5 shrink-0">
+              <span className="text-[0.44rem] uppercase tracking-[0.22em] text-muted-foreground/50 mr-1 shrink-0">Size</span>
+              {displaySizes.map(s => {
+                const active = size === s;
+                return (
+                  <Link key={s} to="/shop" search={{ type, color, size: s as any }}
+                    className={`px-2.5 py-1 text-[0.53rem] uppercase tracking-[0.16em] border transition-colors duration-150 whitespace-nowrap ${active ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground"}`}>
+                    {s}
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Clear — right-aligned */}
+            {hasFilters && (
+              <div className="flex-1 flex justify-end pl-5">
+                <Link to="/shop" className="text-[0.53rem] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap">
+                  Clear filters
                 </Link>
-              );
-            })}
+              </div>
+            )}
           </div>
 
-          {/* Size filters */}
-          <div className="flex flex-wrap gap-2">
-            {displaySizes.map(s => {
-              const active = size === s;
-              return (
-                <Link
-                  key={s}
-                  to="/shop"
-                  search={{ type, color, size: s as any }}
-                  className={`px-4 py-2 text-[0.65rem] uppercase tracking-[0.2em] border transition-all duration-200 ${
-                    active
-                      ? "bg-foreground text-background border-foreground"
-                      : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground"
-                    }`}
-                >
-                  {s}
-                </Link>
-              );
-            })}
-          </div>
         </div>
       </div>
 
@@ -296,10 +417,20 @@ function Shop() {
                     <span className="text-[0.48rem] uppercase tracking-[0.12em] text-gray-400 font-mono border border-gray-200 px-1.5 py-0.5 leading-none">
                       S925
                     </span>
-                    {/* Metal color swatches — show all available metals */}
-                    <div className="flex items-center gap-0.5 ml-1">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-black/10" style={{ backgroundColor: "#D4AF37" }} title="18K Yellow Gold" />
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-black/10 -ml-1" style={{ backgroundColor: "#E8E8F4" }} title="18K White Gold" />
+                    {/* Metal color swatches — dynamic per product */}
+                    <div className="flex items-center ml-1">
+                      {(p.color ?? "gold").split(",").map((c: string, i: number) => {
+                        const cv = COLOR_MAP[c.trim()];
+                        if (!cv) return null;
+                        return (
+                          <span
+                            key={c.trim()}
+                            className={`w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-black/10${i > 0 ? " -ml-1" : ""}`}
+                            style={{ backgroundColor: cv.hex }}
+                            title={cv.label}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                   <h2 className="mt-2 font-display text-[1.45rem] sm:text-[1.6rem] leading-tight group-hover:text-gold transition-colors duration-300">
@@ -309,7 +440,9 @@ function Shop() {
                     From <span className="font-medium">
                       {(p.slug?.includes("tennis-bracelet") || p.slug?.includes("tennis_bracelet"))
                         ? formatUSD(getTennisBraceletPrice("2mm", '6"'))
-                        : formatUSD(Number(p.base_price))}
+                        : (p.slug?.includes("tennis-chain") || p.slug?.includes("tennis_chain"))
+                          ? formatUSD(getTennisChainPrice("3mm", '16"'))
+                          : formatUSD(Number(p.base_price))}
                     </span>
                   </p>
                 </div>

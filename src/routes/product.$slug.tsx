@@ -6,19 +6,20 @@ import {
   ShieldCheck, Truck, Sparkles, Award, ArrowRight, Minus, Plus,
   Eye, Diamond, ShoppingBag, Check, Info, ChevronLeft, ChevronRight, Star,
 } from "lucide-react";
-import { getProductBySlug, listReviews, submitReview, getProductGallery, getProductVariants } from "@/lib/products.functions";
+import { getProductBySlug, listReviews, submitReview, getProductGallery, getProductVariants, listProducts } from "@/lib/products.functions";
 import { getProductImages, buildProductGallery, images as productImages } from "@/lib/product-images";
 import {
   calculatePrice, calculateEarringPrice, calculateRingPrice,
-  getTennisBraceletPrice,
+  getTennisBraceletPrice, getTennisChainPrice,
   formatUSD,
-  SIZES_NECKLACE, SIZES_EARRING, SIZES_RING, SIZES_TENNIS_BRACELET,
-  LENGTHS_NECKLACE, LENGTHS_BRACELET, LENGTHS_TENNIS_BRACELET,
-  LENGTH_BRACELET_DEFAULT, TENNIS_BRACELET_LENGTH_DEFAULT,
+  SIZES_NECKLACE, SIZES_EARRING, SIZES_RING, SIZES_TENNIS_BRACELET, SIZES_TENNIS_CHAIN,
+  LENGTHS_NECKLACE, LENGTHS_BRACELET, LENGTHS_TENNIS_BRACELET, LENGTHS_TENNIS_CHAIN,
+  LENGTH_BRACELET_DEFAULT, TENNIS_BRACELET_LENGTH_DEFAULT, TENNIS_CHAIN_LENGTH_DEFAULT,
   type Size, type EarringSize, type RingSize, type Length,
   COLOR_MAP, COLOR_SHORT,
   SIZE_DESCRIPTIONS, EARRING_SIZE_DESCRIPTIONS, RING_SIZE_DESCRIPTIONS,
   TENNIS_BRACELET_SIZE_DESCRIPTIONS, TENNIS_BRACELET_LENGTH_DESCRIPTIONS,
+  TENNIS_CHAIN_SIZE_DESCRIPTIONS, TENNIS_CHAIN_LENGTH_DESCRIPTIONS,
   LENGTH_DESCRIPTIONS, BRACELET_LENGTH_DESCRIPTIONS,
   MOISSANITE_QUALITY,
 } from "@/lib/pricing";
@@ -93,6 +94,17 @@ function ShareBar({ productName, description, pageUrl, imageUrl }: {
       href: `https://wa.me/?text=${enc(`${shareText}\n${pageUrl}`)}`,
       color: "hover:bg-[#25D366] hover:text-white hover:border-[#25D366]",
     },
+    {
+      label: "Instagram",
+      icon: (
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/>
+        </svg>
+      ),
+      href: `https://www.instagram.com/`,
+      color: "hover:bg-gradient-to-tr hover:from-[#f09433] hover:via-[#e6683c] hover:to-[#dc2743] hover:text-white hover:border-[#e6683c]",
+      copyInstead: true,
+    },
   ];
 
   const hasNativeShare = typeof navigator !== "undefined" && !!navigator.share;
@@ -113,16 +125,27 @@ function ShareBar({ productName, description, pageUrl, imageUrl }: {
           </button>
         )}
         {SHARES.map(s => (
-          <a
-            key={s.label}
-            href={s.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={`Share on ${s.label}`}
-            className={`flex items-center justify-center w-9 h-9 border border-gray-200 text-gray-400 transition-all rounded-lg ${s.color}`}
-          >
-            {s.icon}
-          </a>
+          (s as any).copyInstead ? (
+            <button
+              key={s.label}
+              onClick={copyLink}
+              title="Copy link to share on Instagram"
+              className={`flex items-center justify-center w-9 h-9 border border-gray-200 text-gray-400 transition-all rounded-lg ${s.color}`}
+            >
+              {s.icon}
+            </button>
+          ) : (
+            <a
+              key={s.label}
+              href={s.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={`Share on ${s.label}`}
+              className={`flex items-center justify-center w-9 h-9 border border-gray-200 text-gray-400 transition-all rounded-lg ${s.color}`}
+            >
+              {s.icon}
+            </a>
+          )
         ))}
         <button
           onClick={copyLink}
@@ -161,11 +184,12 @@ const CATEGORY_LABEL: Record<string, string> = {
 
 export const Route = createFileRoute("/product/$slug")({
   loader: async ({ params }) => {
-    const [res, rev, gal, vars] = await Promise.all([
+    const [res, rev, gal, vars, allRes] = await Promise.all([
       getProductBySlug({ data: { slug: params.slug } }),
       listReviews({ data: { slug: params.slug } }),
       getProductGallery({ data: { slug: params.slug } }),
       getProductVariants({ data: { slug: params.slug } }),
+      listProducts(),
     ]);
     if (!res.product) throw notFound();
 
@@ -189,6 +213,7 @@ export const Route = createFileRoute("/product/$slug")({
       ...res,
       reviews: rev.reviews,
       galleryImages: gal.images,
+      allProducts: allRes.products ?? [],
       variants: vars.variants,
       siblingProduct: (sibRes as any).product ?? null,
       siblingImages: (sibGal as any).images ?? [],
@@ -229,6 +254,40 @@ export const Route = createFileRoute("/product/$slug")({
     // stable, admin-set pricing rather than fluctuating market prices.
     const priceValidUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
+    // Build ProductGroup/hasVariant schema from real variant data.
+    // Derive one representative Product per distinct color — these are the
+    // buyer-facing choices, not the combinatorial size×length×color matrix.
+    const variants = (loaderData?.variants ?? []) as any[];
+    const COLOR_LABEL_MAP: Record<string, string> = {
+      silver: "Sterling Silver", gold: "18K Yellow Gold",
+      rose_gold: "18K Rose Gold", white_gold: "18K White Gold",
+    };
+    const seenColors = new Set<string>();
+    const colorVariants = variants.filter((v) => {
+      if (!v.color || seenColors.has(v.color)) return false;
+      seenColors.add(v.color);
+      return true;
+    });
+    const hasVariants = colorVariants.map((v) => {
+      const price = v.price_override
+        ? Number(v.price_override)
+        : Number(p.sale_active && p.sale_price ? p.sale_price : p.base_price);
+      return {
+        "@type": "Product",
+        name: `${p.name} — ${COLOR_LABEL_MAP[v.color] ?? v.color}`,
+        url: pageUrl,
+        image: imageUrl,
+        color: COLOR_LABEL_MAP[v.color] ?? v.color,
+        offers: {
+          "@type": "Offer",
+          priceCurrency: "USD",
+          price,
+          availability: v.stock !== 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+          url: pageUrl,
+        },
+      };
+    });
+
     return {
       meta: [
         { title: p.seo_title },
@@ -250,6 +309,23 @@ export const Route = createFileRoute("/product/$slug")({
       ],
       links: [{ rel: "canonical", href: pageUrl }],
       scripts: [
+        // ProductGroup schema — the modern Google recommendation for variant
+        // products. Each color option becomes a distinct Product child so Google
+        // understands the full option set and can surface multiple offers.
+        ...(hasVariants.length > 1 ? [{
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "ProductGroup",
+            "@id": `${pageUrl}#product-group`,
+            name: p.name,
+            description: p.description,
+            url: pageUrl,
+            brand: { "@type": "Brand", name: "Qureshi Jewelers" },
+            variesBy: ["color"],
+            hasVariant: hasVariants,
+          }),
+        }] : []),
         {
           type: "application/ld+json",
           children: JSON.stringify({
@@ -265,6 +341,12 @@ export const Route = createFileRoute("/product/$slug")({
             material: "925 Sterling Silver",
             color: colorLabel,
             brand: { "@type": "Brand", name: "Qureshi Jewelers" },
+            // Links this product to the Moissanite entity in the Wikipedia/Wikidata
+            // Knowledge Graph — a strong topical authority signal for Google and AI.
+            about: [
+              { "@type": "Thing", name: "Moissanite", sameAs: "https://en.wikipedia.org/wiki/Moissanite" },
+              { "@type": "Thing", name: "925 Sterling Silver", sameAs: "https://en.wikipedia.org/wiki/Sterling_silver" },
+            ],
             additionalProperty: [
               { "@type": "PropertyValue", name: "Gemstone", value: "Moissanite" },
               { "@type": "PropertyValue", name: "Clarity", value: "VVS1" },
@@ -280,12 +362,68 @@ export const Route = createFileRoute("/product/$slug")({
               availability: p.is_active ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
               itemCondition: "https://schema.org/NewCondition",
               url: pageUrl,
-              seller: { "@type": "Organization", name: "Qureshi Jewelers" },
+              seller: {
+                "@type": "Organization",
+                name: "Qureshi Jewelers",
+                "@id": `${SITE}/#organization`,
+              },
+              shippingDetails: {
+                "@type": "OfferShippingDetails",
+                shippingRate: {
+                  "@type": "MonetaryAmount",
+                  // Free shipping over $250 (site-wide policy); flat $15 below
+                  // that threshold — matches what's stated on /faq and at checkout.
+                  value: Number(p.sale_active && p.sale_price ? p.sale_price : p.base_price) >= 250 ? "0" : "15",
+                  currency: "USD",
+                },
+                shippingDestination: {
+                  "@type": "DefinedRegion",
+                  addressCountry: "US",
+                },
+                deliveryTime: {
+                  "@type": "ShippingDeliveryTime",
+                  handlingTime: {
+                    "@type": "QuantitativeValue",
+                    minValue: 1,
+                    maxValue: 2,
+                    unitCode: "DAY",
+                  },
+                  transitTime: {
+                    "@type": "QuantitativeValue",
+                    minValue: 3,
+                    maxValue: 7,
+                    unitCode: "DAY",
+                  },
+                },
+              },
+              hasMerchantReturnPolicy: {
+                "@type": "MerchantReturnPolicy",
+                applicableCountry: "US",
+                returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
+                merchantReturnDays: 14,
+                returnMethod: "https://schema.org/ReturnByMail",
+                returnFees: "https://schema.org/FreeReturn",
+              },
             },
             ...(aggregateRating ? { aggregateRating } : {}),
             ...(reviewSchema.length > 0 ? { review: reviewSchema } : {}),
           }),
         },
+        // ImageObject schemas — explicit image markup helps Google display
+        // product photos directly in search results as rich snippets.
+        ...allImages.slice(0, 5).map((imgUrl: string, idx: number) => ({
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "ImageObject",
+            "@id": `${pageUrl}#image-${idx}`,
+            url: imgUrl,
+            contentUrl: imgUrl,
+            name: `${p.name} — VVS Moissanite ${categoryLabel} | Qureshi Jewelers`,
+            description: `${p.name} in ${colorLabel} finish — VVS moissanite hand-set in solid S925 sterling silver. GRA certified.`,
+            isPartOf: { "@id": `${pageUrl}#product` },
+          }),
+        })),
         {
           type: "application/ld+json",
           children: JSON.stringify({
@@ -428,16 +566,17 @@ function ReviewForm({ slug, onSuccess }: { slug: string; onSuccess: () => void }
 }
 
 function ProductPage() {
-  const { product: p, reviews, galleryImages, variants, siblingProduct, siblingImages } = Route.useLoaderData();
+  const { product: p, reviews, galleryImages, variants, siblingProduct, siblingImages, allProducts } = Route.useLoaderData();
   const product = p!;
   const { slug } = Route.useParams();
   const navigate = useNavigate();
   const { add } = useCart();
 
-  const isBracelet = product.type === "bracelet";
-  const isEarring  = product.type === "earring";
-  const isRing     = product.type === "ring";
-  const isTennis   = slug.includes("tennis");
+  const isBracelet    = product.type === "bracelet";
+  const isEarring     = product.type === "earring";
+  const isRing        = product.type === "ring";
+  const isTennis      = slug.includes("tennis");
+  const isTennisChain = isTennis && !isBracelet;
 
   // Rings are variant-aware: when this product has real product_variants
   // rows, the color/carat selectors only ever show what's actually been
@@ -453,10 +592,11 @@ function ProductPage() {
     ? [...new Set(ringVariants.map(v => v.size).filter((s): s is string => !!s))]
     : [...SIZES_RING];
 
-  const sizes = isTennis ? SIZES_TENNIS_BRACELET : isEarring ? SIZES_EARRING : isRing ? ringCarats : SIZES_NECKLACE;
-  const sizeDescriptions = isTennis ? TENNIS_BRACELET_SIZE_DESCRIPTIONS : isEarring ? EARRING_SIZE_DESCRIPTIONS : isRing ? RING_SIZE_DESCRIPTIONS : SIZE_DESCRIPTIONS;
+  const sizes = isTennisChain ? SIZES_TENNIS_CHAIN : isTennis ? SIZES_TENNIS_BRACELET : isEarring ? SIZES_EARRING : isRing ? ringCarats : SIZES_NECKLACE;
+  const sizeDescriptions = isTennisChain ? TENNIS_CHAIN_SIZE_DESCRIPTIONS : isTennis ? TENNIS_BRACELET_SIZE_DESCRIPTIONS : isEarring ? EARRING_SIZE_DESCRIPTIONS : isRing ? RING_SIZE_DESCRIPTIONS : SIZE_DESCRIPTIONS;
 
   const defaultSize: string = (() => {
+    if (isTennisChain) return "3mm";
     if (isRing) {
       if (ringCarats.length === 1) return ringCarats[0];
       const match = Object.entries(RING_SLUG_SIZE_MAP).find(([key]) => slug.includes(key));
@@ -467,18 +607,29 @@ function ProductPage() {
 
   const defaultLength: string = (() => {
     if (isEarring || isRing) return '18"';
+    if (isTennisChain) return TENNIS_CHAIN_LENGTH_DEFAULT;
     if (isTennis) return TENNIS_BRACELET_LENGTH_DEFAULT;
     if (isBracelet) return LENGTH_BRACELET_DEFAULT;
     return (['16"', '18"', '20"', '22"', '24"'] as const).find(l => slug.includes(l.replace('"', ''))) ?? '20"';
   })();
 
+  // Parse available metal options from the product's color CSV field.
+  // Falls back to ["gold", "white_gold"] if the field is a single legacy value.
+  const tennisColors: string[] = isTennis
+    ? (() => {
+        const parsed = (product.color ?? "gold").split(",").map((c: string) => c.trim()).filter((c: string) => !!COLOR_MAP[c]);
+        return parsed.length >= 2 ? parsed : ["gold", "white_gold"];
+      })()
+    : [];
+
   const [size,         setSize]         = useState<string>(defaultSize);
   const [length,       setLength]       = useState<string>(defaultLength);
   const [qty,          setQty]          = useState(1);
-  const [activeImg,    setActiveImg]    = useState(0);
+  const [activeImg,       setActiveImg]       = useState(0);
+  const [colorOverrideUrl,setColorOverrideUrl] = useState<string | null>(null);
   const [addedToBag,   setAddedToBag]   = useState(false);
   const [earringMetal, setEarringMetal] = useState<"white_gold" | "gold">("gold");
-  const [tennisMetal,  setTennisMetal]  = useState<"gold" | "white_gold">("gold");
+  const [tennisMetal,  setTennisMetal]  = useState<string>(tennisColors[0] ?? "gold");
   const [ringMetal,    setRingMetal]    = useState<string>(ringColors[0] ?? product.color);
   const [touchStartX,  setTouchStartX]  = useState<number | null>(null);
   const [showReviewForm, setShowReviewForm] = useState(false);
@@ -491,6 +642,13 @@ function ProductPage() {
 
   // tennis: gallery index for each size (new images occupy [2] and [3], sizes start at [4])
   const tennisSizeImgIdx: Record<string, number> = { "2mm": 4, "3mm": 5, "4mm": 6, "5mm": 7, "6mm": 8 };
+
+  // Build "5× 18K Yellow Gold · White Gold · Rose Gold" from a CSV color field.
+  const platingSummary = (colorCsv: string): string => {
+    const cols = (colorCsv ?? "gold").split(",").map((c: string) => c.trim()).filter((c: string) => !!COLOR_MAP[c]);
+    if (cols.length === 0) return "5× 18K Yellow Gold";
+    return "5× 18K " + cols.map(c => (COLOR_MAP[c]?.label ?? "").replace("18K ", "")).join(" · ");
+  };
 
   const earringVideo = isEarring ? productImages.earringVideo : null;
 
@@ -507,18 +665,26 @@ function ProductPage() {
     ? ringVariants.find(v => (v.color ?? product.color) === ringMetal && (v.size ?? defaultSize) === size)
     : undefined;
 
-  const price = isTennis
-    ? getTennisBraceletPrice(size, length)
-    : isEarring
-      ? calculateEarringPrice(Number(product.base_price), size as EarringSize)
-      : isRing
-        ? (matchedRingVariant?.price_override ?? calculateRingPrice(Number(product.base_price), size as RingSize))
-        : calculatePrice(Number(product.base_price), size as Size, length as Length);
+  const price = isTennisChain
+    ? getTennisChainPrice(size, length)
+    : isTennis
+      ? getTennisBraceletPrice(size, length)
+      : isEarring
+        ? calculateEarringPrice(Number(product.base_price), size as EarringSize)
+        : isRing
+          ? (matchedRingVariant?.price_override ?? calculateRingPrice(Number(product.base_price), size as RingSize))
+          : calculatePrice(Number(product.base_price), size as Size, length as Length);
 
   const activeColor = isTennis ? tennisMetal : isEarring ? earringMetal : isRing ? ringMetal : product.color;
   const colorInfo   = COLOR_MAP[activeColor];
 
-  const showImage = (i: number) => { setActiveImg(i); };
+  const colorImages: Record<string, string> = (product as any).color_images ?? {};
+  const showImage = (i: number) => { setColorOverrideUrl(null); setActiveImg(i); };
+  const showColorImage = (color: string, fallbackIdx: number) => {
+    const ci = colorImages[color];
+    if (ci) { setColorOverrideUrl(ci); }
+    else { setColorOverrideUrl(null); setActiveImg(fallbackIdx); }
+  };
 
   const prevImg = () => setActiveImg(i => Math.max(0, i - 1));
   const nextImg = () => setActiveImg(i => Math.min(gallery.length - 1, i + 1));
@@ -544,7 +710,7 @@ function ProductPage() {
       length: cartLength,
       unitPrice: price,
       image: isTennis
-        ? (tennisMetal === "white_gold" ? gallery[1] : gallery[0])
+        ? (tennisMetal === "white_gold" ? gallery[1] : gallery[0])  // white gold → gallery[1]
         : isEarring
           ? (earringMetal === "white_gold" ? gallery[1] : gallery[0])
           : gallery[0],
@@ -568,7 +734,7 @@ function ProductPage() {
 
   // Earring config label for the sticky mobile bar
   const mobileConfigLabel = isTennis
-    ? `${size} · ${length} · ${tennisMetal === "white_gold" ? "White Gold" : "Yellow Gold"}`
+    ? `${size} · ${length} · ${COLOR_MAP[tennisMetal]?.label ?? "Yellow Gold"}`
     : isEarring
       ? `${size} · ${earringMetal === "white_gold" ? "White Gold" : "Yellow Gold"}`
       : isRing
@@ -608,8 +774,8 @@ function ProductPage() {
                 onTouchEnd={handleTouchEnd}
               >
                 <img
-                  key={activeImg}
-                  src={gallery[activeImg]}
+                  key={colorOverrideUrl ?? activeImg}
+                  src={colorOverrideUrl ?? gallery[activeImg]}
                   alt={product.name}
                   className="h-full w-full object-cover"
                   style={{ animation: "fade-in 0.22s ease-out" }}
@@ -652,12 +818,12 @@ function ProductPage() {
                     <span
                       className="w-2 h-2 rounded-full shrink-0"
                       style={{ backgroundColor: isTennis
-                        ? (tennisMetal === "white_gold" ? "#E8E8F4" : "#D4AF37")
+                        ? (COLOR_MAP[tennisMetal]?.hex ?? "#D4AF37")
                         : colorInfo?.hex }}
                     />
                     <span className="text-[0.46rem] uppercase tracking-[0.24em] font-medium">
                       {isTennis
-                        ? (tennisMetal === "white_gold" ? "18K White Gold" : "18K Yellow Gold") + " Selected"
+                        ? (COLOR_MAP[tennisMetal]?.label ?? "18K Yellow Gold") + " Selected"
                         : (earringMetal === "white_gold" ? "18K White Gold" : "18K Yellow Gold") + " Selected"
                       }
                     </span>
@@ -816,30 +982,38 @@ function ProductPage() {
               {/* ── Tennis Metal selector ─────────────────── */}
               {isTennis && (
                 <div className="mb-6">
-                  <div className="flex items-baseline justify-between mb-3.5">
-                    <p className="text-[0.52rem] uppercase tracking-[0.28em] font-semibold">Metal</p>
-                    <span className="text-[0.57rem] italic text-muted-foreground">
-                      {tennisMetal === "white_gold" ? "Cool · Icy white brilliance" : "Warm · Classic yellow lustre"}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    {([
-                      { key: "gold"       as const, label: "18K Yellow Gold", hex: "#D4AF37" },
-                      { key: "white_gold" as const, label: "18K White Gold",  hex: "#E8E8F4" },
-                    ]).map(({ key, label, hex }) => {
+                  {(() => {
+                    const metalDescriptions: Record<string, string> = {
+                      gold:       "Warm · Classic yellow lustre",
+                      white_gold: "Cool · Crisp white brilliance",
+                      rose_gold:  "Romantic · Warm rose tone",
+                    };
+                    return (
+                      <div className="flex items-baseline justify-between mb-3.5">
+                        <p className="text-[0.52rem] uppercase tracking-[0.28em] font-semibold">Metal</p>
+                        <span className="text-[0.57rem] italic text-muted-foreground">
+                          {metalDescriptions[tennisMetal] ?? COLOR_MAP[tennisMetal]?.label ?? "Fine metal"}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                  <div className={`grid gap-2.5 ${tennisColors.length >= 3 ? "grid-cols-3" : "grid-cols-2"}`}>
+                    {tennisColors.map((key, idx) => {
+                      const info = COLOR_MAP[key];
+                      if (!info) return null;
                       const active = tennisMetal === key;
                       return (
                         <button
                           key={key}
-                          onClick={() => { setTennisMetal(key); showImage(key === "white_gold" ? 1 : 0); }}
+                          onClick={() => { setTennisMetal(key); showColorImage(key, idx); }}
                           className={`relative py-5 text-center border transition-all duration-150 flex flex-col items-center justify-center gap-2 ${
                             active
                               ? "border-foreground bg-foreground text-background"
                               : "border-border hover:border-foreground/40 hover:bg-cream"
                           }`}
                         >
-                          <span className="w-[18px] h-[18px] rounded-full shrink-0 ring-1 ring-black/10 shadow-sm" style={{ backgroundColor: hex }} />
-                          <span className="text-[0.70rem] font-semibold leading-none">{label}</span>
+                          <span className="w-[18px] h-[18px] rounded-full shrink-0 ring-1 ring-black/10 shadow-sm" style={{ backgroundColor: info.hex }} />
+                          <span className="text-[0.70rem] font-semibold leading-none">{info.label}</span>
                           <span className={`text-[0.40rem] uppercase tracking-[0.16em] ${active ? "text-background/50" : "text-muted-foreground/50"}`}>5× plated</span>
                           {active && <span className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: "var(--gradient-gold-h)" }} />}
                         </button>
@@ -868,7 +1042,7 @@ function ProductPage() {
                         <button
                           key={key}
                           type="button"
-                          onClick={() => !single && setRingMetal(key)}
+                          onClick={() => { if (!single) { setRingMetal(key); showColorImage(key, 0); } }}
                           aria-pressed={active}
                           className={`relative py-5 text-center border transition-all duration-150 flex flex-col items-center justify-center gap-2 ${
                             active
@@ -907,7 +1081,7 @@ function ProductPage() {
                       return (
                         <button
                           key={key}
-                          onClick={() => { setEarringMetal(key); showImage(key === "white_gold" ? 1 : 0); }}
+                          onClick={() => { setEarringMetal(key); showColorImage(key, key === "white_gold" ? 1 : 0); }}
                           className={`relative py-5 text-center border transition-all duration-150 flex flex-col items-center justify-center gap-2 ${
                             active
                               ? "border-foreground bg-foreground text-background"
@@ -939,7 +1113,7 @@ function ProductPage() {
               <div className="mb-6">
                 <div className="flex items-baseline justify-between mb-3.5">
                   <p className="text-[0.52rem] uppercase tracking-[0.28em] font-semibold">
-                    {isEarring ? "Stone Size" : isRing ? "Stone Weight" : "Width"}
+                    {isEarring ? "Stone Size" : isRing ? "Ring Size" : "Width"}
                   </p>
                   <span className="text-[0.57rem] italic text-muted-foreground">{sizeDescriptions[size]}</span>
                 </div>
@@ -957,20 +1131,22 @@ function ProductPage() {
                   }`}
                 >
                   {(sizes as readonly string[]).map(s => {
-                    const sp = isTennis
-                      ? getTennisBraceletPrice(s, length)
-                      : isEarring
-                        ? calculateEarringPrice(Number(product.base_price), s as EarringSize)
-                        : isRing
-                          ? calculateRingPrice(Number(product.base_price), s as RingSize)
-                          : calculatePrice(Number(product.base_price), s as Size, length as Length);
+                    const sp = isTennisChain
+                      ? getTennisChainPrice(s, length)
+                      : isTennis
+                        ? getTennisBraceletPrice(s, length)
+                        : isEarring
+                          ? calculateEarringPrice(Number(product.base_price), s as EarringSize)
+                          : isRing
+                            ? calculateRingPrice(Number(product.base_price), s as RingSize)
+                            : calculatePrice(Number(product.base_price), s as Size, length as Length);
                     const active = size === s;
                     return (
                       <button
                         key={s}
                         onClick={() => {
                           setSize(s);
-                          if (isTennis) showImage(tennisSizeImgIdx[s] ?? 5);
+                          if (isTennis && !isTennisChain) showImage(tennisSizeImgIdx[s] ?? 5);
                         }}
                         className={`relative py-3 text-center border transition-all duration-150 ${
                           active
@@ -978,7 +1154,7 @@ function ProductPage() {
                             : "border-border hover:border-foreground/40 hover:bg-cream"
                         }`}
                       >
-                        <span className="block text-[0.74rem] font-semibold leading-none mb-1">{s}</span>
+                        <span className="block text-[0.74rem] font-semibold leading-none mb-1">{s.replace(/^Ring Size\s*/i, "")}</span>
                         <span className={`block text-[0.44rem] uppercase tracking-[0.08em] ${active ? "text-background/50" : "text-muted-foreground/55"}`}>
                           {formatUSD(sp)}
                         </span>
@@ -1057,24 +1233,30 @@ function ProductPage() {
                     )}
                     {isTennis && (
                       <span className="text-[0.57rem] italic text-muted-foreground">
-                        {TENNIS_BRACELET_LENGTH_DESCRIPTIONS[length] ?? ""}
+                        {(isTennisChain ? TENNIS_CHAIN_LENGTH_DESCRIPTIONS : TENNIS_BRACELET_LENGTH_DESCRIPTIONS)[length] ?? ""}
                       </span>
                     )}
                   </div>
                   <div
                     className={
-                      isTennis
-                        ? "grid grid-cols-4 sm:grid-cols-7 gap-1.5 min-w-0"
-                        : "grid gap-1.5 grid-cols-3"
+                      isTennisChain
+                        ? "grid grid-cols-5 gap-1.5 min-w-0"
+                        : isTennis
+                          ? "grid grid-cols-4 sm:grid-cols-7 gap-1.5 min-w-0"
+                          : "grid gap-1.5 grid-cols-3"
                     }
                   >
-                    {(isTennis ? LENGTHS_TENNIS_BRACELET : isBracelet ? LENGTHS_BRACELET : LENGTHS_NECKLACE).map(l => {
-                      const lp = isTennis
-                        ? getTennisBraceletPrice(size, l)
-                        : calculatePrice(Number(product.base_price), size as Size, l as Length);
-                      const desc = isTennis
-                        ? TENNIS_BRACELET_LENGTH_DESCRIPTIONS[l]
-                        : isBracelet ? BRACELET_LENGTH_DESCRIPTIONS[l] : LENGTH_DESCRIPTIONS[l];
+                    {(isTennisChain ? LENGTHS_TENNIS_CHAIN : isTennis ? LENGTHS_TENNIS_BRACELET : isBracelet ? LENGTHS_BRACELET : LENGTHS_NECKLACE).map(l => {
+                      const lp = isTennisChain
+                        ? getTennisChainPrice(size, l)
+                        : isTennis
+                          ? getTennisBraceletPrice(size, l)
+                          : calculatePrice(Number(product.base_price), size as Size, l as Length);
+                      const desc = isTennisChain
+                        ? TENNIS_CHAIN_LENGTH_DESCRIPTIONS[l]
+                        : isTennis
+                          ? TENNIS_BRACELET_LENGTH_DESCRIPTIONS[l]
+                          : isBracelet ? BRACELET_LENGTH_DESCRIPTIONS[l] : LENGTH_DESCRIPTIONS[l];
                       const active = length === l;
                       return (
                         <button
@@ -1114,7 +1296,7 @@ function ProductPage() {
                       {isTennis ? (
                         <>
                           <p className="text-[0.82rem] font-semibold leading-tight">
-                            {size} · {length} · {tennisMetal === "white_gold" ? "18K White Gold" : "18K Yellow Gold"}
+                            {size} · {length} · {COLOR_MAP[tennisMetal]?.label ?? "18K Yellow Gold"}
                           </p>
                           <p className="text-[0.48rem] text-muted-foreground/65 mt-1.5">
                             VVS1 · 4-Prong · Double-Lock Clasp · GRA Certified
@@ -1212,36 +1394,6 @@ function ProductPage() {
                 imageUrl={product.image_url?.startsWith("http") ? product.image_url : `${SITE_URL}${product.image_url || "/QURESHIJEWELERSLOGO.png"}`}
               />
 
-              {/* ── Complete the set ─────────────────────── */}
-              {!isRing && (
-                <div className="border border-border p-4 flex gap-4 items-center hover:border-foreground/20 transition-colors duration-300">
-                  <div className="shrink-0 overflow-hidden bg-cream" style={{ width: 64, height: 64 }}>
-                    <img
-                      src={siblingImg ?? gallery[0]}
-                      alt={siblingName ?? ""}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[0.40rem] uppercase tracking-[0.28em] text-muted-foreground mb-1">Complete the set</p>
-                    <p className="font-display text-[1.02rem] leading-snug">
-                      {siblingName ?? (isBracelet ? "Matching Chain" : isEarring ? "Matching Chain" : "Matching Bracelet")}
-                    </p>
-                    <p className="text-[0.42rem] uppercase tracking-[0.12em] text-muted-foreground/50 mt-0.5">
-                      {colorInfo?.label ?? "Silver"} · S925 · VVS
-                    </p>
-                  </div>
-                  <Link
-                    to="/product/$slug"
-                    params={{ slug: siblingSlug }}
-                    className="shrink-0 flex items-center gap-1 text-[0.46rem] uppercase tracking-[0.18em] hover:text-gold transition-colors duration-200"
-                  >
-                    View <ArrowRight className="h-2.5 w-2.5" />
-                  </Link>
-                </div>
-              )}
             </div>
           </div>
         </section>
@@ -1254,9 +1406,18 @@ function ProductPage() {
               {/* Luxury spec table */}
               <dl className="border border-border mb-7 overflow-hidden">
                 <div className="h-[2px]" style={{ background: "var(--gradient-gold-h)" }} />
-                {(isTennis ? [
+                {(isTennisChain ? [
                   { k: "Material",    v: "Solid S925 Sterling Silver (92.5% purity)",                                                      hl: false },
-                  { k: "Plating",     v: `5× 18K ${tennisMetal === "white_gold" ? "White Gold" : "Yellow Gold"}`,                          hl: true  },
+                  { k: "Plating",     v: platingSummary(product.color),                                                                   hl: true  },
+                  { k: "Stone",       v: "VVS1 Moissanite · D Colorless · Round Brilliant",                                                hl: false },
+                  { k: "Setting",     v: "4-Prong Claw Inlay",                                                                             hl: false },
+                  { k: "Clasp",       v: "Double-Locking Box Clasp",                                                                       hl: false },
+                  { k: "Widths",      v: "3mm · 4mm · 5mm · 6mm",                                                                         hl: false },
+                  { k: "Lengths",     v: '16" · 18" · 20" · 22" · 24"',                                                                   hl: false },
+                  { k: "Certificate", v: "GRA Moissanite Certificate",                                                                     hl: false },
+                ] : isTennis ? [
+                  { k: "Material",    v: "Solid S925 Sterling Silver (92.5% purity)",                                                      hl: false },
+                  { k: "Plating",     v: platingSummary(product.color),                                                                   hl: true  },
                   { k: "Stone",       v: "VVS1 Moissanite · D Colorless · Round Brilliant",                                                hl: false },
                   { k: "Setting",     v: "4-Prong Claw Inlay",                                                                             hl: false },
                   { k: "Clasp",       v: "Double-Locking Box Clasp",                                                                       hl: false },
@@ -1265,14 +1426,14 @@ function ProductPage() {
                   { k: "Certificate", v: "GRA Moissanite Certificate",                                                                     hl: false },
                 ] : isEarring ? [
                   { k: "Material",    v: "Solid S925 Sterling Silver",                                                                     hl: false },
-                  { k: "Plating",     v: `5× 18K ${earringMetal === "white_gold" ? "White Gold" : "Yellow Gold"}`,                        hl: true  },
+                  { k: "Plating",     v: platingSummary(product.color),                                                                   hl: true  },
                   { k: "Stone",       v: "VVS1 Moissanite · D Colorless",                                                                  hl: false },
                   { k: "Setting",     v: "3-Prong Round Brilliant",                                                                        hl: false },
                   { k: "Backing",     v: "Screw Back (Threaded)",                                                                          hl: false },
                   { k: "Certificate", v: "GRA Moissanite Certificate",                                                                     hl: false },
                 ] : [
                   { k: "Material",                    v: "Solid S925 Sterling Silver",                                                     hl: false },
-                  { k: "Plating",                     v: `${colorInfo?.plated ?? "Rhodium"} · 5× e-coat`,                                 hl: false },
+                  { k: "Plating",                     v: platingSummary(product.color),                                                   hl: true  },
                   { k: "Stone",                       v: "VVS1 Moissanite · D Color",                                                     hl: false },
                   { k: isRing ? "Setting" : "Clasp", v: isRing ? "Classic 4-Prong Solitaire" : "Double-locking box",                     hl: false },
                   { k: "Finish",                      v: "Tarnish-resistant",                                                             hl: false },
@@ -1288,10 +1449,67 @@ function ProductPage() {
                 ))}
               </dl>
 
-              {isTennis ? (
+              {isTennisChain ? (
                 <div className="space-y-5 text-[0.80rem] leading-[1.90]">
                   <p className="text-foreground font-medium">
-                    Pure ice. Every stone. Both wrists — the{" "}
+                    An unbroken line of VVS brilliance — the{" "}
+                    <span className="italic">VVS1 D-Color Moissanite Tennis Chain.</span>
+                  </p>
+                  <p className="text-muted-foreground">
+                    Each stone is a{" "}
+                    <strong className="text-foreground font-semibold">D Colorless VVS1 Moissanite</strong>{" "}
+                    in a precision round brilliant cut — the highest clarity and color grade available, delivering fire and brilliance that rivals natural diamonds at a fraction of the cost. The{" "}
+                    <strong className="text-foreground font-semibold">4-prong claw inlay setting</strong>{" "}
+                    maximises stone exposure and light return while securing every stone permanently in place.
+                  </p>
+                  <p className="text-muted-foreground">
+                    Built on a{" "}
+                    <strong className="text-foreground font-semibold">solid S925 sterling silver base</strong>{" "}
+                    (92.5% pure silver) and finished with{" "}
+                    <strong className="text-foreground font-semibold">5 layers of 18K precious metal plating</strong>{" "}
+                    — far beyond the 1–2 coats standard in fashion jewellery. Available in{" "}
+                    <strong className="text-foreground font-semibold">18K Yellow Gold</strong>{" "}
+                    for a warm, timeless lustre,{" "}
+                    <strong className="text-foreground font-semibold">18K White Gold</strong>{" "}
+                    for a crisp, contemporary finish, and{" "}
+                    <strong className="text-foreground font-semibold">18K Rose Gold</strong>{" "}
+                    for a refined, romantic tone.
+                  </p>
+                  <p className="text-muted-foreground">
+                    The{" "}
+                    <strong className="text-foreground font-semibold">double-locking box clasp</strong>{" "}
+                    keeps the chain secured throughout daily wear, travel, and every occasion in between.{" "}
+                    <strong className="text-foreground font-semibold">Hypoallergenic, nickel-free, lead-free, and cadmium-free</strong>{" "}
+                    — safe for all skin types. Every piece ships with a{" "}
+                    <strong className="text-foreground font-semibold">GRA moissanite certificate</strong>{" "}
+                    verifying the stone's grade, cut, and authenticity.
+                  </p>
+                  <div className="border border-border">
+                    {[
+                      ["Stone",       "D Colorless VVS1 Moissanite"],
+                      ["Cut",         "Round Brilliant · 4-Prong Claw Inlay"],
+                      ["Base Metal",  "Solid S925 Sterling Silver (92.5%)"],
+                      ["Plating",     platingSummary(product.color)],
+                      ["Clasp",       "Double-Locking Box Clasp"],
+                      ["Widths",      "3mm · 4mm · 5mm · 6mm"],
+                      ["Lengths",     '16" · 18" · 20" · 22" · 24"'],
+                      ["Starting at", `$${getTennisChainPrice("3mm", '16"').toLocaleString()}`],
+                      ["Gender",      "Unisex — Men's & Women's"],
+                      ["Health",      "Hypoallergenic · Lead-Free · Nickel-Free"],
+                      ["Occasions",   "Daily · Anniversary · Gifting · Special Events"],
+                      ["Certificate", "GRA Certified"],
+                    ].map(([k, v]) => (
+                      <div key={k} className="flex items-start border-b border-border last:border-0 px-4 py-3 gap-3">
+                        <span className="text-[0.44rem] uppercase tracking-[0.16em] text-muted-foreground/60 shrink-0 w-[72px] sm:w-[90px] pt-0.5">{k}</span>
+                        <span className="text-[0.72rem] sm:text-[0.74rem] text-foreground min-w-0 break-words">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : isTennis ? (
+                <div className="space-y-5 text-[0.80rem] leading-[1.90]">
+                  <p className="text-foreground font-medium">
+                    Continuous brilliance, worn close — the{" "}
                     <span className="italic">VVS1 Moissanite Tennis Bracelet.</span>
                   </p>
                   <p className="text-muted-foreground">
@@ -1304,13 +1522,13 @@ function ProductPage() {
                   <p className="text-muted-foreground">
                     Built on a{" "}
                     <strong className="text-foreground font-semibold">solid S925 sterling silver base</strong>{" "}
-                    (92.5% pure) and electroplated{" "}
-                    <strong className="text-foreground font-semibold">5 times in 18K gold</strong>{" "}
+                    (92.5% pure) and finished with{" "}
+                    <strong className="text-foreground font-semibold">5 layers of 18K precious metal plating</strong>{" "}
                     — far beyond the 1–2 coats found on typical fashion jewellery. Choose{" "}
                     <strong className="text-foreground font-semibold">18K Yellow Gold</strong>{" "}
                     for a warm, classic lustre or{" "}
                     <strong className="text-foreground font-semibold">18K White Gold</strong>{" "}
-                    for a clean, icy look that pairs with everything.
+                    for a clean, contemporary finish.
                   </p>
                   <p className="text-muted-foreground">
                     The{" "}
@@ -1608,59 +1826,80 @@ function ProductPage() {
         </div>
       </div>
 
-      {/* ── Complete the look ────────────────────────────────────── */}
-      <section className="bg-cream border-y border-border">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-12 sm:py-16 lg:py-20">
-          <div className="flex items-end justify-between mb-8 sm:mb-12">
-            <div>
-              <p className="eyebrow mb-3">You might also like</p>
-              <h2 className="font-display" style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.8rem)" }}>
-                Complete the look
-              </h2>
-            </div>
-            <Link
-              to="/shop"
-              className="hidden sm:inline-flex items-center gap-2 text-[0.56rem] uppercase tracking-[0.28em] text-muted-foreground hover:text-foreground transition-colors lux-link mb-1"
-            >
-              View All <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-            {[
-              isEarring
-                ? { name: "Matching Chain", slug: siblingSlug, img: gallery[1] }
-                : isRing
-                  ? { name: `${COLOR_SHORT[product.color] ?? "Silver"} Tennis Chain`, slug: `${product.color}-moissanite-tennis-chain`, img: gallery[1] }
-                  : { name: isBracelet ? "Matching Chain" : "Matching Bracelet", slug: siblingSlug, img: gallery[1] },
-              { name: "All Silver", slug: "silver-moissanite-tennis-chain", img: gallery[2] },
-              { name: "All Gold",   slug: "gold-moissanite-tennis-chain",   img: gallery[3] },
-              isRing
-                ? { name: "Engagement Rings", slug: `${product.color}-solitaire-moissanite-ring`, img: gallery[0] }
-                : { name: isEarring ? "All Earrings" : "Complete the Set", slug: isEarring ? `${product.color}-moissanite-stud-earrings` : siblingSlug, img: gallery[0] },
-            ].slice(0, 4).map(sugg => (
-              <Link key={sugg.name} to="/product/$slug" params={{ slug: sugg.slug }} className="group block">
-                <div className="aspect-[3/4] overflow-hidden bg-[oklch(0.97_0.004_75)] relative mb-3">
-                  <img
-                    src={sugg.img}
-                    alt={sugg.name}
-                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  <div
-                    className="absolute top-0 left-0 right-0 h-[2px] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"
-                    style={{ background: "var(--gradient-gold-h)" }}
-                  />
+      {/* ── More Fine Pieces ─────────────────────────────────────── */}
+      {(() => {
+        const SITE = (import.meta.env.VITE_SITE_URL ?? "https://qureshijewelers.com").replace(/\/$/, "");
+        const others = ((allProducts as any[]) ?? [])
+          .filter((op: any) => op.slug !== product.slug && op.is_active)
+          .slice(0, 4);
+        if (others.length === 0) return null;
+        return (
+          <section className="bg-cream border-y border-border">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-12 sm:py-16 lg:py-20">
+              <div className="flex items-end justify-between mb-8 sm:mb-12">
+                <div>
+                  <p className="eyebrow mb-3">Our Collection</p>
+                  <h2 className="font-display" style={{ fontSize: "clamp(1.8rem, 3.5vw, 2.8rem)" }}>
+                    More Fine Pieces
+                  </h2>
                 </div>
-                <p className="text-[0.56rem] uppercase tracking-[0.20em] text-muted-foreground group-hover:text-foreground transition-colors duration-300">
-                  {sugg.name}
-                </p>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
+                <Link
+                  to="/shop"
+                  className="hidden sm:inline-flex items-center gap-2 text-[0.56rem] uppercase tracking-[0.28em] text-muted-foreground hover:text-foreground transition-colors lux-link mb-1"
+                >
+                  View All <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+                {others.map((op: any) => {
+                  const thumb = op.image_url?.startsWith("http")
+                    ? op.image_url
+                    : op.image_url
+                      ? `${SITE}${op.image_url}`
+                      : `${SITE}/QURESHIJEWELERSLOGO.png`;
+                  const typeLabel: Record<string, string> = {
+                    necklace: "Tennis Chain",
+                    bracelet: "Tennis Bracelet",
+                    earring:  "Stud Earrings",
+                    ring:     "Ring",
+                  };
+                  const sub = typeLabel[op.type] ?? op.type;
+                  return (
+                    <Link key={op.slug} to="/product/$slug" params={{ slug: op.slug }} className="group block">
+                      <div className="aspect-[3/4] overflow-hidden bg-[oklch(0.97_0.004_75)] relative mb-3">
+                        <img
+                          src={thumb}
+                          alt={op.name}
+                          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                        <div
+                          className="absolute top-0 left-0 right-0 h-[2px] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"
+                          style={{ background: "var(--gradient-gold-h)" }}
+                        />
+                      </div>
+                      <p className="text-[0.56rem] uppercase tracking-[0.20em] text-muted-foreground group-hover:text-foreground transition-colors duration-300">
+                        {sub}
+                      </p>
+                      <p className="mt-0.5 text-[0.75rem] font-medium leading-snug line-clamp-2 group-hover:text-foreground/80 transition-colors">
+                        {op.name}
+                      </p>
+                    </Link>
+                  );
+                })}
+              </div>
+
+              <div className="mt-8 text-center sm:hidden">
+                <Link to="/shop" className="text-[0.55rem] uppercase tracking-[0.28em] text-muted-foreground hover:text-foreground transition-colors">
+                  View All Pieces <ArrowRight className="h-3 w-3 inline ml-1" />
+                </Link>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
 
       <EmailCapture />
     </>

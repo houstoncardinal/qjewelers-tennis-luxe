@@ -7,3 +7,7 @@ Disallow: /checkout
 Disallow: /cart
 
 Sitemap: https://qureshijewelers.com/sitemap.xml
+
+# AI/LLM Context File — helps AI tools understand our products and expertise
+# https://llmstxt.org
+LLMs: https://qureshijewelers.com/llms.txt

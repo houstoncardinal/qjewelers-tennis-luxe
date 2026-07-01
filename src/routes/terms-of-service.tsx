@@ -8,7 +8,10 @@ export const Route = createFileRoute("/terms-of-service")({
     meta: [
       { title: "Terms of Service — Qureshi Jewelers" },
       { name: "description", content: "Terms of service for Qureshi Jewelers. Please read before making a purchase." },
+      { property: "og:title", content: "Terms of Service — Qureshi Jewelers" },
+      { property: "og:description", content: "Qureshi Jewelers terms of service including returns, warranty, and purchase conditions." },
       { property: "og:url", content: PAGE_URL },
+      { name: "robots", content: "noindex, follow" },
     ],
     links: [{ rel: "canonical", href: PAGE_URL }],
     scripts: [{

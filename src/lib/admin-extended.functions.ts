@@ -165,6 +165,11 @@ export const updateProduct = createServerFn({ method: "POST" })
     admin_notes?: string;
     track_inventory?: boolean;
     stock_quantity?: number | null;
+    color_images?: Record<string, string>;
+    type?: string;
+    color?: string;
+    size?: string | null;
+    length?: string | null;
   }) => d)
   .handler(async ({ data }) => {
     requireAdmin(data.token);
@@ -189,8 +194,8 @@ export const createProduct = createServerFn({ method: "POST" })
     token: string;
     slug: string;
     name: string;
-    type: "necklace" | "bracelet" | "earring" | "ring";
-    color: "silver" | "gold" | "rose_gold" | "white_gold";
+    type: string;
+    color: string;
     size?: string | null;
     length?: string | null;
     short_description: string;

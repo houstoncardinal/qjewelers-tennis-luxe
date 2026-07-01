@@ -8,7 +8,10 @@ export const Route = createFileRoute("/privacy-policy")({
     meta: [
       { title: "Privacy Policy — Qureshi Jewelers" },
       { name: "description", content: "Privacy policy for Qureshi Jewelers — how we collect, use, and protect your personal information." },
+      { property: "og:title", content: "Privacy Policy — Qureshi Jewelers" },
+      { property: "og:description", content: "How Qureshi Jewelers collects, uses, and protects your personal information." },
       { property: "og:url", content: PAGE_URL },
+      { name: "robots", content: "noindex, follow" },
     ],
     links: [{ rel: "canonical", href: PAGE_URL }],
     scripts: [{

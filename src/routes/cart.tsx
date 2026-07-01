@@ -30,7 +30,7 @@ function CartPage() {
       <section className="mx-auto max-w-2xl px-6 py-24 text-center">
         <ShoppingBag className="h-10 w-10 mx-auto text-muted-foreground" />
         <h1 className="mt-6 font-display text-4xl">Your bag is empty</h1>
-        <p className="mt-3 text-sm text-muted-foreground">Discover the collection that's redefining iced out.</p>
+        <p className="mt-3 text-sm text-muted-foreground">VVS moissanite. Solid S925 sterling silver. GRA certified fine jewelry.</p>
         <Link to="/shop" className="inline-flex mt-8 bg-foreground text-background px-8 py-4 text-xs uppercase tracking-[0.22em]">
           Shop the collection
         </Link>

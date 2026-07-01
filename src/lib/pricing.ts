@@ -92,11 +92,11 @@ export const COLOR_SHORT: Record<string, string> = {
 };
 
 export const SIZE_DESCRIPTIONS: Record<string, string> = {
-  "2mm": "Subtle · Daily wear / layering",
+  "2mm": "Refined · Daily wear / layering",
   "3mm": "Versatile · The sweet spot",
   "4mm": "Statement · Bold presence",
-  "5mm": "Bold · Maximum ice",
-  "6.5mm": "Ultra · Heavy iced out",
+  "5mm": "Commanding · Maximum brilliance",
+  "6.5mm": "Ultra · Full luxury statement",
 };
 
 export const EARRING_SIZE_DESCRIPTIONS: Record<string, string> = {
@@ -196,10 +196,18 @@ export const COLOR_HEX: Record<string, string> = {
 };
 
 export const TYPE_LABELS: Record<string, string> = {
-  necklace: "Chain / Necklace",
-  bracelet: "Bracelet",
-  earring:  "Earring",
-  ring:     "Ring",
+  necklace:  "Chain / Necklace",
+  bracelet:  "Bracelet",
+  earring:   "Earring",
+  ring:      "Ring",
+  anklet:    "Anklet",
+  pendant:   "Pendant",
+  charm:     "Charm",
+  set:       "Jewelry Set",
+  cufflinks: "Cufflinks",
+  brooch:    "Brooch / Pin",
+  watch:     "Watch",
+  accessory: "Accessory",
 };
 
 export const isTennisBraceletSlug = (slug: string) => slug.includes("tennis") && slug.includes("bracelet");
@@ -242,6 +250,42 @@ export const TENNIS_BRACELET_LENGTH_DESCRIPTIONS: Record<string, string> = {
   '8"':   'Comfort · Most popular',
   '8.5"': 'Large · Loose fit',
   '9"':   'XL · Extra room',
+};
+
+// ─── Tennis Chain ─────────────────────────────────────────────────────────────
+
+export const SIZES_TENNIS_CHAIN = ["3mm", "4mm", "5mm", "6mm"] as const;
+export type TennisChainSize = (typeof SIZES_TENNIS_CHAIN)[number];
+
+export const LENGTHS_TENNIS_CHAIN = ['16"', '18"', '20"', '22"', '24"'] as const;
+export type TennisChainLength = (typeof LENGTHS_TENNIS_CHAIN)[number];
+
+export const TENNIS_CHAIN_LENGTH_DEFAULT = '20"' as const;
+
+export const TENNIS_CHAIN_PRICES: Record<string, Record<string, number>> = {
+  "3mm": { '16"': 425, '18"': 485, '20"': 545, '22"': 605, '24"': 665 },
+  "4mm": { '16"': 599, '18"': 689, '20"': 779, '22"': 869, '24"': 959 },
+  "5mm": { '16"': 779, '18"': 899, '20"': 1019, '22"': 1139, '24"': 1259 },
+  "6mm": { '16"': 1019, '18"': 1169, '20"': 1319, '22"': 1469, '24"': 1619 },
+};
+
+export function getTennisChainPrice(size: string, length: string): number {
+  return TENNIS_CHAIN_PRICES[size]?.[length] ?? 425;
+}
+
+export const TENNIS_CHAIN_SIZE_DESCRIPTIONS: Record<string, string> = {
+  "3mm": "Classic · Versatile everyday wear",
+  "4mm": "Statement · Bold presence",
+  "5mm": "Bold · Maximum ice",
+  "6mm": "Ultra · Full luxury statement",
+};
+
+export const TENNIS_CHAIN_LENGTH_DESCRIPTIONS: Record<string, string> = {
+  '16"': 'Choker · Sits high on neck',
+  '18"': 'Princess · Rests at collarbone',
+  '20"': 'Matinee · Below collarbone (most popular)',
+  '22"': 'Opera · Mid-chest',
+  '24"': 'Long · Full chest / layering',
 };
 
 export const MOISSANITE_VS_DIAMOND = [

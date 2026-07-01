@@ -32,10 +32,13 @@ import {
   AVAILABLE_SIZES,
   AVAILABLE_LENGTHS,
   AVAILABLE_COLORS,
+  AVAILABLE_RING_SIZES,
   COLOR_LABELS,
   COLOR_HEX,
   TYPE_LABELS,
   isTennisBraceletSlug,
+  isRingType,
+  isRingSlug,
 } from "@/lib/pricing";
 import { getProductThumb } from "@/lib/product-images";
 
@@ -889,6 +892,7 @@ function VariantsManager({
   const [selColors, setSelColors] = useState<string[]>([color].filter(Boolean));
   const [selSizes, setSelSizes] = useState<string[]>([size].filter(Boolean));
   const [selLengths, setSelLengths] = useState<string[]>([length].filter(Boolean));
+  const [selRingSizes, setSelRingSizes] = useState<string[]>([]);
 
   // Database variants
   const [variants, setVariants] = useState<ProductVariant[]>([]);
@@ -912,6 +916,7 @@ function VariantsManager({
   const [markupPercent, setMarkupPercent] = useState<string>("500");
   const [fetchingCost, setFetchingCost] = useState(false);
   const isTennis = isTennisBraceletSlug(slug);
+  const isRing = isRingType(productType) || isRingSlug(slug);
   const sizeOptions = isTennis ? [...SIZES_TENNIS_BRACELET] : AVAILABLE_SIZES;
   const lengthOptions = isTennis ? [...LENGTHS_TENNIS_BRACELET] : AVAILABLE_LENGTHS;
   const visibleVariantPrice = (v: ProductVariant) =>
@@ -919,18 +924,31 @@ function VariantsManager({
       ? getTennisBraceletPrice(v.size, v.length)
       : (v.price_override ?? basePrice);
 
-  // Load variants from DB
+  // Load variants from DB and sync chip selections to match actual DB state
   const loadVariants = useCallback(async () => {
     setLoading(true);
     try {
       const res = await getVariantsFn({ data: { token, slug } });
-      setVariants(res.variants ?? []);
+      const loaded = res.variants ?? [];
+      setVariants(loaded);
+      if (loaded.length > 0) {
+        const dbColors = [...new Set(loaded.map((v: ProductVariant) => v.color).filter(Boolean))] as string[];
+        const dbSizes  = [...new Set(loaded.map((v: ProductVariant) => v.size).filter(Boolean))] as string[];
+        const dbLengths = [...new Set(loaded.map((v: ProductVariant) => v.length).filter(Boolean))] as string[];
+        if (dbColors.length > 0) setSelColors(dbColors);
+        if (isRing) {
+          if (dbSizes.length > 0) setSelRingSizes(dbSizes);
+        } else {
+          if (dbSizes.length > 0) setSelSizes(dbSizes);
+          if (dbLengths.length > 0) setSelLengths(dbLengths);
+        }
+      }
     } catch (e: any) {
       console.warn("Failed to load variants:", e.message);
     } finally {
       setLoading(false);
     }
-  }, [token, slug]);
+  }, [token, slug, isRing]);
 
   useEffect(() => {
     if (expanded && variants.length === 0) loadVariants();
@@ -940,16 +958,18 @@ function VariantsManager({
   const generatePreview = useCallback(() => {
     const combos: Array<{ color: string | null; size: string | null; length: string | null }> = [];
     const colors = selColors.length > 0 ? selColors : [null];
-    const sizes = selSizes.length > 0 ? selSizes : [null];
-    const lengths = selLengths.length > 0 ? selLengths : [null];
+    const sizes = isRing
+      ? (selRingSizes.length > 0 ? selRingSizes : [null])
+      : (selSizes.length > 0 ? selSizes : [null]);
+    const lengths = isRing ? [null] : (selLengths.length > 0 ? selLengths : [null]);
     for (const c of colors) for (const s of sizes) for (const l of lengths) combos.push({ color: c, size: s, length: l });
     return combos;
-  }, [selColors, selSizes, selLengths]);
+  }, [selColors, selSizes, selLengths, selRingSizes, isRing]);
 
   // Regenerate preview when selections change
   useEffect(() => {
     setPreview(generatePreview());
-  }, [selColors, selSizes, selLengths]);
+  }, [selColors, selSizes, selLengths, selRingSizes]);
 
   // Toggle selection
   const toggleColor = (c: string) => setSelColors(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
@@ -1273,34 +1293,63 @@ function VariantsManager({
             </div>
           </div>
 
-          {/* Sizes */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-[0.60rem] uppercase tracking-[0.16em] font-semibold text-gray-500 flex items-center gap-1.5">
-                <Ruler className="h-3.5 w-3.5" /> Sizes
-              </label>
-              <button onClick={() => setSelSizes(selSizes.length === sizeOptions.length ? [] : [...sizeOptions])}
-                className="text-[0.52rem] text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors">
-                {selSizes.length === sizeOptions.length ? "Clear" : "All"}
-              </button>
+          {/* Sizes — ring products get finger sizes; all others get width/mm sizes */}
+          {isRing ? (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-[0.60rem] uppercase tracking-[0.16em] font-semibold text-gray-500 flex items-center gap-1.5">
+                  <Ruler className="h-3.5 w-3.5" /> Ring Sizes
+                </label>
+                <button onClick={() => setSelRingSizes(selRingSizes.length === AVAILABLE_RING_SIZES.length ? [] : [...AVAILABLE_RING_SIZES])}
+                  className="text-[0.52rem] text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors">
+                  {selRingSizes.length === AVAILABLE_RING_SIZES.length ? "Clear" : "All"}
+                </button>
+              </div>
+              <div className="grid grid-cols-4 gap-1.5">
+                {AVAILABLE_RING_SIZES.map(s => {
+                  const active = selRingSizes.includes(s);
+                  return (
+                    <button key={s} onClick={() => setSelRingSizes(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])}
+                      className="flex flex-col items-center justify-center px-2 py-3 rounded-lg border transition-all"
+                      style={active ? { background: "#111827", border: "1px solid #111827", color: "white" }
+                        : { background: "white", border: "1px solid rgba(0,0,0,0.10)", color: "#6b7280" }}>
+                      <span className="text-[0.80rem] font-bold leading-none">{s.replace(/^Ring Size\s*/i, "")}</span>
+                      {active && <Check className="h-3 w-3 mt-1 text-amber-400" />}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div className="grid grid-cols-3 gap-1.5">
-              {sizeOptions.map(s => {
-                const active = selSizes.includes(s);
-                return (
-                  <button key={s} onClick={() => toggleSize(s)}
-                    className="flex flex-col items-center justify-center px-2 py-3 rounded-lg border transition-all"
-                    style={active ? { background: "#111827", border: "1px solid #111827", color: "white" }
-                      : { background: "white", border: "1px solid rgba(0,0,0,0.10)", color: "#6b7280" }}>
-                    <span className="text-[0.80rem] font-bold leading-none">{s}</span>
-                    {active && <Check className="h-3 w-3 mt-1 text-amber-400" />}
-                  </button>
-                );
-              })}
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-[0.60rem] uppercase tracking-[0.16em] font-semibold text-gray-500 flex items-center gap-1.5">
+                  <Ruler className="h-3.5 w-3.5" /> Sizes
+                </label>
+                <button onClick={() => setSelSizes(selSizes.length === sizeOptions.length ? [] : [...sizeOptions])}
+                  className="text-[0.52rem] text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors">
+                  {selSizes.length === sizeOptions.length ? "Clear" : "All"}
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {sizeOptions.map(s => {
+                  const active = selSizes.includes(s);
+                  return (
+                    <button key={s} onClick={() => toggleSize(s)}
+                      className="flex flex-col items-center justify-center px-2 py-3 rounded-lg border transition-all"
+                      style={active ? { background: "#111827", border: "1px solid #111827", color: "white" }
+                        : { background: "white", border: "1px solid rgba(0,0,0,0.10)", color: "#6b7280" }}>
+                      <span className="text-[0.80rem] font-bold leading-none">{s}</span>
+                      {active && <Check className="h-3 w-3 mt-1 text-amber-400" />}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Lengths */}
+          {/* Lengths — hidden for ring products */}
+          {!isRing && (
           <div>
             <div className="flex items-center justify-between mb-3">
               <label className="text-[0.60rem] uppercase tracking-[0.16em] font-semibold text-gray-500 flex items-center gap-1.5">
@@ -1326,6 +1375,7 @@ function VariantsManager({
               })}
             </div>
           </div>
+          )}
         </div>
 
         {/* Generate button */}
@@ -1770,6 +1820,310 @@ function Smartphone({ className }: { className?: string }) {
   );
 }
 
+// ─── Color Image Mapper ────────────────────────────────────────────────────────
+
+function ColorImageMapper({
+  colors,
+  colorImages,
+  onChange,
+  galleryImages,
+}: {
+  colors: string[];
+  colorImages: Record<string, string>;
+  onChange: (map: Record<string, string>) => void;
+  galleryImages: { url: string; alt_text?: string }[];
+}) {
+  const [pickerFor, setPickerFor] = useState<string | null>(null);
+  const [urlInput,  setUrlInput]  = useState("");
+
+  const assign = (color: string, url: string) => {
+    onChange({ ...colorImages, [color]: url });
+    setPickerFor(null);
+    setUrlInput("");
+  };
+
+  const remove = (color: string) => {
+    const next = { ...colorImages };
+    delete next[color];
+    onChange(next);
+  };
+
+  if (colors.length === 0) {
+    return (
+      <p className="text-[0.65rem] text-gray-400 italic">No colors assigned to this product yet. Set colors in the Advanced tab first.</p>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {colors.map(color => {
+        const assigned = colorImages[color];
+        const isPickerOpen = pickerFor === color;
+        return (
+          <div key={color} className="border border-gray-100 overflow-hidden">
+            {/* Row */}
+            <div className="flex items-center gap-3 px-3 py-2.5">
+              {/* Swatch + label */}
+              <div className="flex items-center gap-2 w-36 shrink-0">
+                <span className="w-3 h-3 rounded-full ring-1 ring-black/10 shrink-0" style={{ backgroundColor: COLOR_HEX[color] ?? "#ccc" }} />
+                <span className="text-[0.70rem] font-medium text-gray-700 truncate">{COLOR_LABELS[color] ?? color}</span>
+              </div>
+
+              {/* Assigned image or placeholder */}
+              {assigned ? (
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <img
+                    src={assigned}
+                    alt={COLOR_LABELS[color]}
+                    className="w-11 h-11 object-cover border border-gray-100 shrink-0"
+                  />
+                  <div className="flex gap-3 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => setPickerFor(isPickerOpen ? null : color)}
+                      className="text-[0.60rem] text-indigo-600 hover:text-indigo-800 transition-colors whitespace-nowrap"
+                    >
+                      Change
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => remove(color)}
+                      className="text-[0.60rem] text-red-400 hover:text-red-600 transition-colors whitespace-nowrap"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setPickerFor(isPickerOpen ? null : color)}
+                  className="flex-1 text-left text-[0.65rem] text-gray-400 hover:text-gray-700 border border-dashed border-gray-200 hover:border-gray-400 px-3 py-2 transition-colors"
+                >
+                  + Assign cover image
+                </button>
+              )}
+            </div>
+
+            {/* Picker panel */}
+            {isPickerOpen && (
+              <div className="border-t border-gray-100 bg-gray-50 p-3 space-y-3">
+                <p className="text-[0.56rem] uppercase tracking-[0.12em] text-gray-400">
+                  Pick from gallery for {COLOR_LABELS[color] ?? color}
+                </p>
+
+                {galleryImages.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {galleryImages.map(img => {
+                      const isActive = img.url === assigned;
+                      return (
+                        <button
+                          key={img.url}
+                          type="button"
+                          onClick={() => assign(color, img.url)}
+                          className={`relative w-14 h-14 overflow-hidden border-2 transition-colors ${
+                            isActive ? "border-indigo-500" : "border-transparent hover:border-gray-400"
+                          }`}
+                        >
+                          <img src={img.url} alt="" className="w-full h-full object-cover" />
+                          {isActive && (
+                            <div className="absolute inset-0 bg-indigo-500/20 flex items-center justify-center">
+                              <Check className="h-4 w-4 text-indigo-700 drop-shadow" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-[0.62rem] text-gray-400 italic">No gallery images yet — add some in the Media tab first.</p>
+                )}
+
+                {/* URL input fallback */}
+                <div className="flex gap-2 pt-1">
+                  <input
+                    value={urlInput}
+                    onChange={e => setUrlInput(e.target.value)}
+                    placeholder="Or paste an image URL directly…"
+                    className="flex-1 border border-gray-200 px-2.5 py-1.5 text-[0.70rem] focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white"
+                    onKeyDown={e => { if (e.key === "Enter" && urlInput.trim()) assign(color, urlInput.trim()); }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { if (urlInput.trim()) assign(color, urlInput.trim()); }}
+                    className="px-3 py-1.5 bg-gray-800 text-white text-[0.62rem] uppercase tracking-wider hover:bg-gray-700 transition-colors"
+                  >
+                    Set
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── SEO Keyword Suggester ────────────────────────────────────────────────────
+
+const SEO_KEYWORDS_BY_TYPE: Record<string, string[]> = {
+  necklace:  ["moissanite tennis chain", "VVS tennis chain", "iced out chain", "moissanite necklace", "diamond alternative chain", "S925 tennis necklace", "GRA certified chain"],
+  bracelet:  ["moissanite tennis bracelet", "VVS bracelet", "iced out bracelet", "diamond alternative bracelet", "S925 tennis bracelet", "GRA certified bracelet"],
+  earring:   ["moissanite stud earrings", "VVS earrings", "moissanite studs", "diamond alternative earrings", "S925 stud earrings", "screw back earrings", "GRA certified earrings"],
+  ring:      ["moissanite engagement ring", "VVS ring", "solitaire ring", "lab grown engagement ring", "diamond alternative ring", "S925 moissanite ring", "GRA certified ring"],
+  anklet:    ["moissanite anklet", "VVS anklet", "iced out anklet", "S925 anklet", "diamond alternative anklet"],
+  pendant:   ["moissanite pendant", "VVS pendant", "diamond pendant alternative", "S925 pendant", "moissanite necklace pendant"],
+  charm:     ["moissanite charm", "jewelry charm", "VVS charm", "S925 charm"],
+  set:       ["moissanite jewelry set", "matching jewelry set", "necklace and bracelet set", "VVS set", "S925 jewelry set"],
+  cufflinks: ["moissanite cufflinks", "luxury cufflinks", "VVS cufflinks", "wedding cufflinks", "iced out cufflinks"],
+  brooch:    ["moissanite brooch", "VVS brooch", "luxury lapel pin", "iced out brooch"],
+  watch:     ["moissanite watch", "iced out watch", "diamond watch alternative", "VVS watch bezel"],
+  accessory: ["moissanite accessory", "VVS accessory", "iced out accessory", "luxury moissanite"],
+};
+
+const SEO_KEYWORDS_BY_COLOR: Record<string, string[]> = {
+  silver:     ["sterling silver jewelry", "S925 silver", "silver moissanite", "white silver jewelry"],
+  gold:       ["yellow gold jewelry", "18K gold plated", "gold moissanite", "gold iced out"],
+  rose_gold:  ["rose gold jewelry", "18K rose gold", "pink gold moissanite", "rose gold iced out"],
+  white_gold: ["white gold jewelry", "18K white gold", "platinum look moissanite", "white gold iced out"],
+};
+
+const SEO_KEYWORDS_BRAND = [
+  "moissanite jewelry", "VVS moissanite", "D color moissanite", "GRA certified",
+  "S925 sterling silver", "lab grown gemstone", "iced out jewelry", "luxury moissanite",
+  "buy moissanite", "moissanite vs diamond", "VVS1 D color", "affordable luxury jewelry",
+  "Qureshi Jewelers", "free US shipping jewelry",
+];
+
+function SeoKeywordSuggester({
+  name, type, colors, keywords, onChange,
+}: {
+  name: string; type: string; colors: string[]; keywords: string[]; onChange: (kw: string[]) => void;
+}) {
+  const [customInput, setCustomInput] = useState("");
+
+  const suggestions = useMemo(() => {
+    const pool: string[] = [...SEO_KEYWORDS_BRAND, ...(SEO_KEYWORDS_BY_TYPE[type] ?? [])];
+    for (const c of colors) pool.push(...(SEO_KEYWORDS_BY_COLOR[c] ?? []));
+    const nameLower = name.trim().toLowerCase();
+    if (nameLower) { pool.push(nameLower); pool.push(`buy ${nameLower}`); pool.push(`shop ${nameLower}`); }
+    const seen = new Set(keywords.map(k => k.toLowerCase().trim()));
+    return [...new Set(pool)].filter(k => k && !seen.has(k.toLowerCase().trim()));
+  }, [name, type, colors, keywords]);
+
+  const addKeyword = (kw: string) => onChange([...keywords, kw]);
+  const removeKeyword = (kw: string) => onChange(keywords.filter(k => k !== kw));
+  const handleCustomAdd = () => {
+    const parts = customInput.split(",").map(k => k.trim()).filter(k => k && !keywords.includes(k));
+    if (parts.length > 0) onChange([...keywords, ...parts]);
+    setCustomInput("");
+  };
+
+  const inputCls = "w-full border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-1 focus:ring-gray-400 placeholder:text-gray-300 bg-white";
+
+  return (
+    <div className="space-y-3">
+      {keywords.length > 0 && (
+        <div>
+          <p className="text-[0.56rem] uppercase tracking-[0.14em] text-gray-400 mb-2">Selected ({keywords.length})</p>
+          <div className="flex flex-wrap gap-1.5">
+            {keywords.map(kw => (
+              <span key={kw} className="inline-flex items-center gap-1 bg-gray-900 text-white px-2 py-1 text-[0.62rem]">
+                {kw}
+                <button type="button" onClick={() => removeKeyword(kw)} className="text-white/60 hover:text-white ml-0.5">
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </span>
+            ))}
+            <button type="button" onClick={() => onChange([])} className="text-[0.56rem] uppercase tracking-[0.10em] text-gray-400 hover:text-red-500 px-1 transition-colors">
+              Clear all
+            </button>
+          </div>
+        </div>
+      )}
+
+      {suggestions.length > 0 && (
+        <div>
+          <p className="text-[0.56rem] uppercase tracking-[0.14em] text-gray-400 mb-2">Suggested — click to add</p>
+          <div className="flex flex-wrap gap-1.5">
+            {suggestions.slice(0, 32).map(kw => (
+              <button
+                key={kw}
+                type="button"
+                onClick={() => addKeyword(kw)}
+                className="inline-flex items-center gap-1 border border-gray-200 text-gray-500 hover:border-gray-800 hover:text-gray-900 px-2 py-1 text-[0.62rem] transition-colors"
+              >
+                <span className="text-gray-300 text-[0.55rem]">+</span> {kw}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <input
+          value={customInput}
+          onChange={e => setCustomInput(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); handleCustomAdd(); } }}
+          className={inputCls}
+          placeholder="Type a custom keyword, press Enter or comma to add"
+        />
+        <button
+          type="button"
+          onClick={handleCustomAdd}
+          className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-[0.65rem] uppercase tracking-wider transition-colors"
+        >
+          Add
+        </button>
+      </div>
+      <p className="text-[0.58rem] text-gray-400">Keywords help internal search and structured data. More = better coverage.</p>
+    </div>
+  );
+}
+
+// ─── Multi-select chip row ────────────────────────────────────────────────────
+
+function ChipRow({
+  options, selected, onToggle, onAll, onClear, renderLabel, renderSwatch,
+}: {
+  options: string[];
+  selected: string[];
+  onToggle: (v: string) => void;
+  onAll: () => void;
+  onClear: () => void;
+  renderLabel?: (v: string) => string;
+  renderSwatch?: (v: string) => string | undefined;
+}) {
+  return (
+    <div>
+      <div className="flex flex-wrap gap-1.5 mb-2">
+        {options.map(opt => {
+          const active = selected.includes(opt);
+          const swatch = renderSwatch?.(opt);
+          return (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => onToggle(opt)}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[0.65rem] border transition-colors ${
+                active ? "bg-gray-900 text-white border-gray-900" : "border-gray-200 text-gray-600 hover:border-gray-400"
+              }`}
+            >
+              {swatch && <span className="h-2.5 w-2.5 rounded-full border border-black/10" style={{ background: swatch }} />}
+              {renderLabel?.(opt) ?? opt}
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex gap-3">
+        <button type="button" onClick={onAll} className="text-[0.56rem] uppercase tracking-[0.10em] text-gray-400 hover:text-gray-700 transition-colors">Select All</button>
+        <button type="button" onClick={onClear} className="text-[0.56rem] uppercase tracking-[0.10em] text-gray-400 hover:text-gray-700 transition-colors">Clear</button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Editor ──────────────────────────────────────────────────────────────
 
 function AdminProductEditor() {
@@ -1830,7 +2184,8 @@ function AdminProductEditor() {
 
   // Type & Color
   const [productType,   setProductType]   = useState("bracelet");
-  const [productColor,  setProductColor]  = useState("gold");
+  const [productColor,  setProductColor]  = useState<string[]>(["gold"]);
+  const [colorImages,   setColorImages]   = useState<Record<string, string>>({});
   const [productSize,   setProductSize]   = useState("");
   const [productLength, setProductLength] = useState("");
 
@@ -1851,7 +2206,7 @@ function AdminProductEditor() {
   // SEO
   const [seoTitle,      setSeoTitle]      = useState("");
   const [seoDesc,       setSeoDesc]       = useState("");
-  const [seoKeywords,   setSeoKeywords]   = useState("");
+  const [seoKeywords,   setSeoKeywords]   = useState<string[]>([]);
 
   // Tags
   const [tags,          setTags]          = useState<string[]>([]);
@@ -1914,10 +2269,12 @@ function AdminProductEditor() {
       setBasePrice(bp); setSalePrice(sp); setSaleActive(sa);
       setImageUrl(img); setIsFeatured(feat); setIsActive(act);
       setSortOrder(so); setTrackInventory(ti); setStockQty(sq);
-      setSeoTitle(st); setSeoDesc(sds); setSeoKeywords(sk);
+      setSeoTitle(st); setSeoDesc(sds);
+      setSeoKeywords(sk ? sk.split(",").map((k: string) => k.trim()).filter(Boolean) : []);
       setTags(tgs); setAdminNotes(an);
       setProductType(product.type ?? "bracelet");
-      setProductColor(product.color ?? "gold");
+      setProductColor((product.color ?? "gold").split(",").map((c: string) => c.trim()).filter(Boolean));
+      setColorImages((product as any).color_images ?? {});
       setProductSize(product.size ?? "");
       setProductLength(product.length ?? "");
 
@@ -1928,7 +2285,8 @@ function AdminProductEditor() {
         seo_title: st, seo_description: sds, seo_keywords: sk,
         tags: JSON.stringify(tgs), admin_notes: an,
         type_val: product.type ?? "bracelet",
-        color_val: product.color ?? "gold",
+        color_val: (product.color ?? "gold").split(",").map((c: string) => c.trim()).filter(Boolean).join(","),
+        color_images_val: JSON.stringify((product as any).color_images ?? {}),
         size_val: product.size ?? "",
         length_val: product.length ?? "",
       };
@@ -1954,18 +2312,19 @@ function AdminProductEditor() {
     if (stockQty !== o.stock_qty) d.add("stock_quantity");
     if (seoTitle !== o.seo_title) d.add("seo_title");
     if (seoDesc !== o.seo_description) d.add("seo_description");
-    if (seoKeywords !== o.seo_keywords) d.add("seo_keywords");
+    if (seoKeywords.join(", ") !== o.seo_keywords) d.add("seo_keywords");
     if (JSON.stringify(tags) !== o.tags) d.add("tags");
     if (adminNotes !== o.admin_notes) d.add("admin_notes");
-    if (productType   !== o.type_val)   d.add("type");
-    if (productColor  !== o.color_val)  d.add("color");
+    if (productType                               !== o.type_val)        d.add("type");
+    if (productColor.join(",")                    !== o.color_val)       d.add("color");
+    if (JSON.stringify(colorImages)               !== o.color_images_val) d.add("color_images");
     if (productSize   !== o.size_val)   d.add("size");
     if (productLength !== o.length_val) d.add("length");
     return d;
   }, [name, shortDesc, description, basePrice, salePrice, saleActive, imageUrl,
       isFeatured, isActive, sortOrder, trackInventory, stockQty,
       seoTitle, seoDesc, seoKeywords, tags, adminNotes,
-      productType, productColor, productSize, productLength]);
+      productType, productColor, colorImages, productSize, productLength]);
 
   const save = async () => {
     if (!name.trim()) { toast.error("Name is required"); return; }
@@ -1989,11 +2348,12 @@ function AdminProductEditor() {
     if (d.has("stock_quantity"))    changes.stock_quantity    = trackInventory && stockQty !== "" ? Number(stockQty) : null;
     if (d.has("seo_title"))         changes.seo_title         = seoTitle.trim();
     if (d.has("seo_description"))   changes.seo_description   = seoDesc.trim();
-    if (d.has("seo_keywords"))      changes.seo_keywords      = seoKeywords.trim();
+    if (d.has("seo_keywords"))      changes.seo_keywords      = seoKeywords.join(", ");
     if (d.has("tags"))              changes.tags              = tags;
     if (d.has("admin_notes"))       changes.admin_notes       = adminNotes.trim();
     if (d.has("type"))              changes.type              = productType;
-    if (d.has("color"))             changes.color             = productColor;
+    if (d.has("color"))             changes.color             = productColor.join(",");
+    if (d.has("color_images"))      changes.color_images      = colorImages;
     if (d.has("size"))              changes.size              = productSize || null;
     if (d.has("length"))            changes.length            = productLength || null;
 
@@ -2016,11 +2376,12 @@ function AdminProductEditor() {
       if (d.has("stock_quantity"))    o.stock_qty         = stockQty;
       if (d.has("seo_title"))         o.seo_title         = seoTitle.trim();
       if (d.has("seo_description"))   o.seo_description   = seoDesc.trim();
-      if (d.has("seo_keywords"))      o.seo_keywords      = seoKeywords.trim();
+      if (d.has("seo_keywords"))      o.seo_keywords      = seoKeywords.join(", ");
       if (d.has("tags"))              o.tags              = JSON.stringify(tags);
       if (d.has("admin_notes"))       o.admin_notes       = adminNotes.trim();
-      if (d.has("type"))              o.type_val          = productType;
-      if (d.has("color"))             o.color_val         = productColor;
+      if (d.has("type"))              o.type_val             = productType;
+      if (d.has("color"))             o.color_val            = productColor.join(",");
+      if (d.has("color_images"))      o.color_images_val     = JSON.stringify(colorImages);
       if (d.has("size"))              o.size_val          = productSize;
       if (d.has("length"))            o.length_val        = productLength;
 
@@ -2400,8 +2761,8 @@ function AdminProductEditor() {
                 onSizeChange={setProductSize}
                 length={productLength}
                 onLengthChange={setProductLength}
-                color={productColor}
-                onColorChange={setProductColor}
+                color={productColor[0] ?? "silver"}
+                onColorChange={(c: string) => setProductColor(prev => prev.includes(c) ? prev : [...prev, c])}
                 onSaved={() => {
                   queryClient.invalidateQueries({ queryKey: ["admin-product", token, slug] });
                   queryClient.invalidateQueries({ queryKey: ["admin-product-variant-count", token, slug] });
@@ -2670,6 +3031,33 @@ function AdminProductEditor() {
                 }}
               />
 
+              {/* Color Cover Images */}
+              <div className="rounded-xl overflow-hidden" style={{ background: "white", border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 1px 4px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03)" }}>
+                <div className="p-5 border-b border-gray-50">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[0.58rem] uppercase tracking-[0.18em] text-gray-400">Color Cover Images</p>
+                      <p className="text-[0.62rem] text-gray-400 mt-1">
+                        Assign a hero image per colorway. When a customer selects a color, this image appears automatically.
+                      </p>
+                    </div>
+                    {Object.keys(colorImages).length > 0 && (
+                      <span className="text-[0.60rem] text-emerald-600 bg-emerald-50 px-2 py-0.5 border border-emerald-100">
+                        {Object.keys(colorImages).length} assigned
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="p-5">
+                  <ColorImageMapper
+                    colors={productColor}
+                    colorImages={colorImages}
+                    onChange={setColorImages}
+                    galleryImages={galleryImages}
+                  />
+                </div>
+              </div>
+
               {/* Public Folder Browser */}
               <div className="rounded-xl overflow-hidden" style={{ background: "white", border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 1px 4px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03)" }}>
                 <div className="p-5 border-b border-gray-50 flex items-center justify-between">
@@ -2833,13 +3221,13 @@ function AdminProductEditor() {
                   </div>
                   <div>
                     <label className={labelCls}>SEO Keywords</label>
-                    <input
-                      value={seoKeywords}
-                      onChange={e => setSeoKeywords(e.target.value)}
-                      className={inputCls}
-                      placeholder="moissanite tennis chain, VVS bracelet, GRA certified jewelry…"
+                    <SeoKeywordSuggester
+                      name={product?.name ?? ""}
+                      type={productType}
+                      colors={productColor}
+                      keywords={seoKeywords}
+                      onChange={setSeoKeywords}
                     />
-                    <p className="mt-1 text-[0.58rem] text-gray-400">Comma-separated keywords. Not used directly by Google but helps internal search.</p>
                   </div>
                 </div>
 
@@ -2875,8 +3263,44 @@ function AdminProductEditor() {
               {/* Catalog */}
               <div className={cardCls} style={{ background: "white", border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 1px 4px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03)" }}>
                 <p className="text-[0.58rem] uppercase tracking-[0.18em] text-gray-400 mb-5">Catalog Settings</p>
-                <div className="space-y-4">
+                <div className="space-y-5">
+                  {/* Product Type */}
                   <div>
+                    <label className={labelCls}>Type</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {Object.entries(TYPE_LABELS).map(([key, label]) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setProductType(key)}
+                          className={`px-2.5 py-1.5 text-[0.65rem] border transition-colors ${
+                            productType === key
+                              ? "bg-gray-900 text-white border-gray-900"
+                              : "border-gray-200 text-gray-600 hover:border-gray-400"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Product Color(s) */}
+                  <div>
+                    <label className={labelCls}>Color(s)</label>
+                    <ChipRow
+                      options={AVAILABLE_COLORS}
+                      selected={productColor}
+                      onToggle={c => setProductColor(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])}
+                      onAll={() => setProductColor([...AVAILABLE_COLORS])}
+                      onClear={() => setProductColor([])}
+                      renderLabel={c => COLOR_LABELS[c] ?? c}
+                      renderSwatch={c => COLOR_HEX[c]}
+                    />
+                    <p className="mt-1.5 text-[0.58rem] text-gray-400">Stored on the product. Variants can add additional color dimensions.</p>
+                  </div>
+
+                  <div className="border-t border-gray-50 pt-4">
                     <label className={labelCls}>Sort Order</label>
                     <input
                       type="number" min={0}
@@ -2986,9 +3410,13 @@ function AdminProductEditor() {
               </div>
               <div className="flex justify-between items-center py-2 border-b border-gray-50">
                 <span className="text-[0.62rem] text-gray-400">Color</span>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full ring-1 ring-black/10" style={{ backgroundColor: COLOR_HEX[productColor] || COLOR_HEX[product?.color] }} />
-                  <span className="text-[0.62rem] font-medium text-gray-700">{COLOR_LABELS[productColor] || COLOR_LABELS[product?.color]}</span>
+                <div className="flex items-center gap-1.5 flex-wrap justify-end max-w-[60%]">
+                  {(productColor.length > 0 ? productColor : [(product?.color ?? "gold")]).map(c => (
+                    <span key={c} className="w-2.5 h-2.5 rounded-full ring-1 ring-black/10 shrink-0" style={{ backgroundColor: COLOR_HEX[c] ?? "#ccc" }} />
+                  ))}
+                  <span className="text-[0.62rem] font-medium text-gray-700">
+                    {productColor.length > 0 ? productColor.map(c => COLOR_LABELS[c] ?? c).join(" + ") : (COLOR_LABELS[product?.color] ?? product?.color)}
+                  </span>
                 </div>
               </div>
               {productSize && (

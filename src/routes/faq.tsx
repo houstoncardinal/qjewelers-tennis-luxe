@@ -98,6 +98,44 @@ const FAQ_CATEGORIES = [
       },
     ],
   },
+  {
+    label: "About Moissanite",
+    icon: Sparkles,
+    items: [
+      {
+        q: "What is moissanite jewelry?",
+        a: "Moissanite is a naturally occurring gemstone (silicon carbide) first discovered in a meteorite by Dr. Henri Moissan in 1893. Today, nearly all moissanite is lab-created through an advanced thermal process that produces stones of exceptional clarity and optical purity. Moissanite jewelry uses these lab-grown stones set in precious metals like sterling silver or gold.",
+      },
+      {
+        q: "Is moissanite real or fake?",
+        a: "Moissanite is 100% real — it's a genuine gemstone with its own distinct chemical composition (silicon carbide, SiC). It is not a diamond simulant, cubic zirconia, or fake stone. It has its own crystal structure, hardness rating (9.25 on the Mohs scale), and optical properties that are measurably superior to diamond in brilliance and fire.",
+      },
+      {
+        q: "Is moissanite better than diamond?",
+        a: "In several measurable ways, yes. Moissanite has a higher refractive index (2.65–2.69 vs. diamond's 2.42), meaning it produces more brilliance and fire than a diamond of equal size. It scores 9.25 on the Mohs hardness scale (diamond is 10), making it the second hardest gemstone on earth. It is also dramatically more affordable — typically 90% less expensive than a comparable diamond — and is ethically sourced with zero mining impact.",
+      },
+      {
+        q: "What does VVS moissanite mean?",
+        a: "VVS stands for Very Very Slightly Included — the second-highest clarity grade on the gemological scale. VVS stones have inclusions so small they are virtually invisible even under 10x magnification, meaning the stone appears flawless to the naked eye. All Qureshi Jewelers pieces use VVS clarity moissanite for maximum brilliance with no visible imperfections.",
+      },
+      {
+        q: "Does moissanite pass a diamond tester?",
+        a: "Yes — moissanite passes standard thermal diamond testers because its thermal conductivity is similar to diamond. It will also pass electrical conductivity testers designed to distinguish moissanite from cubic zirconia. Only specialized dual-mode (thermal + electrical) testers will distinguish moissanite from diamond. This is further evidence that moissanite is a genuine, high-quality gemstone — not a cheap simulant.",
+      },
+      {
+        q: "What is GRA certification for moissanite?",
+        a: "GRA (Gemstone Research Association) is an independent gemological laboratory that tests and certifies moissanite stones. A GRA certificate verifies the stone's authenticity, clarity grade, color grade, and carat weight. Every piece from Qureshi Jewelers ships with a GRA certificate of authenticity so you have independent, third-party verification of your stone's quality.",
+      },
+      {
+        q: "Why choose moissanite over diamond for a tennis chain?",
+        a: "For iced-out jewelry like tennis chains and bracelets, moissanite is the superior choice for four reasons: (1) Brilliance — moissanite's higher refractive index produces more sparkle and fire than diamond. (2) Cost — get the same visual impact at a fraction of the price. (3) Ethics — lab-created, zero mining impact. (4) Durability — at 9.25 Mohs hardness, moissanite resists scratching and chipping in daily wear.",
+      },
+      {
+        q: "Does moissanite lose its brilliance over time?",
+        a: "No. Moissanite's optical properties are permanent and inherent to its crystal structure — not a surface treatment or coating. Unlike cubic zirconia, which clouds and loses brilliance over time, moissanite maintains its fire and sparkle indefinitely. Qureshi Jewelers backs every stone with a lifetime brilliance guarantee.",
+      },
+    ],
+  },
 ];
 
 const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://qureshijewelers.com").replace(/\/$/, "");
@@ -105,11 +143,16 @@ const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://qureshijewelers.com"
 export const Route = createFileRoute("/faq")({
   head: () => ({
     meta: [
-      { title: "FAQ — Shipping, Returns & Care | Qureshi Jewelers" },
-      { name: "description", content: "Frequently asked questions about Qureshi Jewelers moissanite tennis chains: shipping, returns, care, sizing, certification, and more." },
-      { property: "og:title", content: "FAQ — Qureshi Jewelers" },
-      { property: "og:description", content: "Shipping, returns, care, sizing — everything you need to know." },
+      { title: "FAQ — Moissanite Jewelry, Shipping & Returns | Qureshi Jewelers" },
+      { name: "description", content: "Everything you need to know about Qureshi Jewelers moissanite tennis chains: what is moissanite, is it real, VVS vs diamond, GRA certification, shipping, returns, and care." },
+      { property: "og:title", content: "FAQ — Moissanite Jewelry Explained | Qureshi Jewelers" },
+      { property: "og:description", content: "Is moissanite real? Better than diamond? What does VVS mean? Plus shipping, returns, sizing, and care guides." },
       { property: "og:url", content: `${SITE_URL}/faq` },
+      { property: "og:image", content: `${SITE_URL}/QURESHIJEWELERSLOGO.png` },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "FAQ — Moissanite Jewelry Explained | Qureshi Jewelers" },
+      { name: "twitter:description", content: "Is moissanite real? Better than diamond? What does VVS mean? Plus shipping, returns, sizing, and care." },
+      { name: "twitter:image", content: `${SITE_URL}/QURESHIJEWELERSLOGO.png` },
     ],
     links: [{ rel: "canonical", href: `${SITE_URL}/faq` }],
     scripts: [
@@ -118,11 +161,27 @@ export const Route = createFileRoute("/faq")({
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "FAQPage",
+          "@id": `${SITE_URL}/faq#faqpage`,
+          name: "Qureshi Jewelers FAQ — Moissanite Jewelry, Shipping & Returns",
+          url: `${SITE_URL}/faq`,
+          isPartOf: { "@id": `${SITE_URL}/#website` },
+          about: [
+            { "@type": "Thing", name: "Moissanite", sameAs: "https://en.wikipedia.org/wiki/Moissanite" },
+            { "@type": "Organization", "@id": `${SITE_URL}/#organization` },
+          ],
+          speakable: {
+            "@type": "SpeakableSpecification",
+            cssSelector: ["h1", "h2", "h3", ".faq-answer"],
+          },
           mainEntity: FAQ_CATEGORIES.flatMap((cat) =>
             cat.items.map((item) => ({
               "@type": "Question",
               name: item.q,
-              acceptedAnswer: { "@type": "Answer", text: item.a },
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: item.a,
+                author: { "@id": `${SITE_URL}/#organization` },
+              },
             }))
           ),
         }),

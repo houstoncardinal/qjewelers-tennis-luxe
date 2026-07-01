@@ -9,22 +9,101 @@ export const Route = createFileRoute("/size-guide")({
     meta: [
       { title: "Tennis Chain & Bracelet Size Guide — Widths & Lengths | Qureshi Jewelers" },
       { name: "description", content: "Find your perfect fit. Tennis chain and bracelet size guide for 2mm, 3mm, 4mm, 5mm widths. Necklace lengths: 18, 20, 24 inches. Printable size guide included." },
-      { property: "og:title", content: "Size Guide — Qureshi Jewelers" },
-      { property: "og:description", content: "Find your perfect tennis chain or bracelet fit. Widths, lengths, and sizing tips." },
+      { property: "og:title", content: "Tennis Chain & Bracelet Size Guide — Widths & Lengths | Qureshi Jewelers" },
+      { property: "og:description", content: "Find your perfect tennis chain or bracelet fit. 2mm to 5mm widths, 16\" to 24\" necklace lengths explained." },
       { property: "og:url", content: PAGE_URL },
+      { property: "og:image", content: `${SITE_URL}/QURESHIJEWELERSLOGO.png` },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Tennis Chain & Bracelet Size Guide | Qureshi Jewelers" },
+      { name: "twitter:description", content: "Find your perfect fit: 2mm–5mm widths, 16\"–24\" necklace lengths, and bracelet sizing tips." },
+      { name: "twitter:image", content: `${SITE_URL}/QURESHIJEWELERSLOGO.png` },
     ],
     links: [{ rel: "canonical", href: PAGE_URL }],
-    scripts: [{
-      type: "application/ld+json",
-      children: JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "BreadcrumbList",
-        itemListElement: [
-          { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
-          { "@type": "ListItem", position: 2, name: "Size Guide", item: PAGE_URL },
-        ],
-      }),
-    }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+            { "@type": "ListItem", position: 2, name: "Size Guide", item: PAGE_URL },
+          ],
+        }),
+      },
+      // HowTo schema: "How to Choose the Right Tennis Chain Size"
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "HowTo",
+          name: "How to Choose the Right Tennis Chain Size",
+          description: "Step-by-step guide to selecting the perfect width and length for a moissanite tennis chain.",
+          totalTime: "PT3M",
+          step: [
+            {
+              "@type": "HowToStep",
+              position: 1,
+              name: "Decide on chain width",
+              text: "2mm is subtle and ideal for layering. 3mm is the most popular, balancing visibility and elegance. 4mm makes a statement. 5mm is maximum ice — bold and highly visible.",
+            },
+            {
+              "@type": "HowToStep",
+              position: 2,
+              name: "Choose your necklace length",
+              text: "16\" sits at the base of the neck (very choker). 18\" sits at the collarbone — elegant and classic. 20\" falls just below the collarbone — the most purchased length. 24\" hangs mid-chest for a layered or pendant look.",
+            },
+            {
+              "@type": "HowToStep",
+              position: 3,
+              name: "Choose your bracelet length",
+              text: "Measure your wrist with a flexible tape. Add ½\" for a snug fit, or 1\" for a relaxed fit. Most adult wrists fit a 7\" or 8\" tennis bracelet. Our bracelets have a double-locking clasp for security.",
+            },
+            {
+              "@type": "HowToStep",
+              position: 4,
+              name: "Consider metal finish",
+              text: "Sterling Silver: cool and minimal. 18K Yellow Gold: warm and classic. Rose Gold: feminine and modern. White Gold: crisp and platinum-adjacent. All finishes use the same VVS moissanite set in solid S925 sterling silver with a 5x e-coating.",
+            },
+          ],
+          about: { "@type": "Product", name: "Moissanite Tennis Chains", url: `${SITE_URL}/shop?type=necklace` },
+        }),
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "HowTo",
+          name: "How to Measure Wrist Size for a Tennis Bracelet",
+          description: "How to accurately measure your wrist to find the right moissanite tennis bracelet length.",
+          totalTime: "PT2M",
+          supply: [
+            { "@type": "HowToSupply", name: "Flexible measuring tape or string" },
+            { "@type": "HowToSupply", name: "Ruler (if using string)" },
+          ],
+          step: [
+            {
+              "@type": "HowToStep",
+              position: 1,
+              name: "Wrap the tape around your wrist",
+              text: "Wrap a flexible measuring tape or a strip of paper just below your wrist bone (where you would naturally wear a bracelet). Keep it snug but not tight.",
+            },
+            {
+              "@type": "HowToStep",
+              position: 2,
+              name: "Note the measurement",
+              text: "Read the measurement in inches. This is your wrist circumference.",
+            },
+            {
+              "@type": "HowToStep",
+              position: 3,
+              name: "Add for fit preference",
+              text: "Add ½\" to your wrist measurement for a snug, secure fit. Add ¾\" to 1\" for a more relaxed drape. Most people with a 6.5\"–7.5\" wrist choose a 7\" bracelet. Those with a 7.5\"–8\" wrist usually prefer the 8\" option.",
+            },
+          ],
+        }),
+      },
+    ],
   }),
   component: SizeGuide,
 });

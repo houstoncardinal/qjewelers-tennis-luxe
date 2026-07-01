@@ -14,8 +14,13 @@ export const Route = createFileRoute("/contact")({
     meta: [
       { title: "Contact — Qureshi Jewelers | Custom Lengths & Concierge" },
       { name: "description", content: "Reach the Qureshi Jewelers concierge for custom lengths, order help, or wholesale inquiries on S925 moissanite tennis chains." },
-      { property: "og:title", content: "Contact — Qureshi Jewelers" },
+      { property: "og:title", content: "Contact — Qureshi Jewelers | Custom Lengths & Concierge" },
+      { property: "og:description", content: "Reach the Qureshi Jewelers concierge for custom lengths, order help, or wholesale inquiries on S925 moissanite tennis chains." },
       { property: "og:url", content: PAGE_URL },
+      { property: "og:image", content: `${SITE_URL}/QURESHIJEWELERSLOGO.png` },
+      { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "Contact — Qureshi Jewelers" },
+      { name: "twitter:description", content: "Reach the Qureshi concierge for custom lengths, order help, or wholesale inquiries." },
     ],
     links: [{ rel: "canonical", href: PAGE_URL }],
     scripts: [

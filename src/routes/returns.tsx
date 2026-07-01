@@ -14,7 +14,12 @@ export const Route = createFileRoute("/returns")({
       { title: "Start a Return — Qureshi Jewelers" },
       { name: "description", content: "Submit a return request for your Qureshi Jewelers order. 14-day return window." },
       { property: "og:title", content: "Start a Return — Qureshi Jewelers" },
+      { property: "og:description", content: "Submit a return request for your Qureshi Jewelers order. 14-day return window on unworn jewelry." },
       { property: "og:url", content: PAGE_URL },
+      { property: "og:image", content: `${SITE_URL}/QURESHIJEWELERSLOGO.png` },
+      { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "Start a Return — Qureshi Jewelers" },
+      { name: "twitter:description", content: "14-day return window. Submit your return request online." },
     ],
     links: [{ rel: "canonical", href: PAGE_URL }],
     scripts: [{
