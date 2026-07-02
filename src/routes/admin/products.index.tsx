@@ -331,6 +331,13 @@ interface ImportResult {
   suggestedPrice: number | null;
   aiEnriched: boolean;
   confidence: "high" | "medium" | "low" | null;
+  detectedVariations: Array<{
+    width?:    string;
+    length?:   string;
+    color?:    string;
+    other?:    string;
+    unitPrice: number | null;
+  }>;
 }
 
 const IS_SUPPLIER_URL = /alibaba\.com|aliexpress\.com|1688\.com|dhgate\.com|temu\.com|made-in-china\.com/i;
@@ -811,6 +818,57 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                     </div>
                     <p className="text-[0.57rem] text-gray-500">
                       Supplier pricing extracted from product page. These figures are never shown to customers.
+                    </p>
+                  </div>
+                )}
+
+                {/* Variation matrix — shows all extracted SKU combinations with costs */}
+                {result.detectedVariations && result.detectedVariations.length > 0 && (
+                  <div className="border border-dashed border-blue-200 bg-blue-50 p-4 space-y-3">
+                    <p className="text-[0.56rem] uppercase tracking-[0.14em] text-blue-700 flex items-center gap-1.5">
+                      <Layers className="h-3 w-3 shrink-0" />
+                      {result.detectedVariations.length} Variation{result.detectedVariations.length !== 1 ? "s" : ""} Detected — Source Pricing
+                    </p>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-[0.62rem] border-collapse">
+                        <thead>
+                          <tr className="bg-blue-100">
+                            {["width","length","color","other"].filter(k =>
+                              result.detectedVariations.some((v: any) => v[k])
+                            ).map(k => (
+                              <th key={k} className="px-2.5 py-1.5 text-left font-semibold text-blue-800 uppercase tracking-[0.08em] border-b border-blue-200 capitalize">{k}</th>
+                            ))}
+                            <th className="px-2.5 py-1.5 text-right font-semibold text-blue-800 uppercase tracking-[0.08em] border-b border-blue-200">Cost</th>
+                            <th className="px-2.5 py-1.5 text-right font-semibold text-blue-800 uppercase tracking-[0.08em] border-b border-blue-200">3× Retail</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {result.detectedVariations.slice(0, 30).map((v: any, i: number) => {
+                            const activeKeys = ["width","length","color","other"].filter(k =>
+                              result.detectedVariations.some((vv: any) => vv[k])
+                            );
+                            return (
+                              <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-blue-50/50"}>
+                                {activeKeys.map(k => (
+                                  <td key={k} className="px-2.5 py-1.5 text-blue-900 border-b border-blue-100">{v[k] ?? "—"}</td>
+                                ))}
+                                <td className="px-2.5 py-1.5 text-right font-mono text-blue-900 border-b border-blue-100">
+                                  {v.unitPrice != null ? `$${v.unitPrice.toFixed(2)}` : "—"}
+                                </td>
+                                <td className="px-2.5 py-1.5 text-right font-mono font-semibold text-emerald-700 border-b border-blue-100">
+                                  {v.unitPrice != null ? `$${(v.unitPrice * 3).toFixed(2)}` : "—"}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    {result.detectedVariations.length > 30 && (
+                      <p className="text-[0.57rem] text-blue-500">+ {result.detectedVariations.length - 30} more variations not shown</p>
+                    )}
+                    <p className="text-[0.57rem] text-blue-500">
+                      Source cost × 3× = suggested retail starting point. Adjust in the pricing tab after import.
                     </p>
                   </div>
                 )}

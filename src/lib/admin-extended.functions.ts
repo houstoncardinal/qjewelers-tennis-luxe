@@ -838,6 +838,171 @@ function detectMetalPurity(text: string): string | null {
   return null;
 }
 
+// ─── Supplier variant extractor ──────────────────────────────────────────────
+// Alibaba / AliExpress / DHgate embed ALL variation data (SKU attributes +
+// per-tier prices) as JSON inside <script> tags. This function tries every
+// known pattern to surface the full matrix BEFORE handing off to GPT-4o,
+// so the AI can reason about concrete numbers rather than guessing.
+
+export interface ExtractedVariant {
+  attributes: Record<string, string>; // { width:"3mm", color:"gold", length:"18in" }
+  unitPrice:  number | null;          // per-unit cost at min MOQ
+}
+
+export function extractSupplierVariants(html: string): {
+  variants:       ExtractedVariant[];
+  minPrice:       number | null;
+  rawPricingText: string;           // human-readable pricing lines for the AI prompt
+} {
+  const variants: ExtractedVariant[] = [];
+  let minPrice: number | null = null;
+  const pricingLines: string[] = [];
+
+  const parsePrice = (s: string): number | null => {
+    const n = parseFloat(String(s ?? "").replace(/[^0-9.]/g, ""));
+    return (n > 0.1 && n < 5000) ? n : null;
+  };
+  const normKey = (s: string) =>
+    s.toLowerCase().trim().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+  const trackMin = (p: number | null) => {
+    if (p && (!minPrice || p < minPrice)) minPrice = p;
+  };
+
+  // ── 1. AliExpress / Alibaba: window.runParams (skuModule) ─────────────────
+  const rpM = html.match(/window\.runParams\s*=\s*(\{[\s\S]{500,500000}?\});\s*(?:window\.|var |let |const |\/\/|<)/);
+  if (rpM) {
+    try {
+      const rp = JSON.parse(rpM[1]);
+      const skuMod = rp?.data?.skuModule ?? rp?.skuModule;
+      if (skuMod) {
+        const salePropList: any[] = skuMod.productSKUPropertyList ?? skuMod.skuBase?.saleProp ?? [];
+        const priceList: any[]    = skuMod.skuPriceList ?? [];
+        for (const priceItem of priceList) {
+          const attrs: Record<string, string> = {};
+          const propIds = String(priceItem.skuPropIds ?? "").split(",");
+          for (const prop of salePropList) {
+            const pName = prop.skuPropertyName ?? prop.propertyName ?? "";
+            for (const val of (prop.skuPropertyValues ?? prop.propertyValues ?? [])) {
+              const valId = String(val.propertyValueId ?? val.skuPropertyValueId ?? "");
+              if (propIds.includes(valId)) {
+                attrs[normKey(pName)] = val.propertyValueName ?? val.skuPropertyValueName ?? valId;
+              }
+            }
+          }
+          const p = parsePrice(priceItem.skuAmount?.value ?? priceItem.skuVal?.actSkuCalPrice ?? "");
+          variants.push({ attributes: attrs, unitPrice: p });
+          trackMin(p);
+        }
+        // Also grab displayed sale properties as dimension summary
+        for (const prop of salePropList) {
+          const pName = prop.skuPropertyName ?? prop.propertyName ?? "";
+          const vals: string[] = (prop.skuPropertyValues ?? []).map(
+            (v: any) => v.propertyValueName ?? v.skuPropertyValueName ?? ""
+          ).filter(Boolean);
+          if (pName && vals.length) pricingLines.push(`${pName}: ${vals.join(", ")}`);
+        }
+      }
+    } catch {}
+  }
+
+  // ── 2. Next.js pages: window.__NEXT_DATA__ ────────────────────────────────
+  if (variants.length === 0) {
+    const ndM = html.match(/window\.__NEXT_DATA__\s*=\s*(\{[\s\S]{500,800000}?\})\s*<\/script>/);
+    if (ndM) {
+      try {
+        const nd = JSON.parse(ndM[1]);
+        const prod =
+          nd?.props?.pageProps?.data?.productInfo ??
+          nd?.props?.pageProps?.data?.product ??
+          nd?.props?.pageProps?.detailData ??
+          nd?.props?.initialData?.data;
+        const skus: any[] = prod?.skuList ?? prod?.variantList ?? prod?.skus ?? [];
+        for (const sku of skus) {
+          const attrs: Record<string, string> = {};
+          const raw = sku.attributes ?? sku.attributeMap ?? sku.skuAttributes ?? {};
+          if (Array.isArray(raw)) {
+            for (const a of raw) attrs[normKey(String(a.name ?? a.key ?? ""))] = String(a.value ?? "");
+          } else {
+            for (const [k, v] of Object.entries(raw)) attrs[normKey(k)] = String(v);
+          }
+          const p = parsePrice(String(sku.price ?? sku.unitPrice ?? sku.salePrice ?? ""));
+          variants.push({ attributes: attrs, unitPrice: p });
+          trackMin(p);
+        }
+      } catch {}
+    }
+  }
+
+  // ── 3. Generic skuList / variantList JSON blobs ────────────────────────────
+  if (variants.length === 0) {
+    for (const key of ["skuList", "skuStockList", "variantList", "skuBoardList", "productSkuList", "offerList"]) {
+      const m = html.match(new RegExp(`"${key}"\\s*:\\s*(\\[\\s*\\{[\\s\\S]{10,80000}?\\}\\s*\\])`, "s"));
+      if (!m) continue;
+      try {
+        const list = JSON.parse(m[1]) as any[];
+        for (const sku of list) {
+          const attrs: Record<string, string> = {};
+          const rawA = sku.attributes ?? sku.skuAttributes ?? sku.attrList ?? sku.props ?? [];
+          if (typeof rawA === "string") {
+            for (const part of rawA.split(/[;,]/)) {
+              const [k, v] = part.split(":").map((s: string) => s.trim());
+              if (k && v) attrs[normKey(k)] = v;
+            }
+          } else if (Array.isArray(rawA)) {
+            for (const a of rawA) {
+              const k = a.name ?? a.attrName ?? a.key ?? a.prop ?? "";
+              const v = a.value ?? a.attrValue ?? a.val ?? "";
+              if (k) attrs[normKey(String(k))] = String(v);
+            }
+          }
+          const p = parsePrice(String(sku.price ?? sku.unitPrice ?? sku.salePrice ?? sku.skuPrice ?? ""));
+          if (Object.keys(attrs).length > 0 || p) { variants.push({ attributes: attrs, unitPrice: p }); trackMin(p); }
+        }
+        if (variants.length > 0) break;
+      } catch {}
+    }
+  }
+
+  // ── 4. attributeList / saleProps — variation dimensions (no per-SKU price) ─
+  if (pricingLines.length === 0) {
+    for (const key of ["attributeList", "saleProps", "skuProps", "productAttribute", "specifications"]) {
+      const m = html.match(new RegExp(`"${key}"\\s*:\\s*(\\[[\\s\\S]{10,15000}?\\])`, "s"));
+      if (!m) continue;
+      try {
+        const list = JSON.parse(m[1]) as any[];
+        for (const prop of list) {
+          const pName = prop.attrName ?? prop.skuPropertyName ?? prop.name ?? prop.key ?? "";
+          const vals: any[] = prop.attrValues ?? prop.skuPropertyValues ?? prop.values ?? prop.valueList ?? [];
+          const valStrs = vals.map((v: any) => v.attrValue ?? v.skuPropertyValueName ?? v.value ?? String(v)).filter(Boolean);
+          if (pName && valStrs.length) pricingLines.push(`${pName}: ${valStrs.join(", ")}`);
+        }
+      } catch {}
+    }
+  }
+
+  // ── 5. Tiered pricing text — "≥1 Piece US$X.XX" / "1-9 pcs: $X.XX" ────────
+  const tierRe = [
+    /(?:≥|>=?)\s*1\s*(?:pcs?|piece|unit|pair|set)[^$\n]{0,40}US?\$\s*([\d.]+)/gi,
+    /1\s*[-–]\s*\d+\s*(?:pcs?|piece|unit)[^$\n]{0,30}US?\$\s*([\d.]+)/gi,
+    /US?\$\s*([\d.]+)\s*\/\s*(?:pcs?|piece|unit)/gi,
+    /"startPrice"\s*:\s*"?([\d.]+)"?/g,
+    /"priceFrom"\s*:\s*"?([\d.]+)"?/g,
+    /"min_price"\s*:\s*"?([\d.]+)"?/g,
+  ];
+  for (const re of tierRe) {
+    for (const m of html.matchAll(re)) {
+      const p = parsePrice(m[1]);
+      if (p) { pricingLines.push(`Min unit price: $${p}`); trackMin(p); break; }
+    }
+  }
+
+  return {
+    variants: variants.slice(0, 80),
+    minPrice,
+    rawPricingText: pricingLines.slice(0, 25).join("\n"),
+  };
+}
+
 // Extract the supplier's wholesale unit price in USD (for markup calculation).
 function detectSupplierPrice(text: string): number | null {
   // Price range: US $5.00 - $15.00, $3.50-$8.99/pc, etc.
@@ -861,31 +1026,41 @@ function detectSupplierPrice(text: string): number | null {
 // OPENAI_API_KEY is not configured or the call fails/times out.
 
 interface AIEnrichment {
-  luxuryTitle:      string;
-  shortDescription: string;
-  fullDescription:  string;
-  seoDescription:   string;
-  productType:      string | null;
-  stoneShape:       string | null;
-  metalPurity:      string | null;
-  supplierPrice:    number | null;
-  caratWeight:      string | null;
-  stoneDiameter:    string | null;
-  stoneCount:       number | null;
-  clarity:          string | null;
-  colorGrade:       string | null;
-  additionalTags:   string[];
-  confidence:       "high" | "medium" | "low";
+  luxuryTitle:        string;
+  shortDescription:   string;
+  fullDescription:    string;
+  seoDescription:     string;
+  productType:        string | null;
+  stoneShape:         string | null;
+  metalPurity:        string | null;
+  supplierPrice:      number | null;  // min unit cost at lowest MOQ
+  caratWeight:        string | null;
+  stoneDiameter:      string | null;
+  stoneCount:         number | null;
+  clarity:            string | null;
+  colorGrade:         string | null;
+  additionalTags:     string[];
+  confidence:         "high" | "medium" | "low";
+  detectedVariations: Array<{
+    width?:     string;
+    length?:    string;
+    color?:     string;
+    other?:     string;
+    unitPrice:  number | null;
+  }>;
 }
 
 async function enrichWithAI(params: {
-  rawName:        string;
-  rawDescription: string;
-  attributes:     { name: string; value: string }[];
-  fullText:       string;
-  detectedType:   string | null;
-  detectedColors: string[];
-  sourceUrl:      string;
+  rawName:         string;
+  rawDescription:  string;
+  attributes:      { name: string; value: string }[];
+  fullText:        string;
+  detectedType:    string | null;
+  detectedColors:  string[];
+  sourceUrl:       string;
+  extractedVariants?: ExtractedVariant[];
+  rawPricingText?:  string;
+  extractedMinPrice?: number | null;
 }): Promise<AIEnrichment | null> {
   if (!openai) return null;
 
@@ -896,57 +1071,73 @@ async function enrichWithAI(params: {
   const colorHint = params.detectedColors.map(c => COLOR_LABEL[c] ?? c).join(", ") || "unknown metal";
   const specBlock = params.attributes.slice(0, 25).map(a => `${a.name}: ${a.value}`).join("\n");
 
+  // Build structured variant block for the prompt
+  const variantBlock = (() => {
+    if (params.extractedVariants && params.extractedVariants.length > 0) {
+      const lines = params.extractedVariants.slice(0, 40).map(v => {
+        const attrStr = Object.entries(v.attributes).map(([k, val]) => `${k}=${val}`).join(", ");
+        return `  { ${attrStr}${v.unitPrice != null ? `, price=$${v.unitPrice}` : ""} }`;
+      });
+      return `\nExtracted SKU variants (${params.extractedVariants.length} total):\n${lines.join("\n")}`;
+    }
+    if (params.rawPricingText) return `\nVariation/pricing text from page:\n${params.rawPricingText}`;
+    return "";
+  })();
+
   const systemPrompt = `You are the senior product intelligence analyst and luxury copywriter for Qureshi Jewelers — a premium moissanite jewelry boutique where customers pay $89–$2,000 per piece. Your copy reads at the level of Tiffany & Co. and Mejuri: confident, precise, aspirational, never pushy or clichéd.
 
 BRAND POSITIONING:
 - We sell VVS1 D-Color moissanite (GRA certified) set in solid S925 sterling silver with 18K gold/rose gold/white gold plating
-- We DO NOT position moissanite as "cheap diamonds" — we position it as the superior, ethical, brilliant-cut alternative
-- Avoid: "iced out", "drip", "swag", "flashy", "blingy", "dope", "fire" — these are not our brand
+- We position moissanite as the superior, ethical, brilliant-cut alternative — never as a "cheap diamond"
+- Avoid: "iced out", "drip", "swag", "flashy", "blingy", "dope" — not our brand
 - Use: "precision", "brilliance", "craftsmanship", "hand-set", "calibrated", "aspirational", "refined"
 
 STRICT RULES:
 - NEVER reveal the supplier, source URL, or wholesale origin
 - NEVER use: wholesale, factory, MOQ, hot sale, OEM, dropship, bulk, pcs, lot, sample, alibaba, aliexpress, supplier
 - NEVER fabricate specifications — if uncertain, use null
-- Output ONLY valid JSON — no markdown fences, no commentary, no explanation`;
+- Output ONLY valid JSON — no markdown fences, no commentary`;
 
-  const userPrompt = `I've scraped a product from a wholesale supplier. Analyze it and produce luxury retail content + extract every verifiable specification.
+  const userPrompt = `Analyze this wholesale product and produce luxury retail copy + extract every verifiable specification and ALL available variations.
 
 ═══ RAW SUPPLIER DATA ═══
 Title: ${params.rawName || "(none)"}
-Description: ${params.rawDescription.slice(0, 800) || "(none)"}
+Description: ${params.rawDescription.slice(0, 3000) || "(none)"}
 Specifications:
 ${specBlock || "(none)"}
-Additional page text: ${params.fullText.slice(0, 1200)}
+${variantBlock}
+${params.extractedMinPrice != null ? `Detected minimum unit price: $${params.extractedMinPrice}` : ""}
+Additional page text: ${params.fullText.slice(0, 5000)}
 Detected metal finish: ${colorHint}
 Detected product type: ${params.detectedType || "unknown"}
-Source URL (do not mention): ${params.sourceUrl.replace(/[?#].*$/, "").slice(0, 120)}
+Source: ${params.sourceUrl.replace(/[?#].*$/, "").slice(0, 120)}
 
 ═══ OUTPUT INSTRUCTIONS ═══
-1. luxuryTitle: 70–140 chars, SEO-optimized, luxury language. Include: key stone spec, metal, product type. Example: "VVS1 D-Color Moissanite Tennis Bracelet — 4mm | 18K Gold Plated | S925 Sterling Silver"
-2. shortDescription: Exactly 1 sentence, 110–200 chars, elegant & precise. No filler. This is the subtitle shown on the product card.
-3. fullDescription: 4–6 substantial paragraphs separated by double newlines. First paragraph: the hero statement. Middle: technical brilliance, craftsmanship, stone quality. Last paragraph: styling/occasion. Weave specs in naturally. No bullet points.
-4. seoDescription: Under 155 chars, primary keyword first, conversion-focused, includes stone grade and metal.
-5. productType: One of: necklace | bracelet | earring | ring | anklet | pendant — or null if unclear
+1. luxuryTitle: 70–140 chars, SEO-optimized, luxury language. Include key stone spec, metal, product type.
+2. shortDescription: Exactly 1 sentence, 110–200 chars, elegant & precise. No filler.
+3. fullDescription: 4–6 substantial paragraphs (double newline between each). Hero statement → technical brilliance → craftsmanship → stone quality → styling/occasion. Weave specs naturally. No bullet points.
+4. seoDescription: Under 155 chars, primary keyword first, conversion-focused.
+5. productType: necklace | bracelet | earring | ring | anklet | pendant | null
 6. stoneShape: round brilliant | oval | cushion | princess | pear | emerald | radiant | heart | marquise | null
 7. metalPurity: S925 | 10K | 14K | 18K | null
-8. supplierPrice: numeric USD unit price visible in the raw data, or null
-9. caratWeight: e.g. "0.5 CTW" or "2.0 CTW" or null — total carat weight of all stones
-10. stoneDiameter: e.g. "3mm" or "4mm" — diameter of individual stones, or null
-11. stoneCount: integer number of stones in the piece, or null
+8. supplierPrice: The LOWEST per-unit price at MINIMUM order quantity (1-piece price). Use the extracted min price if given. null only if truly not found.
+9. caratWeight: total CTW e.g. "2.0 CTW" or null
+10. stoneDiameter: diameter of individual stones e.g. "3mm" or null
+11. stoneCount: total number of stones or null
 12. clarity: VVS1 | VVS2 | VS1 | SI1 | null
 13. colorGrade: D | E | F | G | null
-14. additionalTags: Array of 8–12 specific lowercase hyphenated SEO tags. Include product type, stone, metal, occasion.
-15. confidence: "high" if 6+ concrete specs extracted | "medium" if 3–5 | "low" if mostly inferred
+14. additionalTags: 8–12 specific lowercase hyphenated SEO tags
+15. confidence: "high" if 6+ concrete specs | "medium" if 3–5 | "low" if mostly inferred
+16. detectedVariations: Array of ALL available variation combinations. Each object must have some of: width (e.g. "3mm"), length (e.g. "18 inch"), color (e.g. "gold", "white gold", "rose gold"), other (any extra attribute), and unitPrice (per-unit cost at min MOQ — null if not known). Extract from the SKU data above, variation tables, or any attribute selectors. If the product has no meaningful variations, return []. Cap at 30 entries.
 
-Return ONLY this exact JSON structure:
-{"luxuryTitle":"","shortDescription":"","fullDescription":"","seoDescription":"","productType":null,"stoneShape":null,"metalPurity":null,"supplierPrice":null,"caratWeight":null,"stoneDiameter":null,"stoneCount":null,"clarity":null,"colorGrade":null,"additionalTags":[],"confidence":"medium"}`;
+Return ONLY this exact JSON (no markdown, no commentary):
+{"luxuryTitle":"","shortDescription":"","fullDescription":"","seoDescription":"","productType":null,"stoneShape":null,"metalPurity":null,"supplierPrice":null,"caratWeight":null,"stoneDiameter":null,"stoneCount":null,"clarity":null,"colorGrade":null,"additionalTags":[],"confidence":"medium","detectedVariations":[]}`;
 
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
-      max_tokens: 2500,
-      temperature: 0.3,
+      max_tokens: 3500,
+      temperature: 0.25,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: systemPrompt },
@@ -993,7 +1184,8 @@ function mergeWithAI(
     supplierPrice:      base.supplierPrice      ?? ai?.supplierPrice  ?? null,
     clarity:            ai?.clarity             ?? null,
     colorGrade:         ai?.colorGrade          ?? null,
-    suggestedTags: [...new Set([...base.suggestedTags, ...(ai?.additionalTags ?? [])])].slice(0, 18),
+    suggestedTags:      [...new Set([...base.suggestedTags, ...(ai?.additionalTags ?? [])])].slice(0, 18),
+    detectedVariations: ai?.detectedVariations  ?? [],
   };
 }
 
@@ -1730,50 +1922,63 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
     const url = data.url.trim();
     if (!url.startsWith("http")) throw new Error("Please enter a valid URL starting with http:// or https://");
 
-    // Try Jina Reader first — bypasses bot detection by using headless browsers
-    const jina = await fetchViaJina(url);
+    // Always attempt a direct HTML fetch in parallel with Jina — we need raw
+    // HTML to run extractSupplierVariants (SKU JSON only exists in real HTML).
+    const [jina, htmlResult] = await Promise.allSettled([
+      fetchViaJina(url),
+      fetchWithRetry(url).catch(() => null as string | null),
+    ]);
+    const jinaData  = jina.status  === "fulfilled" ? jina.value  : null;
+    const rawHtml   = htmlResult.status === "fulfilled" ? htmlResult.value : null;
 
-    if (jina && jina.content.length > 200) {
-      const base = buildBaseFromJina(jina.title, jina.content, jina.images, url);
+    // Extract structured variant data from raw HTML (Alibaba SKU JSON, tiered prices, etc.)
+    const variantData = rawHtml ? extractSupplierVariants(rawHtml) : { variants: [], minPrice: null, rawPricingText: "" };
+
+    if (jinaData && jinaData.content.length > 200) {
+      const base = buildBaseFromJina(jinaData.title, jinaData.content, jinaData.images, url);
+      // Prefer raw HTML's min price if Jina couldn't surface it
+      if (!base.supplierPrice && variantData.minPrice) base.supplierPrice = variantData.minPrice;
       const ai = await Promise.race([
         enrichWithAI({
-          rawName: jina.title,
-          rawDescription: jina.content.slice(0, 600),
-          attributes: [],
-          fullText: `${jina.title}\n\n${jina.content}`.slice(0, 8000),
-          detectedType: base.detectedType,
-          detectedColors: base.detectedColors,
-          sourceUrl: url,
+          rawName:            jinaData.title,
+          rawDescription:     jinaData.content.slice(0, 3000),
+          attributes:         [],
+          fullText:           `${jinaData.title}\n\n${jinaData.content}`.slice(0, 12000),
+          detectedType:       base.detectedType,
+          detectedColors:     base.detectedColors,
+          sourceUrl:          url,
+          extractedVariants:  variantData.variants,
+          rawPricingText:     variantData.rawPricingText,
+          extractedMinPrice:  variantData.minPrice,
         }),
-        new Promise<null>(resolve => setTimeout(() => resolve(null), 12000)),
+        new Promise<null>(resolve => setTimeout(() => resolve(null), 20000)),
       ]);
       return mergeWithAI(base, ai, url);
     }
 
-    // Jina failed — fall back to direct HTML fetch
-    let html: string;
-    try {
-      html = await fetchWithRetry(url);
-    } catch (e: any) {
-      throw new Error(`Could not fetch product page. Try again or check that the URL is correct. (${e.message})`);
-    }
+    // Jina failed — use direct HTML
+    if (!rawHtml) throw new Error("Could not fetch product page. Try again or check that the URL is correct.");
 
-    const base = parseProductPage(html, url);
+    const base = parseProductPage(rawHtml, url);
     if (base.isBlocked) {
       throw new Error("This supplier's page is heavily protected. Try again in a few seconds — each retry uses a different approach.");
     }
+    if (!base.supplierPrice && variantData.minPrice) base.supplierPrice = variantData.minPrice;
 
     const ai = await Promise.race([
       enrichWithAI({
-        rawName: base.rawName,
-        rawDescription: base.sourcePagePreview,
-        attributes: base.attributes,
-        fullText: `${base.rawName} ${base.sourcePagePreview} ${base.attributes.map((a: any) => `${a.name} ${a.value}`).join(" ")}`,
-        detectedType: base.detectedType,
-        detectedColors: base.detectedColors,
-        sourceUrl: url,
+        rawName:           base.rawName,
+        rawDescription:    base.sourcePagePreview,
+        attributes:        base.attributes,
+        fullText:          `${base.rawName} ${base.sourcePagePreview} ${base.attributes.map((a: any) => `${a.name} ${a.value}`).join(" ")}`.slice(0, 8000),
+        detectedType:      base.detectedType,
+        detectedColors:    base.detectedColors,
+        sourceUrl:         url,
+        extractedVariants: variantData.variants,
+        rawPricingText:    variantData.rawPricingText,
+        extractedMinPrice: variantData.minPrice,
       }),
-      new Promise<null>(resolve => setTimeout(() => resolve(null), 10000)),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), 20000)),
     ]);
 
     return mergeWithAI(base, ai, url);
@@ -1788,18 +1993,23 @@ export const importProductFromHtml = createServerFn({ method: "POST" })
     if (!data.html || data.html.trim().length < 200) throw new Error("Paste the full page source — it looks too short.");
     const seed = data.sourceUrl ?? data.html.slice(0, 100);
     const base = parseProductPage(data.html, seed);
+    const variantData = extractSupplierVariants(data.html);
+    if (!base.supplierPrice && variantData.minPrice) base.supplierPrice = variantData.minPrice;
 
     const ai = await Promise.race([
       enrichWithAI({
-        rawName: base.rawName,
-        rawDescription: base.sourcePagePreview,
-        attributes: base.attributes,
-        fullText: `${base.rawName} ${base.sourcePagePreview} ${base.attributes.map(a => `${a.name} ${a.value}`).join(" ")}`,
-        detectedType: base.detectedType,
-        detectedColors: base.detectedColors,
-        sourceUrl: data.sourceUrl ?? "",
+        rawName:           base.rawName,
+        rawDescription:    base.sourcePagePreview,
+        attributes:        base.attributes,
+        fullText:          `${base.rawName} ${base.sourcePagePreview} ${base.attributes.map(a => `${a.name} ${a.value}`).join(" ")}`.slice(0, 8000),
+        detectedType:      base.detectedType,
+        detectedColors:    base.detectedColors,
+        sourceUrl:         data.sourceUrl ?? "",
+        extractedVariants: variantData.variants,
+        rawPricingText:    variantData.rawPricingText,
+        extractedMinPrice: variantData.minPrice,
       }),
-      new Promise<null>(resolve => setTimeout(() => resolve(null), 10000)),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), 20000)),
     ]);
 
     return mergeWithAI(base, ai, data.sourceUrl ?? "");
