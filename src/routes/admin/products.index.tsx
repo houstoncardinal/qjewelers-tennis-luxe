@@ -331,6 +331,8 @@ interface ImportResult {
   suggestedPrice: number | null;
   aiEnriched: boolean;
   confidence: "high" | "medium" | "low" | null;
+  fetchStrategy?: "firecrawl" | "jina_reader" | "direct_html" | "url_metadata" | "pasted_text";
+  fetchWarning?: string;
   detectedVariations: Array<{
     width?:    string;
     length?:   string;
@@ -343,15 +345,16 @@ interface ImportResult {
 const IS_SUPPLIER_URL = /alibaba\.com|aliexpress\.com|1688\.com|dhgate\.com|temu\.com|made-in-china\.com/i;
 
 function ImportModal({ onClose, token }: { onClose: () => void; token: string }) {
-  const [mode,          setMode]          = useState<"url" | "paste">("url");
-  const [url,           setUrl]           = useState("");
-  const [pastedHtml,    setPastedHtml]    = useState("");
-  const [loadStep,      setLoadStep]      = useState<"idle" | "fetching" | "parsing" | "enriching" | "done">("idle");
-  const [rehosting,     setRehosting]     = useState(false);
-  const [rehostProgress,setRehostProgress]= useState<{ done: number; total: number } | null>(null);
-  const [error,         setError]         = useState("");
-  const [result,        setResult]        = useState<ImportResult | null>(null);
-  const [selectedImgs,  setSelectedImgs]  = useState<string[]>([]);
+  const [mode,             setMode]             = useState<"url" | "paste">("url");
+  const [url,              setUrl]              = useState("");
+  const [pastedHtml,       setPastedHtml]       = useState("");
+  const [loadStep,         setLoadStep]         = useState<"idle" | "fetching" | "parsing" | "enriching" | "done">("idle");
+  const [rehosting,        setRehosting]        = useState(false);
+  const [rehostProgress,   setRehostProgress]   = useState<{ done: number; total: number } | null>(null);
+  const [error,            setError]            = useState("");
+  const [result,           setResult]           = useState<ImportResult | null>(null);
+  const [selectedImgs,     setSelectedImgs]     = useState<string[]>([]);
+  const [markupMultiplier, setMarkupMultiplier] = useState<number>(5);
   const inputRef    = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const importUrlFn  = useServerFn(importProductFromUrl);
@@ -394,6 +397,8 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
       if (msg.startsWith("BLOCKED:")) {
         setMode("paste");
         setError(msg.replace("BLOCKED: ", ""));
+      } else if (mode === "url" && /fetch|connect|network|timeout|ENOTFOUND/i.test(msg)) {
+        setError(msg + " — Try switching to Paste mode: open the page in your browser, copy all the text, and paste it here.");
       } else {
         setError(msg);
       }
@@ -539,9 +544,14 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                   );
                 })}
               </div>
+              {loadStep === "fetching" && mode === "url" && (
+                <p className="px-6 pb-2 text-[0.57rem] text-blue-600">
+                  Trying Firecrawl → Jina Reader → direct HTML in sequence until one succeeds…
+                </p>
+              )}
               {loadStep === "enriching" && (
                 <p className="px-6 pb-2 text-[0.57rem] text-amber-600">
-                  ✨ GPT-4o is rewriting your product copy for luxury retail — this takes 3–8 seconds…
+                  GPT-4o is writing luxury product copy, extracting specs, and detecting variations — 3–8 seconds…
                 </p>
               )}
             </div>
@@ -596,8 +606,9 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                   </div>
                 </div>
                 {isSupplierUrl && !result && !loading && (
-                  <div className="bg-emerald-50 border border-emerald-200 px-4 py-3 text-[0.65rem] text-emerald-800 leading-relaxed">
-                    <span className="font-semibold">Supplier URL detected</span> — using enhanced fetch to bypass bot detection automatically.
+                  <div className="bg-emerald-50 border border-emerald-200 px-4 py-3 text-[0.65rem] text-emerald-800 leading-relaxed space-y-1">
+                    <p><span className="font-semibold">Supplier URL detected.</span> We'll try Firecrawl → Jina Reader → direct HTML in sequence.</p>
+                    <p className="text-emerald-700">If all fetchers are blocked, we'll still generate placeholder copy from the URL — you can then paste the real product text to refine it.</p>
                   </div>
                 )}
               </div>
@@ -657,6 +668,24 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
 
             {result && (
               <div className="space-y-4">
+                {/* Fetch warning — shown when URL was blocked and we used URL metadata */}
+                {result.fetchWarning && (
+                  <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 px-4 py-3">
+                    <AlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[0.65rem] font-semibold text-amber-800">Page could not be fetched automatically</p>
+                      <p className="text-[0.62rem] text-amber-700 mt-0.5 leading-relaxed">{result.fetchWarning}</p>
+                      <button
+                        type="button"
+                        onClick={() => { setMode("paste"); setError(""); setResult(null); setSelectedImgs([]); setLoadStep("idle"); }}
+                        className="mt-2 text-[0.60rem] font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-700"
+                      >
+                        Switch to Paste Mode →
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* AI enrichment status banner */}
                 {result.aiEnriched && (
                   <div className="flex items-center justify-between bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 px-4 py-2.5">
@@ -664,17 +693,32 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                       <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0" />
                       <span className="text-[0.64rem] font-semibold text-amber-800 uppercase tracking-[0.1em]">AI Enriched by GPT-4o</span>
                     </div>
-                    {result.confidence && (
-                      <span className={`text-[0.58rem] uppercase tracking-[0.12em] font-bold px-2.5 py-1 rounded-full border ${
-                        result.confidence === "high"
-                          ? "bg-emerald-100 text-emerald-700 border-emerald-300"
-                          : result.confidence === "medium"
-                          ? "bg-amber-100 text-amber-700 border-amber-300"
-                          : "bg-gray-100 text-gray-600 border-gray-300"
-                      }`}>
-                        {result.confidence} confidence
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {result.fetchStrategy && result.fetchStrategy !== "pasted_text" && (
+                        <span className={`text-[0.54rem] uppercase tracking-[0.10em] px-2 py-0.5 rounded border font-medium ${
+                          result.fetchStrategy === "firecrawl"   ? "bg-purple-50 text-purple-600 border-purple-200" :
+                          result.fetchStrategy === "jina_reader" ? "bg-blue-50 text-blue-600 border-blue-200" :
+                          result.fetchStrategy === "direct_html" ? "bg-gray-100 text-gray-600 border-gray-200" :
+                          "bg-orange-50 text-orange-600 border-orange-200"
+                        }`}>
+                          {result.fetchStrategy === "firecrawl"   ? "Firecrawl" :
+                           result.fetchStrategy === "jina_reader" ? "Jina Reader" :
+                           result.fetchStrategy === "direct_html" ? "Direct HTML" :
+                           "URL Only"}
+                        </span>
+                      )}
+                      {result.confidence && (
+                        <span className={`text-[0.58rem] uppercase tracking-[0.12em] font-bold px-2.5 py-1 rounded-full border ${
+                          result.confidence === "high"
+                            ? "bg-emerald-100 text-emerald-700 border-emerald-300"
+                            : result.confidence === "medium"
+                            ? "bg-amber-100 text-amber-700 border-amber-300"
+                            : "bg-gray-100 text-gray-600 border-gray-300"
+                        }`}>
+                          {result.confidence} confidence
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -797,38 +841,101 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
 
                 {/* Supplier cost panel — admin eyes only */}
                 {result.supplierPrice && (
-                  <div className="border border-dashed border-gray-300 bg-gray-900 p-4 space-y-2">
-                    <p className="text-[0.56rem] uppercase tracking-[0.14em] text-gray-400 flex items-center gap-1.5">
-                      <Tag className="h-3 w-3 text-amber-400" />
-                      <span className="text-amber-400">Admin Only</span> — Supplier Cost Intelligence
-                    </p>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="bg-gray-800 rounded p-2.5 text-center">
-                        <p className="text-[0.52rem] uppercase tracking-[0.10em] text-gray-500 mb-1">Supplier Cost</p>
-                        <p className="text-base font-bold text-white">${result.supplierPrice.toFixed(2)}</p>
+                  <div className="border border-dashed border-gray-500 bg-gray-900 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[0.56rem] uppercase tracking-[0.14em] text-amber-400 flex items-center gap-1.5">
+                        <Tag className="h-3 w-3" />
+                        Admin Only — Supplier Cost Intelligence
+                      </p>
+                      <span className="text-[0.54rem] text-gray-500">never shown to customers</span>
+                    </div>
+
+                    {/* Source cost + margin selector */}
+                    <div className="flex items-center gap-3">
+                      <div className="bg-gray-800 border border-gray-700 rounded px-4 py-2.5 text-center shrink-0">
+                        <p className="text-[0.50rem] uppercase tracking-[0.10em] text-gray-500 mb-0.5">Supplier Cost</p>
+                        <p className="text-xl font-bold text-white">${result.supplierPrice.toFixed(2)}</p>
+                        <p className="text-[0.48rem] text-gray-600 mt-0.5">per unit</p>
                       </div>
-                      <div className="bg-gray-800 rounded p-2.5 text-center">
-                        <p className="text-[0.52rem] uppercase tracking-[0.10em] text-gray-500 mb-1">4× Markup</p>
-                        <p className="text-base font-bold text-amber-400">${(result.supplierPrice * 4).toFixed(2)}</p>
-                      </div>
-                      <div className="bg-gray-800 rounded p-2.5 text-center">
-                        <p className="text-[0.52rem] uppercase tracking-[0.10em] text-gray-500 mb-1">8× Markup</p>
-                        <p className="text-base font-bold text-emerald-400">${(result.supplierPrice * 8).toFixed(2)}</p>
+                      <div className="flex-1 space-y-1.5">
+                        <p className="text-[0.52rem] uppercase tracking-[0.10em] text-gray-500">Select markup multiplier:</p>
+                        <div className="flex gap-1.5 flex-wrap">
+                          {([3, 4, 5, 8, 10] as const).map(x => (
+                            <button
+                              key={x}
+                              type="button"
+                              onClick={() => setMarkupMultiplier(x)}
+                              className={`px-2.5 py-1.5 text-[0.58rem] font-bold rounded border transition-all ${
+                                markupMultiplier === x
+                                  ? "bg-amber-500 text-white border-amber-500 shadow-sm"
+                                  : "bg-gray-800 text-gray-400 border-gray-700 hover:border-amber-500 hover:text-amber-400"
+                              }`}
+                            >
+                              {x}×{x === 5 ? " ★" : ""}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-[0.50rem] text-gray-600">★ recommended for luxury moissanite jewelry</p>
                       </div>
                     </div>
-                    <p className="text-[0.57rem] text-gray-500">
-                      Supplier pricing extracted from product page. These figures are never shown to customers.
-                    </p>
+
+                    {/* Markup result + margin breakdown */}
+                    <div className="bg-gray-800 border border-gray-700 rounded p-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-[0.52rem] uppercase tracking-[0.10em] text-gray-500 mb-0.5">{markupMultiplier}× suggested retail</p>
+                        <p className="text-2xl font-bold text-emerald-400">${(result.supplierPrice * markupMultiplier).toFixed(2)}</p>
+                      </div>
+                      <div className="text-right space-y-1">
+                        <div className="text-[0.58rem] text-gray-400">
+                          Profit: <span className="text-emerald-400 font-bold">${(result.supplierPrice * markupMultiplier - result.supplierPrice).toFixed(2)}</span>
+                        </div>
+                        <div className="text-[0.58rem] text-gray-400">
+                          Margin: <span className="text-emerald-400 font-bold">{(((markupMultiplier - 1) / markupMultiplier) * 100).toFixed(0)}%</span>
+                        </div>
+                        <div className="text-[0.58rem] text-gray-400">
+                          ROI: <span className="text-amber-400 font-bold">{((markupMultiplier - 1) * 100).toFixed(0)}%</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quick comparison row */}
+                    <div className="grid grid-cols-5 gap-1.5">
+                      {([3, 4, 5, 8, 10] as const).map(x => (
+                        <div
+                          key={x}
+                          onClick={() => setMarkupMultiplier(x)}
+                          className={`text-center py-1.5 rounded cursor-pointer transition-all ${
+                            markupMultiplier === x ? "bg-amber-500/20 border border-amber-500/40" : "bg-gray-800"
+                          }`}
+                        >
+                          <p className="text-[0.48rem] text-gray-500">{x}×</p>
+                          <p className={`text-[0.62rem] font-bold ${markupMultiplier === x ? "text-amber-400" : "text-gray-400"}`}>
+                            ${(result.supplierPrice! * x).toFixed(0)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
                 {/* Variation matrix — shows all extracted SKU combinations with costs */}
                 {result.detectedVariations && result.detectedVariations.length > 0 && (
                   <div className="border border-dashed border-blue-200 bg-blue-50 p-4 space-y-3">
-                    <p className="text-[0.56rem] uppercase tracking-[0.14em] text-blue-700 flex items-center gap-1.5">
-                      <Layers className="h-3 w-3 shrink-0" />
-                      {result.detectedVariations.length} Variation{result.detectedVariations.length !== 1 ? "s" : ""} Detected — Source Pricing
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[0.56rem] uppercase tracking-[0.14em] text-blue-700 flex items-center gap-1.5">
+                        <Layers className="h-3 w-3 shrink-0" />
+                        {result.detectedVariations.length} Variation{result.detectedVariations.length !== 1 ? "s" : ""} — Pricing Matrix
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[0.50rem] text-blue-500 mr-1">markup:</span>
+                        {([3, 5, 8] as const).map(x => (
+                          <button key={x} type="button" onClick={() => setMarkupMultiplier(x)}
+                            className={`px-1.5 py-0.5 text-[0.52rem] font-bold rounded transition-all ${
+                              markupMultiplier === x ? "bg-blue-700 text-white" : "bg-blue-100 text-blue-600 hover:bg-blue-200"
+                            }`}>{x}×</button>
+                        ))}
+                      </div>
+                    </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-[0.62rem] border-collapse">
                         <thead>
@@ -839,7 +946,7 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                               <th key={k} className="px-2.5 py-1.5 text-left font-semibold text-blue-800 uppercase tracking-[0.08em] border-b border-blue-200 capitalize">{k}</th>
                             ))}
                             <th className="px-2.5 py-1.5 text-right font-semibold text-blue-800 uppercase tracking-[0.08em] border-b border-blue-200">Cost</th>
-                            <th className="px-2.5 py-1.5 text-right font-semibold text-blue-800 uppercase tracking-[0.08em] border-b border-blue-200">3× Retail</th>
+                            <th className="px-2.5 py-1.5 text-right font-semibold text-blue-700 uppercase tracking-[0.08em] border-b border-blue-200">{markupMultiplier}× Retail</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -855,20 +962,40 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                                 <td className="px-2.5 py-1.5 text-right font-mono text-blue-900 border-b border-blue-100">
                                   {v.unitPrice != null ? `$${v.unitPrice.toFixed(2)}` : "—"}
                                 </td>
-                                <td className="px-2.5 py-1.5 text-right font-mono font-semibold text-emerald-700 border-b border-blue-100">
-                                  {v.unitPrice != null ? `$${(v.unitPrice * 3).toFixed(2)}` : "—"}
+                                <td className="px-2.5 py-1.5 text-right font-mono font-bold text-emerald-700 border-b border-blue-100">
+                                  {v.unitPrice != null ? `$${(v.unitPrice * markupMultiplier).toFixed(2)}` : "—"}
                                 </td>
                               </tr>
                             );
                           })}
                         </tbody>
+                        {result.detectedVariations.some((v: any) => v.unitPrice != null) && (
+                          <tfoot>
+                            <tr className="bg-blue-100/70">
+                              <td colSpan={["width","length","color","other"].filter(k => result.detectedVariations.some((v: any) => v[k])).length}
+                                className="px-2.5 py-1.5 text-[0.58rem] text-blue-700 font-semibold">
+                                Range
+                              </td>
+                              <td className="px-2.5 py-1.5 text-right text-[0.58rem] font-mono text-blue-700 font-semibold">
+                                ${Math.min(...result.detectedVariations.filter((v: any) => v.unitPrice != null).map((v: any) => v.unitPrice!)).toFixed(2)}
+                                {" – "}
+                                ${Math.max(...result.detectedVariations.filter((v: any) => v.unitPrice != null).map((v: any) => v.unitPrice!)).toFixed(2)}
+                              </td>
+                              <td className="px-2.5 py-1.5 text-right text-[0.58rem] font-mono text-emerald-700 font-bold">
+                                ${(Math.min(...result.detectedVariations.filter((v: any) => v.unitPrice != null).map((v: any) => v.unitPrice!)) * markupMultiplier).toFixed(2)}
+                                {" – "}
+                                ${(Math.max(...result.detectedVariations.filter((v: any) => v.unitPrice != null).map((v: any) => v.unitPrice!)) * markupMultiplier).toFixed(2)}
+                              </td>
+                            </tr>
+                          </tfoot>
+                        )}
                       </table>
                     </div>
                     {result.detectedVariations.length > 30 && (
                       <p className="text-[0.57rem] text-blue-500">+ {result.detectedVariations.length - 30} more variations not shown</p>
                     )}
                     <p className="text-[0.57rem] text-blue-500">
-                      Source cost × 3× = suggested retail starting point. Adjust in the pricing tab after import.
+                      Supplier source costs. Adjust the {markupMultiplier}× multiplier above — or set final prices in the Pricing tab after import.
                     </p>
                   </div>
                 )}

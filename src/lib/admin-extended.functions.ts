@@ -748,6 +748,41 @@ async function fetchViaJina(url: string): Promise<{
   }
 }
 
+// ─── Firecrawl — headless scraper with residential proxies ───────────────────
+// Set FIRECRAWL_API_KEY in .env for the most reliable supplier page access.
+// Free tier: 500 scrapes/month at firecrawl.dev
+async function fetchViaFirecrawl(url: string): Promise<{
+  title: string; content: string; images: string[];
+} | null> {
+  const apiKey = process.env.FIRECRAWL_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url,
+        formats: ["markdown"],
+        waitFor: 3000,
+        mobile: false,
+        onlyMainContent: false,
+        removeBase64Images: true,
+      }),
+      signal: AbortSignal.timeout(45000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as any;
+    if (!data.success || !data.data) return null;
+    const content: string = data.data.markdown ?? data.data.content ?? "";
+    const title: string   = data.data.metadata?.title ?? data.data.title ?? "";
+    const ogImg: string   = data.data.metadata?.ogImage ?? "";
+    if (content.length < 100) return null;
+    return { title, content, images: ogImg ? [ogImg] : [] };
+  } catch {
+    return null;
+  }
+}
+
 // ─── Multi-strategy URL fetcher ───────────────────────────────────────────────
 // Tries up to 4 different browser fingerprints + mobile URL fallback before
 // giving up. Each attempt is independent; we continue on any network or HTTP
@@ -1004,20 +1039,87 @@ export function extractSupplierVariants(html: string): {
 }
 
 // Extract the supplier's wholesale unit price in USD (for markup calculation).
+// Handles: "US $8.90", "US$8.90", "$8.90", "US $5.00 - $12.00", "$3.50/pc"
 function detectSupplierPrice(text: string): number | null {
-  // Price range: US $5.00 - $15.00, $3.50-$8.99/pc, etc.
-  const rangeRe = /US?\$\s*(\d+(?:\.\d{1,2})?)\s*[-–~to]+\s*US?\$?\s*(\d+(?:\.\d{1,2})?)/gi;
-  for (const m of text.matchAll(rangeRe)) {
-    const lo = parseFloat(m[1]), hi = parseFloat(m[2]);
-    if (lo > 0 && hi > 0 && hi < 500) return parseFloat(((lo + hi) / 2).toFixed(2));
-  }
-  // Single price: $12.99 /piece, US$8.50, etc.
-  const singleRe = /US?\$\s*(\d+(?:\.\d{1,2})?)\s*(?:\/\s*(?:pc|piece|unit|set|pair))?/gi;
-  for (const m of text.matchAll(singleRe)) {
+  const $ = /(?:US\s*)?\$/i;
+  const price = /(\d+(?:\.\d{1,2})?)/;
+  const sep = /\s*[-–~]\s*/;
+  const unit = /\s*\/\s*(?:pc|pcs|piece|unit|set|pair)/i;
+
+  // Tiered: "≥1 Pieces  US $8.90" (min-order price — most reliable)
+  const tieredRe = new RegExp(`(?:≥|>=?)\\s*1\\s*(?:pcs?|piece)[^\\n$]{0,40}${$.source}\\s*${price.source}`, "gi");
+  for (const m of text.matchAll(tieredRe)) {
     const p = parseFloat(m[1]);
     if (p > 0.5 && p < 500) return p;
   }
+
+  // Price range: "US $5.00 - $15.00" — return the lower bound (best MOQ price)
+  const rangeRe = new RegExp(`${$.source}\\s*${price.source}${sep.source}(?:US\\s*)?\\$?\\s*${price.source}`, "gi");
+  for (const m of text.matchAll(rangeRe)) {
+    const lo = parseFloat(m[1]), hi = parseFloat(m[2]);
+    // Require lo > 0.5 to avoid matching quantity ranges like "1 – 9 pieces"
+    if (lo > 0.5 && hi > 0.5 && hi < 500 && lo <= hi) return lo;
+  }
+
+  // Single price with unit: "$12.99/piece", "US$8.50/pc"
+  const unitRe = new RegExp(`${$.source}\\s*${price.source}${unit.source}`, "gi");
+  for (const m of text.matchAll(unitRe)) {
+    const p = parseFloat(m[1]);
+    if (p > 0.5 && p < 500) return p;
+  }
+
+  // Bare price as last resort (only if it looks plausible for wholesale jewelry: $1–$200)
+  const bareRe = new RegExp(`${$.source}\\s*${price.source}`, "gi");
+  for (const m of text.matchAll(bareRe)) {
+    const p = parseFloat(m[1]);
+    if (p > 1 && p < 200) return p;
+  }
+
   return null;
+}
+
+// Comprehensive price extraction from plain text (paste mode, markdown, etc.)
+function extractPricesFromText(text: string): { minPrice: number | null; pricingLines: string[] } {
+  const allPrices: number[] = [];
+  const lines: string[] = [];
+  const p$ = (s: string) => {
+    const n = parseFloat(s.replace(/,/g, ""));
+    return n > 0.1 && n < 5000 ? n : null;
+  };
+
+  // "US $8.90 – $12.50" or "US $8.90-$12.50"
+  for (const m of text.matchAll(/US\s*\$\s*([\d.]+)\s*[-–~]\s*(?:US\s*)?\$?\s*([\d.]+)/gi)) {
+    const lo = p$(m[1]), hi = p$(m[2]);
+    if (lo && hi && lo > 0.5 && hi < 1000) { allPrices.push(lo); lines.push(`$${lo}–$${hi}`); }
+  }
+
+  // "US $X.XX" followed by "/Piece" or end of context
+  for (const m of text.matchAll(/US\s*\$\s*([\d.]+)\s*(?:\/\s*(?:pcs?|piece|unit|pair|set)\b)?/gi)) {
+    const n = p$(m[1]);
+    if (n && n > 0.5 && n < 1000) { allPrices.push(n); }
+  }
+
+  // "$X.XX/pc" or "$X.XX per piece"
+  for (const m of text.matchAll(/\$\s*([\d.]+)\s*\/\s*(?:pcs?|piece|unit|pair|set)\b/gi)) {
+    const n = p$(m[1]);
+    if (n) { allPrices.push(n); lines.push(`$${n}/pc`); }
+  }
+
+  // "≥1 piece $X.XX" or "min. 1 pc $X.XX"
+  for (const m of text.matchAll(/(?:≥|>=?|min\.?)\s*1\s*(?:pcs?|piece)[^\n$]{0,40}\$\s*([\d.]+)/gi)) {
+    const n = p$(m[1]);
+    if (n) { allPrices.push(n); lines.push(`1pc: $${n}`); }
+  }
+
+  // Attribute/variant with price: "3mm: $5.50", "Gold Width: $8.00"
+  for (const m of text.matchAll(/\b(\d+mm|[\w\s]{2,20}):\s*(?:US\s*)?\$\s*([\d.]+)/gi)) {
+    const n = p$(m[2]);
+    if (n && n < 500) { allPrices.push(n); lines.push(`${m[1].trim()}: $${n}`); }
+  }
+
+  const validPrices = allPrices.filter(p => p > 0.5 && p < 1000);
+  const minPrice = validPrices.length > 0 ? Math.min(...validPrices) : null;
+  return { minPrice, pricingLines: [...new Set(lines)].slice(0, 12) };
 }
 
 // ─── OpenAI GPT-4o enrichment ─────────────────────────────────────────────────
@@ -1922,66 +2024,116 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
     const url = data.url.trim();
     if (!url.startsWith("http")) throw new Error("Please enter a valid URL starting with http:// or https://");
 
-    // Always attempt a direct HTML fetch in parallel with Jina — we need raw
-    // HTML to run extractSupplierVariants (SKU JSON only exists in real HTML).
-    const [jina, htmlResult] = await Promise.allSettled([
-      fetchViaJina(url),
+    // ── Stage 1: Firecrawl (headless browser + residential proxies, most reliable) ──
+    const firecrawlData = await fetchViaFirecrawl(url);
+
+    // ── Stage 2: Jina reader + raw HTML in parallel ────────────────────────────────
+    // Raw HTML needed for extractSupplierVariants (SKU JSON only lives in HTML).
+    // Skip Jina if Firecrawl already succeeded to save time.
+    const [jinaResult, htmlResult] = await Promise.allSettled([
+      firecrawlData ? Promise.resolve(null) : fetchViaJina(url),
       fetchWithRetry(url).catch(() => null as string | null),
     ]);
-    const jinaData  = jina.status  === "fulfilled" ? jina.value  : null;
+    const jinaData  = jinaResult.status === "fulfilled" ? jinaResult.value : null;
     const rawHtml   = htmlResult.status === "fulfilled" ? htmlResult.value : null;
 
-    // Extract structured variant data from raw HTML (Alibaba SKU JSON, tiered prices, etc.)
-    const variantData = rawHtml ? extractSupplierVariants(rawHtml) : { variants: [], minPrice: null, rawPricingText: "" };
+    const variantData = rawHtml
+      ? extractSupplierVariants(rawHtml)
+      : { variants: [], minPrice: null, rawPricingText: "" };
 
-    if (jinaData && jinaData.content.length > 200) {
-      const base = buildBaseFromJina(jinaData.title, jinaData.content, jinaData.images, url);
-      // Prefer raw HTML's min price if Jina couldn't surface it
-      if (!base.supplierPrice && variantData.minPrice) base.supplierPrice = variantData.minPrice;
+    // ── Stage 3a: We have rich content (Firecrawl or Jina) ───────────────────────
+    const richContent = firecrawlData ?? jinaData;
+    if (richContent && richContent.content.length > 200) {
+      const fetchStrategy = firecrawlData ? "firecrawl" : "jina_reader";
+      const base = buildBaseFromJina(richContent.title, richContent.content, richContent.images, url);
+
+      // Supplement with HTML-extracted prices and variant JSON if available
+      const textPrices = extractPricesFromText(richContent.content);
+      if (!base.supplierPrice) base.supplierPrice = variantData.minPrice ?? textPrices.minPrice;
+
       const ai = await Promise.race([
         enrichWithAI({
-          rawName:            jinaData.title,
-          rawDescription:     jinaData.content.slice(0, 3000),
-          attributes:         [],
-          fullText:           `${jinaData.title}\n\n${jinaData.content}`.slice(0, 12000),
-          detectedType:       base.detectedType,
-          detectedColors:     base.detectedColors,
-          sourceUrl:          url,
-          extractedVariants:  variantData.variants,
-          rawPricingText:     variantData.rawPricingText,
-          extractedMinPrice:  variantData.minPrice,
+          rawName:           richContent.title,
+          rawDescription:    richContent.content.slice(0, 3000),
+          attributes:        [],
+          fullText:          `${richContent.title}\n\n${richContent.content}`.slice(0, 12000),
+          detectedType:      base.detectedType,
+          detectedColors:    base.detectedColors,
+          sourceUrl:         url,
+          extractedVariants: variantData.variants,
+          rawPricingText:    variantData.rawPricingText || textPrices.pricingLines.join("\n"),
+          extractedMinPrice: variantData.minPrice ?? textPrices.minPrice,
+        }),
+        new Promise<null>(resolve => setTimeout(() => resolve(null), 22000)),
+      ]);
+      return { ...mergeWithAI(base, ai, url), fetchStrategy };
+    }
+
+    // ── Stage 3b: Have raw HTML (Jina failed, direct fetch worked) ────────────────
+    if (rawHtml && rawHtml.length > 3000) {
+      const base = parseProductPage(rawHtml, url);
+      // If direct HTML is blocked (captcha/bot wall), use whatever we have still
+      if (!base.supplierPrice && variantData.minPrice) base.supplierPrice = variantData.minPrice;
+
+      const ai = await Promise.race([
+        enrichWithAI({
+          rawName:           base.rawName,
+          rawDescription:    base.sourcePagePreview,
+          attributes:        base.attributes,
+          fullText:          `${base.rawName} ${base.sourcePagePreview} ${base.attributes.map((a: any) => `${a.name} ${a.value}`).join(" ")}`.slice(0, 8000),
+          detectedType:      base.detectedType,
+          detectedColors:    base.detectedColors,
+          sourceUrl:         url,
+          extractedVariants: variantData.variants,
+          rawPricingText:    variantData.rawPricingText,
+          extractedMinPrice: variantData.minPrice,
         }),
         new Promise<null>(resolve => setTimeout(() => resolve(null), 20000)),
       ]);
-      return mergeWithAI(base, ai, url);
+      return { ...mergeWithAI(base, ai, url), fetchStrategy: "direct_html" };
     }
 
-    // Jina failed — use direct HTML
-    if (!rawHtml) throw new Error("Could not fetch product page. Try again or check that the URL is correct.");
+    // ── Stage 4: URL-metadata fallback — never throw a hard error ─────────────────
+    // All fetchers were blocked. Generate placeholder copy from URL slug so the
+    // user gets something to work with and can fill in real details via Paste mode.
+    const urlSlug = (() => {
+      try {
+        return decodeURIComponent(new URL(url).pathname.split("/").filter(Boolean).pop() ?? "")
+          .replace(/\.(html?|aspx?|php)$/i, "")
+          .replace(/[-_]+/g, " ")
+          .trim()
+          .slice(0, 200);
+      } catch { return ""; }
+    })();
+    const hostHint = (() => {
+      try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return "supplier"; }
+    })();
 
-    const base = parseProductPage(rawHtml, url);
-    if (base.isBlocked) {
-      throw new Error("This supplier's page is heavily protected. Try again in a few seconds — each retry uses a different approach.");
-    }
-    if (!base.supplierPrice && variantData.minPrice) base.supplierPrice = variantData.minPrice;
+    const base = buildBaseFromJina(
+      urlSlug || "Product",
+      `Wholesale jewelry product from ${hostHint}. ${urlSlug}`,
+      [],
+      url
+    );
 
     const ai = await Promise.race([
       enrichWithAI({
-        rawName:           base.rawName,
-        rawDescription:    base.sourcePagePreview,
-        attributes:        base.attributes,
-        fullText:          `${base.rawName} ${base.sourcePagePreview} ${base.attributes.map((a: any) => `${a.name} ${a.value}`).join(" ")}`.slice(0, 8000),
-        detectedType:      base.detectedType,
-        detectedColors:    base.detectedColors,
-        sourceUrl:         url,
-        extractedVariants: variantData.variants,
-        rawPricingText:    variantData.rawPricingText,
-        extractedMinPrice: variantData.minPrice,
+        rawName:        urlSlug || "jewelry product",
+        rawDescription: `Wholesale product from ${hostHint}. Product name hint from URL: ${urlSlug}`,
+        attributes:     [],
+        fullText:       `Supplier: ${hostHint}\nProduct name from URL: ${urlSlug}\nFull URL: ${url}`,
+        detectedType:   detectType(urlSlug),
+        detectedColors: detectColors(urlSlug),
+        sourceUrl:      url,
       }),
-      new Promise<null>(resolve => setTimeout(() => resolve(null), 20000)),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), 15000)),
     ]);
 
-    return mergeWithAI(base, ai, url);
+    return {
+      ...mergeWithAI(base, ai, url),
+      fetchStrategy: "url_metadata",
+      fetchWarning:  `This supplier's page is protected — the copy above was generated from the URL slug only. Switch to **Paste mode** for accurate product details: open the product page in your browser, select all text, and paste it here.`,
+    };
   });
 
 // Accepts raw HTML pasted from the user's browser — bypasses supplier bot
@@ -2015,33 +2167,43 @@ export const importProductFromHtml = createServerFn({ method: "POST" })
     return mergeWithAI(base, ai, data.sourceUrl ?? "");
   });
 
-// Simple fallback: accepts any pasted text about the product (title, description,
-// specs — no raw HTML required). Claude extracts all details from clean text.
+// Accepts any pasted text about the product (title, description, specs — no HTML
+// required). GPT-4o extracts all details; extractPricesFromText handles Alibaba
+// price formats like "US $8.90 - $12.50 / Piece" that the base parser misses.
 export const importProductFromText = createServerFn({ method: "POST" })
   .inputValidator((d: { token: string; text: string; sourceUrl?: string }) => d)
   .handler(async ({ data }) => {
     requireAdmin(data.token);
     if (!data.text || data.text.trim().length < 30) throw new Error("Paste at least some product details.");
     const text = data.text.trim();
+
+    // Aggressive price extraction handles "US $8.90", tiered pricing, variant tables
+    const textPrices = extractPricesFromText(text);
+
     const base = buildBaseFromJina(
       text.split("\n")[0].slice(0, 200),
       text,
       [],
       data.sourceUrl ?? ""
     );
+    // Apply extracted price if base didn't find one via its own regex
+    if (!base.supplierPrice && textPrices.minPrice) base.supplierPrice = textPrices.minPrice;
+
     const ai = await Promise.race([
       enrichWithAI({
-        rawName: base.rawName,
-        rawDescription: text.slice(0, 600),
-        attributes: [],
-        fullText: text.slice(0, 8000),
-        detectedType: base.detectedType,
-        detectedColors: base.detectedColors,
-        sourceUrl: data.sourceUrl ?? "",
+        rawName:           base.rawName,
+        rawDescription:    text.slice(0, 1200),
+        attributes:        [],
+        fullText:          text.slice(0, 10000),
+        detectedType:      base.detectedType,
+        detectedColors:    base.detectedColors,
+        sourceUrl:         data.sourceUrl ?? "",
+        rawPricingText:    textPrices.pricingLines.join("\n") || undefined,
+        extractedMinPrice: textPrices.minPrice ?? undefined,
       }),
-      new Promise<null>(resolve => setTimeout(() => resolve(null), 12000)),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), 18000)),
     ]);
-    return mergeWithAI(base, ai, data.sourceUrl ?? "");
+    return { ...mergeWithAI(base, ai, data.sourceUrl ?? ""), fetchStrategy: "pasted_text" };
   });
 
 // ─── Image re-hosting — downloads external supplier images server-
