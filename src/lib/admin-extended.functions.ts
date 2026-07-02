@@ -2634,8 +2634,12 @@ export const listPublicImages = createServerFn({ method: "GET" })
     return { files, folders };
   });
 
-const ALLOWED_UPLOAD_EXT = ["jpg", "jpeg", "png", "gif", "webp", "avif"];
-const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
+const ALLOWED_IMAGE_EXT = ["jpg", "jpeg", "png", "gif", "webp", "avif"];
+const ALLOWED_VIDEO_EXT = ["mp4", "webm", "mov", "m4v"];
+const ALLOWED_UPLOAD_EXT = [...ALLOWED_IMAGE_EXT, ...ALLOWED_VIDEO_EXT];
+const MAX_IMAGE_BYTES  = 50 * 1024 * 1024;  // 50MB for images
+const MAX_VIDEO_BYTES  = 500 * 1024 * 1024; // 500MB for videos — no practical limit
+const MAX_UPLOAD_BYTES = MAX_IMAGE_BYTES; // legacy alias for image-only import paths
 
 const UPLOAD_BUCKET = "product-images";
 
@@ -2649,15 +2653,17 @@ export const uploadAdminImage = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     requireAdmin(data.token);
 
-    const match = /^data:(image\/[a-zA-Z+.-]+);base64,(.+)$/.exec(data.dataUrl);
-    if (!match) throw new Error("Invalid image data");
+    const match = /^data:((image|video)\/[a-zA-Z0-9+.-]+);base64,(.+)$/.exec(data.dataUrl);
+    if (!match) throw new Error("Invalid media data — must be an image or video");
     const contentType = match[1];
-    const base64 = match[2];
+    const isVideo = match[2] === "video";
+    const base64 = match[3];
     const buffer = Buffer.from(base64, "base64");
-    if (buffer.length > MAX_UPLOAD_BYTES) throw new Error("Image exceeds 10MB limit");
+    const maxBytes = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+    if (buffer.length > maxBytes) throw new Error(`File exceeds ${isVideo ? "500MB" : "50MB"} limit`);
 
     const ext = (data.fileName.split(".").pop() || "").toLowerCase();
-    if (!ALLOWED_UPLOAD_EXT.includes(ext)) throw new Error("Unsupported image type");
+    if (!ALLOWED_UPLOAD_EXT.includes(ext)) throw new Error(`Unsupported file type: .${ext}`);
 
     const safeBase = data.fileName
       .replace(/\.[^.]+$/, "")

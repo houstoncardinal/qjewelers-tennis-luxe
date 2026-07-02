@@ -348,10 +348,12 @@ function ImageGalleryManager({
     const files = Array.from(e.target.files ?? []);
     if (files.length === 0) return;
 
-    const tooLarge = files.filter(f => f.size > 10 * 1024 * 1024);
-    const toUpload = files.filter(f => f.size <= 10 * 1024 * 1024);
+    // Videos have no practical size limit (500MB on server); images capped at 50MB
+    const isVideoFile = (f: File) => f.type.startsWith("video/");
+    const tooLarge = files.filter(f => !isVideoFile(f) && f.size > 50 * 1024 * 1024);
+    const toUpload = files.filter(f => isVideoFile(f) || f.size <= 50 * 1024 * 1024);
     if (tooLarge.length > 0) {
-      toast.error(`${tooLarge.length} image${tooLarge.length !== 1 ? "s" : ""} over 10MB skipped`);
+      toast.error(`${tooLarge.length} image${tooLarge.length !== 1 ? "s" : ""} over 50MB skipped`);
     }
 
     setUploading(true);
@@ -398,7 +400,7 @@ function ImageGalleryManager({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,video/mp4,video/webm,video/quicktime"
             multiple
             onChange={handleFileUpload}
             className="hidden"
@@ -538,14 +540,30 @@ function ImageGalleryManager({
                     isDraggedOver ? "border-blue-400 ring-2 ring-blue-200 scale-[1.02]" : "border-gray-100"
                   } ${isPrimary ? "ring-2 ring-amber-300" : ""} ${draggedIdx === idx ? "opacity-30" : ""} cursor-grab active:cursor-grabbing`}
                 >
-                  {/* Image */}
-                  <div className="aspect-[4/5] overflow-hidden bg-gray-50">
-                    <img
-                      src={img.url}
-                      alt={img.alt_text || ""}
-                      className="w-full h-full object-cover"
-                      onError={e => { (e.target as HTMLImageElement).style.display = "none"; (e.target as HTMLImageElement).parentElement!.innerHTML = '<div class="w-full h-full flex items-center justify-center text-gray-300 text-[0.55rem]">Broken</div>'; }}
-                    />
+                  {/* Image / Video */}
+                  <div className="aspect-[4/5] overflow-hidden bg-gray-50 relative">
+                    {/\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(img.url) ? (
+                      <video
+                        src={img.url}
+                        className="w-full h-full object-cover"
+                        muted
+                        loop
+                        playsInline
+                        preload="metadata"
+                      />
+                    ) : (
+                      <img
+                        src={img.url}
+                        alt={img.alt_text || ""}
+                        className="w-full h-full object-cover"
+                        onError={e => { (e.target as HTMLImageElement).style.display = "none"; (e.target as HTMLImageElement).parentElement!.innerHTML = '<div class="w-full h-full flex items-center justify-center text-gray-300 text-[0.55rem]">Broken</div>'; }}
+                      />
+                    )}
+                    {/\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(img.url) && (
+                      <div className="absolute bottom-1 left-1 bg-black/70 text-white text-[0.42rem] px-1 py-0.5 uppercase tracking-wider font-bold">
+                        MP4
+                      </div>
+                    )}
                   </div>
 
                   {/* Badges */}
@@ -866,7 +884,7 @@ function VariantsManager({
   onSizeChange,
   length,
   onLengthChange,
-  color,
+  colors,
   onColorChange,
   onSaved,
 }: {
@@ -877,8 +895,8 @@ function VariantsManager({
   onSizeChange: (s: string) => void;
   length: string;
   onLengthChange: (l: string) => void;
-  color: string;
-  onColorChange: (c: string) => void;
+  colors: string[];
+  onColorChange: (colors: string[]) => void;
   onSaved: () => void;
 }) {
   const token = useAdminToken();
@@ -896,7 +914,7 @@ function VariantsManager({
   const deleteAllFn = useServerFn(deleteAllVariants);
 
   // Variant configuration state
-  const [selColors, setSelColors] = useState<string[]>([color].filter(Boolean));
+  const [selColors, setSelColors] = useState<string[]>(colors.length > 0 ? colors : []);
   const [selSizes, setSelSizes] = useState<string[]>([size].filter(Boolean));
   const [selLengths, setSelLengths] = useState<string[]>([length].filter(Boolean));
   const [selRingSizes, setSelRingSizes] = useState<string[]>([]);
@@ -1022,6 +1040,7 @@ function VariantsManager({
       }});
       toast.success(`Generated ${res.count} variant${res.count !== 1 ? "s" : ""}`);
       await loadVariants();
+      onColorChange(selColors);
       onSaved();
     } catch (e: any) {
       toast.error(e.message);
@@ -1850,19 +1869,43 @@ function ColorImageMapper({
   colorImages,
   onChange,
   galleryImages,
+  token,
+  uploadFn,
 }: {
   colors: string[];
   colorImages: Record<string, string>;
   onChange: (map: Record<string, string>) => void;
   galleryImages: { url: string; alt_text?: string }[];
+  token: string;
+  uploadFn: (args: { data: { token: string; fileName: string; dataUrl: string } }) => Promise<{ path: string; name: string }>;
 }) {
   const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [urlInput,  setUrlInput]  = useState("");
+  const colorFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [uploading, setUploading] = useState<string | null>(null);
 
   const assign = (color: string, url: string) => {
     onChange({ ...colorImages, [color]: url });
     setPickerFor(null);
     setUrlInput("");
+  };
+
+  const handleColorImageUpload = async (color: string, file: File) => {
+    setUploading(color);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const res = await uploadFn({ data: { token, fileName: file.name, dataUrl } });
+      assign(color, res.path);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Upload failed");
+    } finally {
+      setUploading(null);
+    }
   };
 
   const remove = (color: string) => {
@@ -1978,6 +2021,32 @@ function ColorImageMapper({
                   >
                     Set
                   </button>
+                </div>
+
+                {/* Upload new image */}
+                <div className="pt-1 border-t border-gray-100">
+                  <input
+                    ref={el => { colorFileRefs.current[color] = el; }}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    id={`color-upload-${color}`}
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) handleColorImageUpload(color, file);
+                      if (e.target) e.target.value = "";
+                    }}
+                  />
+                  <label
+                    htmlFor={`color-upload-${color}`}
+                    className={`flex items-center justify-center gap-2 w-full py-2 border border-dashed border-gray-300 cursor-pointer text-[0.62rem] text-gray-500 hover:border-gray-500 hover:text-gray-700 transition-colors ${uploading === color ? "opacity-50 pointer-events-none" : ""}`}
+                  >
+                    {uploading === color ? (
+                      <><Loader2 className="h-3 w-3 animate-spin" /> Uploading…</>
+                    ) : (
+                      <><Upload className="h-3 w-3" /> Upload new image for {COLOR_LABELS[color] ?? color}</>
+                    )}
+                  </label>
                 </div>
               </div>
             )}
@@ -2645,56 +2714,45 @@ function AdminProductEditor() {
         )}
       </div>
 
-      {/* Tab navigation — glass card buttons */}
-      <div
-        className="mb-6 p-1.5 rounded-xl overflow-x-auto flex gap-1.5"
-        style={{
-          background: "rgba(0,0,0,0.04)",
-          border: "1px solid rgba(0,0,0,0.07)",
-          backdropFilter: "blur(8px)",
-        }}
-      >
-        {tabs.map(tab => {
-          const Icon = tab.icon;
-          const active = activeTab === tab.id;
-          const tabDirty = (
-            (tab.id === "details"  && (dirtyFields.has("name") || dirtyFields.has("short_description") || dirtyFields.has("description"))) ||
-            (tab.id === "variants" && false) ||
-            (tab.id === "pricing"  && (dirtyFields.has("base_price") || dirtyFields.has("sale_price") || dirtyFields.has("sale_active") || dirtyFields.has("track_inventory") || dirtyFields.has("stock_quantity"))) ||
-            (tab.id === "media"    && dirtyFields.has("image_url")) ||
-            (tab.id === "seo"      && (dirtyFields.has("seo_title") || dirtyFields.has("seo_description") || dirtyFields.has("seo_keywords") || dirtyFields.has("tags"))) ||
-            (tab.id === "advanced" && (dirtyFields.has("is_active") || dirtyFields.has("is_featured") || dirtyFields.has("sort_order") || dirtyFields.has("admin_notes")))
-          );
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className="flex items-center gap-2 px-4 py-2.5 text-[0.62rem] uppercase tracking-[0.12em] font-medium transition-all whitespace-nowrap rounded-lg relative"
-              style={active ? {
-                background: "white",
-                border: "1px solid rgba(251,191,36,0.22)",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.9)",
-                color: "#111827",
-              } : {
-                background: "transparent",
-                border: "1px solid transparent",
-                color: "#9ca3af",
-              }}
-            >
-              <Icon
-                className="h-3.5 w-3.5 shrink-0"
-                style={{ color: active ? "#f59e0b" : "#d1d5db" }}
-              />
-              {tab.label}
-              {tabDirty && !active && (
-                <span
-                  className="w-1.5 h-1.5 rounded-full shrink-0"
-                  style={{ background: "#f59e0b", boxShadow: "0 0 4px rgba(245,158,11,0.6)" }}
+      {/* Tab navigation */}
+      <div className="mb-6 overflow-x-auto border-b border-gray-100">
+        <div className="flex">
+          {tabs.map(tab => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.id;
+            const tabDirty = (
+              (tab.id === "details"  && (dirtyFields.has("name") || dirtyFields.has("short_description") || dirtyFields.has("description"))) ||
+              (tab.id === "variants" && false) ||
+              (tab.id === "pricing"  && (dirtyFields.has("base_price") || dirtyFields.has("sale_price") || dirtyFields.has("sale_active") || dirtyFields.has("track_inventory") || dirtyFields.has("stock_quantity"))) ||
+              (tab.id === "media"    && dirtyFields.has("image_url")) ||
+              (tab.id === "seo"      && (dirtyFields.has("seo_title") || dirtyFields.has("seo_description") || dirtyFields.has("seo_keywords") || dirtyFields.has("tags"))) ||
+              (tab.id === "advanced" && (dirtyFields.has("is_active") || dirtyFields.has("is_featured") || dirtyFields.has("sort_order") || dirtyFields.has("admin_notes")))
+            );
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-1.5 px-4 py-3 text-[0.62rem] uppercase tracking-[0.12em] font-medium border-b-2 transition-all whitespace-nowrap relative ${
+                  active
+                    ? "border-gray-900 text-gray-900"
+                    : "border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-300"
+                }`}
+              >
+                <Icon
+                  className="h-3.5 w-3.5 shrink-0"
+                  style={{ color: active ? "#111827" : "#d1d5db" }}
                 />
-              )}
-            </button>
-          );
-        })}
+                {tab.label}
+                {tabDirty && !active && (
+                  <span
+                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                    style={{ background: "#f59e0b", boxShadow: "0 0 4px rgba(245,158,11,0.6)" }}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Main edit form */}
@@ -2776,6 +2834,50 @@ function AdminProductEditor() {
                   </span>
                 )}
               </div>
+
+              {/* Metal Options Card */}
+              <div className="rounded-xl overflow-hidden mb-4" style={{ background: "white", border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+                <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Metal Options</p>
+                    <p className="text-[0.62rem] text-gray-400 mt-0.5">Which metal colorways does this product come in? These drive swatch colors, variant generation, and color cover images.</p>
+                  </div>
+                  {productColor.length > 0 && (
+                    <div className="flex gap-1">
+                      {productColor.map(c => (
+                        <span key={c} title={COLOR_LABELS[c] ?? c}
+                          className="w-4 h-4 rounded-full ring-1 ring-black/10 shrink-0"
+                          style={{ backgroundColor: COLOR_HEX[c] ?? "#ccc" }} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="p-5 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {AVAILABLE_COLORS.map(c => {
+                    const active = productColor.includes(c);
+                    return (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setProductColor(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])}
+                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border text-left transition-all ${
+                          active
+                            ? "border-gray-900 bg-gray-900 shadow-sm"
+                            : "border-gray-200 bg-white hover:border-gray-400"
+                        }`}
+                      >
+                        <span className="w-5 h-5 rounded-full shrink-0 ring-1 ring-black/10"
+                          style={{ backgroundColor: COLOR_HEX[c] ?? "#ccc" }} />
+                        <span className={`text-[0.68rem] font-medium leading-tight ${active ? "text-white" : "text-gray-700"}`}>
+                          {COLOR_LABELS[c] ?? c}
+                        </span>
+                        {active && <Check className="h-3 w-3 ml-auto shrink-0 text-amber-400" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <VariantsManager
                 slug={slug}
                 productType={productType}
@@ -2784,8 +2886,8 @@ function AdminProductEditor() {
                 onSizeChange={setProductSize}
                 length={productLength}
                 onLengthChange={setProductLength}
-                color={productColor[0] ?? "silver"}
-                onColorChange={(c: string) => setProductColor(prev => prev.includes(c) ? prev : [...prev, c])}
+                colors={productColor}
+                onColorChange={(cols: string[]) => setProductColor(cols)}
                 onSaved={() => {
                   queryClient.invalidateQueries({ queryKey: ["admin-product", token, slug] });
                   queryClient.invalidateQueries({ queryKey: ["admin-product-variant-count", token, slug] });
@@ -3077,6 +3179,8 @@ function AdminProductEditor() {
                     colorImages={colorImages}
                     onChange={setColorImages}
                     galleryImages={galleryImages}
+                    token={token}
+                    uploadFn={uploadImageFn}
                   />
                 </div>
               </div>
