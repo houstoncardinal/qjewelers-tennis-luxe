@@ -7,11 +7,11 @@ import { createStripeRefund, isStripeConfigured } from "@/lib/payments/stripe.se
 import { createPaypalRefund, isPaypalConfigured } from "@/lib/payments/paypal.server";
 import { alertAdminOnError } from "@/lib/error-alert";
 import { AVAILABLE_SIZES, AVAILABLE_LENGTHS } from "@/lib/pricing";
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 
-// Lazy-init: only instantiated if ANTHROPIC_API_KEY is set in env
-const anthropic = process.env.ANTHROPIC_API_KEY
-  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+// Lazy-init: only instantiated if OPENAI_API_KEY is set in env
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
 
 // New tables (promo_codes, returns, store_settings) are not in generated types.
@@ -855,12 +855,12 @@ function detectSupplierPrice(text: string): number | null {
   return null;
 }
 
-// ─── Claude AI enrichment ─────────────────────────────────────────────────────
-// Sends extracted raw data to Claude claude-haiku-4-5 and gets back luxury retail
-// copy + precision spec extraction. Falls back gracefully (returns null) if
-// ANTHROPIC_API_KEY is not configured or the call fails/times out.
+// ─── OpenAI GPT-4o enrichment ─────────────────────────────────────────────────
+// Sends extracted raw product data to GPT-4o and gets back luxury retail copy +
+// precision spec extraction. Falls back gracefully (returns null) if
+// OPENAI_API_KEY is not configured or the call fails/times out.
 
-interface ClaudeEnrichment {
+interface AIEnrichment {
   luxuryTitle:      string;
   shortDescription: string;
   fullDescription:  string;
@@ -878,16 +878,16 @@ interface ClaudeEnrichment {
   confidence:       "high" | "medium" | "low";
 }
 
-async function enrichWithClaude(params: {
-  rawName:       string;
+async function enrichWithAI(params: {
+  rawName:        string;
   rawDescription: string;
-  attributes:    { name: string; value: string }[];
-  fullText:      string;
-  detectedType:  string | null;
+  attributes:     { name: string; value: string }[];
+  fullText:       string;
+  detectedType:   string | null;
   detectedColors: string[];
-  sourceUrl:     string;
-}): Promise<ClaudeEnrichment | null> {
-  if (!anthropic) return null;
+  sourceUrl:      string;
+}): Promise<AIEnrichment | null> {
+  if (!openai) return null;
 
   const COLOR_LABEL: Record<string, string> = {
     silver: "S925 sterling silver", gold: "18K yellow gold",
@@ -896,49 +896,65 @@ async function enrichWithClaude(params: {
   const colorHint = params.detectedColors.map(c => COLOR_LABEL[c] ?? c).join(", ") || "unknown metal";
   const specBlock = params.attributes.slice(0, 25).map(a => `${a.name}: ${a.value}`).join("\n");
 
-  const prompt = `You are the senior product intelligence analyst and copywriter for Qureshi Jewelers, a luxury moissanite jewelry boutique. Our customers pay $89–$699 per piece. Our copy reads at the level of Tiffany & Co. — confident, precise, aspirational, never pushy. Competitors sell moissanite as "cheap diamonds" — we position it as the superior, ethical choice.
+  const systemPrompt = `You are the senior product intelligence analyst and luxury copywriter for Qureshi Jewelers — a premium moissanite jewelry boutique where customers pay $89–$2,000 per piece. Your copy reads at the level of Tiffany & Co. and Mejuri: confident, precise, aspirational, never pushy or clichéd.
 
-I've scraped a product from a wholesale supplier. Extract specifications with expert precision and rewrite everything as original luxury retail copy. NEVER reveal the supplier or use wholesale language (no: wholesale, factory, MOQ, hot sale, OEM, dropship, bulk, pcs, lot, etc.).
+BRAND POSITIONING:
+- We sell VVS1 D-Color moissanite (GRA certified) set in solid S925 sterling silver with 18K gold/rose gold/white gold plating
+- We DO NOT position moissanite as "cheap diamonds" — we position it as the superior, ethical, brilliant-cut alternative
+- Avoid: "iced out", "drip", "swag", "flashy", "blingy", "dope", "fire" — these are not our brand
+- Use: "precision", "brilliance", "craftsmanship", "hand-set", "calibrated", "aspirational", "refined"
 
-═══ SUPPLIER RAW DATA ═══
+STRICT RULES:
+- NEVER reveal the supplier, source URL, or wholesale origin
+- NEVER use: wholesale, factory, MOQ, hot sale, OEM, dropship, bulk, pcs, lot, sample, alibaba, aliexpress, supplier
+- NEVER fabricate specifications — if uncertain, use null
+- Output ONLY valid JSON — no markdown fences, no commentary, no explanation`;
+
+  const userPrompt = `I've scraped a product from a wholesale supplier. Analyze it and produce luxury retail content + extract every verifiable specification.
+
+═══ RAW SUPPLIER DATA ═══
 Title: ${params.rawName || "(none)"}
-Description: ${params.rawDescription.slice(0, 700) || "(none)"}
+Description: ${params.rawDescription.slice(0, 800) || "(none)"}
 Specifications:
 ${specBlock || "(none)"}
-Additional text: ${params.fullText.slice(0, 1000)}
-Detected finish: ${colorHint}
-Source: ${params.sourceUrl.replace(/[?#].*$/, "").slice(0, 120)}
+Additional page text: ${params.fullText.slice(0, 1200)}
+Detected metal finish: ${colorHint}
+Detected product type: ${params.detectedType || "unknown"}
+Source URL (do not mention): ${params.sourceUrl.replace(/[?#].*$/, "").slice(0, 120)}
 
-═══ STORE CONTEXT ═══
-Specialty: Exclusively moissanite (D-color, VVS1, GRA certifiable) unless clearly otherwise
-Metals: S925 sterling silver | 14K/18K gold plated | rose gold plated | white gold plated
-Product lines: tennis chains/necklaces, tennis bracelets, stud earrings, solitaire rings
-Price range: earrings $89–$199 | bracelets $129–$349 | necklaces $149–$399 | rings $199–$699
-Brand voice: "every stone placed to perfection" | "built to outshine" | "brilliance, without compromise"
+═══ OUTPUT INSTRUCTIONS ═══
+1. luxuryTitle: 70–140 chars, SEO-optimized, luxury language. Include: key stone spec, metal, product type. Example: "VVS1 D-Color Moissanite Tennis Bracelet — 4mm | 18K Gold Plated | S925 Sterling Silver"
+2. shortDescription: Exactly 1 sentence, 110–200 chars, elegant & precise. No filler. This is the subtitle shown on the product card.
+3. fullDescription: 4–6 substantial paragraphs separated by double newlines. First paragraph: the hero statement. Middle: technical brilliance, craftsmanship, stone quality. Last paragraph: styling/occasion. Weave specs in naturally. No bullet points.
+4. seoDescription: Under 155 chars, primary keyword first, conversion-focused, includes stone grade and metal.
+5. productType: One of: necklace | bracelet | earring | ring | anklet | pendant — or null if unclear
+6. stoneShape: round brilliant | oval | cushion | princess | pear | emerald | radiant | heart | marquise | null
+7. metalPurity: S925 | 10K | 14K | 18K | null
+8. supplierPrice: numeric USD unit price visible in the raw data, or null
+9. caratWeight: e.g. "0.5 CTW" or "2.0 CTW" or null — total carat weight of all stones
+10. stoneDiameter: e.g. "3mm" or "4mm" — diameter of individual stones, or null
+11. stoneCount: integer number of stones in the piece, or null
+12. clarity: VVS1 | VVS2 | VS1 | SI1 | null
+13. colorGrade: D | E | F | G | null
+14. additionalTags: Array of 8–12 specific lowercase hyphenated SEO tags. Include product type, stone, metal, occasion.
+15. confidence: "high" if 6+ concrete specs extracted | "medium" if 3–5 | "low" if mostly inferred
 
-═══ INSTRUCTIONS ═══
-1. luxuryTitle: 60–130 chars, SEO-optimized, luxury language, includes key specs (stone size, metal, type)
-2. shortDescription: 1 sentence, 100–200 chars, elegant and precise — no filler words
-3. fullDescription: 4–6 paragraphs (double newline between each), weave in specs naturally, end with occasion/lifestyle line
-4. seoDescription: under 155 chars, includes primary keyword, conversion-focused
-5. Extract every spec you can identify with certainty; null for anything uncertain
-6. supplierPrice: extract USD unit price if visible in the raw data; null if not found
-7. additionalTags: 6–10 specific, lowercase, hyphenated tags relevant to this exact product
-8. confidence: "high" if you extracted 5+ concrete specs | "medium" if 2–4 | "low" if mostly guessing
-
-Return ONLY a raw JSON object — no markdown fences, no commentary:
-{"luxuryTitle":"...","shortDescription":"...","fullDescription":"...","seoDescription":"...","productType":"necklace|bracelet|earring|ring|null","stoneShape":"round brilliant|oval|cushion|princess|pear|emerald|radiant|heart|marquise|null","metalPurity":"S925|10K|14K|18K|null","supplierPrice":null,"caratWeight":"X.XX CTW or null","stoneDiameter":"Xmm or null","stoneCount":null,"clarity":"VVS1|VVS2|VS1|SI1|null","colorGrade":"D|E|F|G|null","additionalTags":[],"confidence":"high|medium|low"}`;
+Return ONLY this exact JSON structure:
+{"luxuryTitle":"","shortDescription":"","fullDescription":"","seoDescription":"","productType":null,"stoneShape":null,"metalPurity":null,"supplierPrice":null,"caratWeight":null,"stoneDiameter":null,"stoneCount":null,"clarity":null,"colorGrade":null,"additionalTags":[],"confidence":"medium"}`;
 
   try {
-    const msg = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 2000,
-      messages: [{ role: "user", content: prompt }],
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      max_tokens: 2500,
+      temperature: 0.3,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user",   content: userPrompt   },
+      ],
     });
-    const raw = msg.content[0]?.type === "text" ? msg.content[0].text.trim() : "";
-    // Strip accidental markdown fences
-    const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
-    return JSON.parse(cleaned) as ClaudeEnrichment;
+    const raw = completion.choices[0]?.message?.content?.trim() ?? "";
+    return JSON.parse(raw) as AIEnrichment;
   } catch {
     return null;
   }
@@ -955,7 +971,7 @@ function mergeWithAI(
     suggestedPrice: number | null; isBlocked: boolean;
     stoneShape: string | null; metalPurity: string | null; supplierPrice: number | null;
   },
-  ai: ClaudeEnrichment | null,
+  ai: AIEnrichment | null,
   sourceUrl: string
 ) {
   const aiEnriched = ai !== null;
@@ -1720,7 +1736,7 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
     if (jina && jina.content.length > 200) {
       const base = buildBaseFromJina(jina.title, jina.content, jina.images, url);
       const ai = await Promise.race([
-        enrichWithClaude({
+        enrichWithAI({
           rawName: jina.title,
           rawDescription: jina.content.slice(0, 600),
           attributes: [],
@@ -1748,7 +1764,7 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
     }
 
     const ai = await Promise.race([
-      enrichWithClaude({
+      enrichWithAI({
         rawName: base.rawName,
         rawDescription: base.sourcePagePreview,
         attributes: base.attributes,
@@ -1774,7 +1790,7 @@ export const importProductFromHtml = createServerFn({ method: "POST" })
     const base = parseProductPage(data.html, seed);
 
     const ai = await Promise.race([
-      enrichWithClaude({
+      enrichWithAI({
         rawName: base.rawName,
         rawDescription: base.sourcePagePreview,
         attributes: base.attributes,
@@ -1804,7 +1820,7 @@ export const importProductFromText = createServerFn({ method: "POST" })
       data.sourceUrl ?? ""
     );
     const ai = await Promise.race([
-      enrichWithClaude({
+      enrichWithAI({
         rawName: base.rawName,
         rawDescription: text.slice(0, 600),
         attributes: [],

@@ -12,7 +12,8 @@ import {
   calculatePrice, calculateEarringPrice, calculateRingPrice,
   getTennisBraceletPrice, getTennisChainPrice,
   formatUSD,
-  SIZES_NECKLACE, SIZES_EARRING, SIZES_RING, SIZES_TENNIS_BRACELET, SIZES_TENNIS_CHAIN,
+  SIZES_NECKLACE, SIZES_EARRING, SIZES_RING, SIZES_TENNIS_BRACELET, SIZES_TENNIS_CHAIN, SIZES_TENNIS_ANKLET,
+  isAnkletSlug,
   LENGTHS_NECKLACE, LENGTHS_BRACELET, LENGTHS_TENNIS_BRACELET, LENGTHS_TENNIS_CHAIN,
   LENGTH_BRACELET_DEFAULT, TENNIS_BRACELET_LENGTH_DEFAULT, TENNIS_CHAIN_LENGTH_DEFAULT,
   type Size, type EarringSize, type RingSize, type Length,
@@ -575,7 +576,8 @@ function ProductPage() {
   const isBracelet    = product.type === "bracelet";
   const isEarring     = product.type === "earring";
   const isRing        = product.type === "ring";
-  const isTennis      = slug.includes("tennis") || slug.includes("anklet");
+  const isAnklet      = isAnkletSlug(slug);
+  const isTennis      = slug.includes("tennis") || isAnklet;
   const isTennisChain = isTennis && !isBracelet;
 
   // Rings are variant-aware: when this product has real product_variants
@@ -592,10 +594,11 @@ function ProductPage() {
     ? [...new Set(ringVariants.map(v => v.size).filter((s): s is string => !!s))]
     : [...SIZES_RING];
 
-  const sizes = isTennisChain ? SIZES_TENNIS_CHAIN : isTennis ? SIZES_TENNIS_BRACELET : isEarring ? SIZES_EARRING : isRing ? ringCarats : SIZES_NECKLACE;
+  const sizes = isAnklet ? SIZES_TENNIS_ANKLET : isTennisChain ? SIZES_TENNIS_CHAIN : isTennis ? SIZES_TENNIS_BRACELET : isEarring ? SIZES_EARRING : isRing ? ringCarats : SIZES_NECKLACE;
   const sizeDescriptions = isTennisChain ? TENNIS_CHAIN_SIZE_DESCRIPTIONS : isTennis ? TENNIS_BRACELET_SIZE_DESCRIPTIONS : isEarring ? EARRING_SIZE_DESCRIPTIONS : isRing ? RING_SIZE_DESCRIPTIONS : SIZE_DESCRIPTIONS;
 
   const defaultSize: string = (() => {
+    if (isAnklet) return "6mm";
     if (isTennisChain) return "3mm";
     if (isRing) {
       if (ringCarats.length === 1) return ringCarats[0];

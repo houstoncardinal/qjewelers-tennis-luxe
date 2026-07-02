@@ -37,6 +37,8 @@ import {
   COLOR_HEX,
   TYPE_LABELS,
   isTennisBraceletSlug,
+  isAnkletSlug,
+  SIZES_TENNIS_ANKLET,
   isRingType,
   isRingSlug,
 } from "@/lib/pricing";
@@ -915,9 +917,10 @@ function VariantsManager({
   const [pricingMode, setPricingMode] = useState<"none" | "supplier" | "markup">("none");
   const [markupPercent, setMarkupPercent] = useState<string>("500");
   const [fetchingCost, setFetchingCost] = useState(false);
-  const isTennis = isTennisBraceletSlug(slug);
+  const isAnklet = isAnkletSlug(slug);
+  const isTennis = isTennisBraceletSlug(slug) || isAnklet;
   const isRing = isRingType(productType) || isRingSlug(slug);
-  const sizeOptions = isTennis ? [...SIZES_TENNIS_BRACELET] : AVAILABLE_SIZES;
+  const sizeOptions = isTennis ? (isAnklet ? [...SIZES_TENNIS_ANKLET] : [...SIZES_TENNIS_BRACELET]) : AVAILABLE_SIZES;
   const lengthOptions = isTennis ? [...LENGTHS_TENNIS_BRACELET] : AVAILABLE_LENGTHS;
   const visibleVariantPrice = (v: ProductVariant) =>
     isTennis && v.size && v.length
@@ -2747,9 +2750,9 @@ function AdminProductEditor() {
                   <p className="text-sm font-semibold text-gray-900">Variants & Options</p>
                   <p className="text-xs text-gray-400 mt-0.5">Generate color, size, and length combinations. Set per-variant pricing, stock, and SKUs.</p>
                 </div>
-                {isTennisBraceletSlug(slug) && (
+                {(isTennisBraceletSlug(slug) || isAnkletSlug(slug)) && (
                   <span className="text-[0.56rem] uppercase tracking-[0.12em] px-3 py-1.5 rounded-lg font-medium" style={{ background: "var(--at-live-bg)", color: "var(--at-live-text)", border: "1px solid var(--at-live-border)" }}>
-                    Tennis Bracelet — Price Table Active
+                    {isAnkletSlug(slug) ? "Tennis Anklet — 6mm Only · Price Table Active" : "Tennis Bracelet — Price Table Active"}
                   </span>
                 )}
               </div>

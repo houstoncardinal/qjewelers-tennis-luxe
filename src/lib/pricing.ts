@@ -211,6 +211,11 @@ export const TYPE_LABELS: Record<string, string> = {
 };
 
 export const isTennisBraceletSlug = (slug: string) => slug.includes("tennis") && slug.includes("bracelet");
+export const isAnkletSlug = (slug: string) => slug.includes("anklet");
+
+// Anklet only comes in one width
+export const SIZES_TENNIS_ANKLET = ["6mm"] as const;
+export type TennisAnkletSize = (typeof SIZES_TENNIS_ANKLET)[number];
 
 // ─── Tennis Bracelet ─────────────────────────────────────────────────────────
 
