@@ -38,7 +38,10 @@ import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
 import { Route as AdminCustomersRouteImport } from './routes/admin/customers'
 import { Route as AdminContentRouteImport } from './routes/admin/content'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
+import { Route as AdminAbandonedCartsRouteImport } from './routes/admin/abandoned-carts'
+import { Route as AccountWishlistRouteImport } from './routes/account/wishlist'
 import { Route as AccountOrdersRouteImport } from './routes/account/orders'
+import { Route as AccountAddressesRouteImport } from './routes/account/addresses'
 import { Route as AdminProductsIndexRouteImport } from './routes/admin/products.index'
 import { Route as AdminReturnsReturnIdRouteImport } from './routes/admin/returns.$returnId'
 import { Route as AdminProductsNewRouteImport } from './routes/admin/products.new'
@@ -191,9 +194,24 @@ const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAbandonedCartsRoute = AdminAbandonedCartsRouteImport.update({
+  id: '/abandoned-carts',
+  path: '/abandoned-carts',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AccountWishlistRoute = AccountWishlistRouteImport.update({
+  id: '/wishlist',
+  path: '/wishlist',
+  getParentRoute: () => AccountRoute,
+} as any)
 const AccountOrdersRoute = AccountOrdersRouteImport.update({
   id: '/orders',
   path: '/orders',
+  getParentRoute: () => AccountRoute,
+} as any)
+const AccountAddressesRoute = AccountAddressesRouteImport.update({
+  id: '/addresses',
+  path: '/addresses',
   getParentRoute: () => AccountRoute,
 } as any)
 const AdminProductsIndexRoute = AdminProductsIndexRouteImport.update({
@@ -246,7 +264,10 @@ export interface FileRoutesByFullPath {
   '/size-guide': typeof SizeGuideRoute
   '/terms-of-service': typeof TermsOfServiceRoute
   '/track-order': typeof TrackOrderRoute
+  '/account/addresses': typeof AccountAddressesRoute
   '/account/orders': typeof AccountOrdersRoute
+  '/account/wishlist': typeof AccountWishlistRoute
+  '/admin/abandoned-carts': typeof AdminAbandonedCartsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/customers': typeof AdminCustomersRouteWithChildren
@@ -283,7 +304,10 @@ export interface FileRoutesByTo {
   '/size-guide': typeof SizeGuideRoute
   '/terms-of-service': typeof TermsOfServiceRoute
   '/track-order': typeof TrackOrderRoute
+  '/account/addresses': typeof AccountAddressesRoute
   '/account/orders': typeof AccountOrdersRoute
+  '/account/wishlist': typeof AccountWishlistRoute
+  '/admin/abandoned-carts': typeof AdminAbandonedCartsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/customers': typeof AdminCustomersRouteWithChildren
@@ -321,7 +345,10 @@ export interface FileRoutesById {
   '/size-guide': typeof SizeGuideRoute
   '/terms-of-service': typeof TermsOfServiceRoute
   '/track-order': typeof TrackOrderRoute
+  '/account/addresses': typeof AccountAddressesRoute
   '/account/orders': typeof AccountOrdersRoute
+  '/account/wishlist': typeof AccountWishlistRoute
+  '/admin/abandoned-carts': typeof AdminAbandonedCartsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/customers': typeof AdminCustomersRouteWithChildren
@@ -361,7 +388,10 @@ export interface FileRouteTypes {
     | '/size-guide'
     | '/terms-of-service'
     | '/track-order'
+    | '/account/addresses'
     | '/account/orders'
+    | '/account/wishlist'
+    | '/admin/abandoned-carts'
     | '/admin/analytics'
     | '/admin/content'
     | '/admin/customers'
@@ -398,7 +428,10 @@ export interface FileRouteTypes {
     | '/size-guide'
     | '/terms-of-service'
     | '/track-order'
+    | '/account/addresses'
     | '/account/orders'
+    | '/account/wishlist'
+    | '/admin/abandoned-carts'
     | '/admin/analytics'
     | '/admin/content'
     | '/admin/customers'
@@ -435,7 +468,10 @@ export interface FileRouteTypes {
     | '/size-guide'
     | '/terms-of-service'
     | '/track-order'
+    | '/account/addresses'
     | '/account/orders'
+    | '/account/wishlist'
+    | '/admin/abandoned-carts'
     | '/admin/analytics'
     | '/admin/content'
     | '/admin/customers'
@@ -682,11 +718,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAnalyticsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/abandoned-carts': {
+      id: '/admin/abandoned-carts'
+      path: '/abandoned-carts'
+      fullPath: '/admin/abandoned-carts'
+      preLoaderRoute: typeof AdminAbandonedCartsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/account/wishlist': {
+      id: '/account/wishlist'
+      path: '/wishlist'
+      fullPath: '/account/wishlist'
+      preLoaderRoute: typeof AccountWishlistRouteImport
+      parentRoute: typeof AccountRoute
+    }
     '/account/orders': {
       id: '/account/orders'
       path: '/orders'
       fullPath: '/account/orders'
       preLoaderRoute: typeof AccountOrdersRouteImport
+      parentRoute: typeof AccountRoute
+    }
+    '/account/addresses': {
+      id: '/account/addresses'
+      path: '/addresses'
+      fullPath: '/account/addresses'
+      preLoaderRoute: typeof AccountAddressesRouteImport
       parentRoute: typeof AccountRoute
     }
     '/admin/products/': {
@@ -735,11 +792,15 @@ declare module '@tanstack/react-router' {
 }
 
 interface AccountRouteChildren {
+  AccountAddressesRoute: typeof AccountAddressesRoute
   AccountOrdersRoute: typeof AccountOrdersRoute
+  AccountWishlistRoute: typeof AccountWishlistRoute
 }
 
 const AccountRouteChildren: AccountRouteChildren = {
+  AccountAddressesRoute: AccountAddressesRoute,
   AccountOrdersRoute: AccountOrdersRoute,
+  AccountWishlistRoute: AccountWishlistRoute,
 }
 
 const AccountRouteWithChildren =
@@ -798,6 +859,7 @@ const AdminReturnsRouteWithChildren = AdminReturnsRoute._addFileChildren(
 )
 
 interface AdminRouteChildren {
+  AdminAbandonedCartsRoute: typeof AdminAbandonedCartsRoute
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminContentRoute: typeof AdminContentRoute
   AdminCustomersRoute: typeof AdminCustomersRouteWithChildren
@@ -812,6 +874,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAbandonedCartsRoute: AdminAbandonedCartsRoute,
   AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminContentRoute: AdminContentRoute,
   AdminCustomersRoute: AdminCustomersRouteWithChildren,

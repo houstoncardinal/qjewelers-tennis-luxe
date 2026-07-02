@@ -4,7 +4,7 @@ import {
   LayoutDashboard, ShoppingBag, Package, LogOut, Store, ChevronRight,
   Menu, X, BarChart2, Users, RotateCcw, Tag, Settings, Gem,
   ArrowUpRight, Star, Mail, Lock, ShieldCheck,
-  ClipboardList, ArrowLeft, FileText, MoreHorizontal,
+  ClipboardList, ArrowLeft, FileText, MoreHorizontal, ShoppingCart,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -871,10 +871,11 @@ const NAV_SECTIONS = [
   {
     label: "Operations",
     items: [
-      { icon: ShoppingBag, label: "Orders",       to: "/admin/orders" },
-      { icon: RotateCcw,   label: "Returns",      to: "/admin/returns" },
-      { icon: Users,       label: "Customers",    to: "/admin/customers" },
-      { icon: Mail,        label: "Inner Circle", to: "/admin/subscribers" },
+      { icon: ShoppingBag,  label: "Orders",           to: "/admin/orders" },
+      { icon: RotateCcw,    label: "Returns",          to: "/admin/returns" },
+      { icon: Users,        label: "Customers",        to: "/admin/customers" },
+      { icon: ShoppingCart, label: "Abandoned Carts",  to: "/admin/abandoned-carts" },
+      { icon: Mail,         label: "Inner Circle",     to: "/admin/subscribers" },
     ],
   },
   {
@@ -1225,13 +1226,14 @@ const BOTTOM_NAV_PRIMARY = [
 ];
 
 const MORE_NAV_ITEMS = [
-  { icon: RotateCcw, label: "Returns",      to: "/admin/returns" },
-  { icon: Users,     label: "Customers",    to: "/admin/customers" },
-  { icon: Mail,      label: "Inner Circle", to: "/admin/subscribers" },
-  { icon: Tag,       label: "Promotions",   to: "/admin/promotions" },
-  { icon: Star,      label: "Reviews",      to: "/admin/reviews" },
-  { icon: FileText,  label: "Content",      to: "/admin/content" },
-  { icon: Settings,  label: "Settings",     to: "/admin/settings" },
+  { icon: RotateCcw,    label: "Returns",         to: "/admin/returns" },
+  { icon: Users,        label: "Customers",       to: "/admin/customers" },
+  { icon: ShoppingCart, label: "Abandoned Carts", to: "/admin/abandoned-carts" },
+  { icon: Mail,         label: "Inner Circle",    to: "/admin/subscribers" },
+  { icon: Tag,          label: "Promotions",      to: "/admin/promotions" },
+  { icon: Star,         label: "Reviews",         to: "/admin/reviews" },
+  { icon: FileText,     label: "Content",         to: "/admin/content" },
+  { icon: Settings,     label: "Settings",        to: "/admin/settings" },
 ];
 
 function MobileMoreSheet({
