@@ -17,16 +17,51 @@ export function isStripeConfigured(): boolean {
   return !!process.env.STRIPE_SECRET_KEY;
 }
 
+// Find an existing Stripe Customer by email, or create one. Called at checkout
+// so returning buyers see their saved cards in the PaymentElement automatically.
+export async function getOrCreateStripeCustomer(email: string, name?: string): Promise<string> {
+  const stripe = getStripe();
+  const existing = await stripe.customers.list({ email, limit: 1 });
+  if (existing.data.length > 0) return existing.data[0].id;
+  const customer = await stripe.customers.create({ email, ...(name ? { name } : {}) });
+  return customer.id;
+}
+
+// Generates a short-lived Stripe Billing Portal URL so customers can manage
+// saved cards entirely within Stripe's hosted UI — we never see card numbers.
+export async function createStripePortalSession(customerId: string, returnUrl: string): Promise<string> {
+  const session = await getStripe().billingPortal.sessions.create({
+    customer: customerId,
+    return_url: returnUrl,
+  });
+  return session.url;
+}
+
 export async function createStripePaymentIntent(params: {
   amountCents: number;
   currency: string;
   metadata: Record<string, string>;
+  customerEmail?: string;
+  customerName?: string;
 }): Promise<{ clientSecret: string; paymentIntentId: string }> {
+  let customerId: string | undefined;
+  if (params.customerEmail) {
+    try {
+      customerId = await getOrCreateStripeCustomer(params.customerEmail, params.customerName);
+    } catch {
+      // Non-fatal — proceed without customer attachment
+    }
+  }
+
   const intent = await getStripe().paymentIntents.create({
     amount: params.amountCents,
     currency: params.currency,
     metadata: params.metadata,
     automatic_payment_methods: { enabled: true },
+    ...(customerId ? {
+      customer: customerId,
+      setup_future_usage: "off_session",
+    } : {}),
   });
   if (!intent.client_secret) throw new Error("Stripe did not return a client secret");
   return { clientSecret: intent.client_secret, paymentIntentId: intent.id };

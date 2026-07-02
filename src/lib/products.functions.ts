@@ -362,6 +362,8 @@ export const initiateCheckout = createServerFn({ method: "POST" })
         amountCents: Math.round(priced.total * 100),
         currency: "usd",
         metadata: { reservation_token: reservationToken },
+        customerEmail: data.customer_email,
+        customerName: data.customer_name,
       });
       await db.from("pending_orders").update({ stripe_payment_intent_id: paymentIntentId }).eq("reservation_token", reservationToken);
       return { provider: "stripe" as const, clientSecret, reservationToken, total: priced.total };

@@ -3,10 +3,11 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getOrdersByEmail } from "@/lib/admin-extended.functions";
+import { signUpUser, createPaymentPortalSession } from "@/lib/customer.functions";
 import { toast } from "sonner";
 import {
   LogOut, ShoppingBag, User, ArrowRight, Loader2,
-  Eye, EyeOff, Heart, MapPin, Package,
+  Eye, EyeOff, Heart, MapPin, Package, CreditCard,
 } from "lucide-react";
 import { formatUSD } from "@/lib/pricing";
 import type { Session } from "@supabase/supabase-js";
@@ -33,6 +34,7 @@ function AccountRoot() {
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
+      setHydrated(true);
     });
     return () => listener.subscription.unsubscribe();
   }, []);
@@ -80,7 +82,7 @@ function AccountSignIn() {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${SITE}/account` },
+        options: { redirectTo: `${SITE}/auth/callback` },
       });
       if (error) throw error;
     } catch (err: any) {
@@ -90,6 +92,8 @@ function AccountSignIn() {
       setBusy(false);
     }
   };
+
+  const serverSignUp = useServerFn(signUpUser);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,13 +119,11 @@ function AccountSignIn() {
     if (password !== confirmPassword) { toast.error("Passwords don't match"); return; }
     setBusy(true);
     try {
-      const { error } = await supabase.auth.signUp({
-        email: clean,
-        password,
-        options: { emailRedirectTo: `${SITE}/account` },
-      });
-      if (error) throw error;
-      setSent(true);
+      // Create user server-side with email pre-confirmed so no verification step is needed
+      await serverSignUp({ data: { email: clean, password } });
+      // Sign in immediately
+      const { error: signInErr } = await supabase.auth.signInWithPassword({ email: clean, password });
+      if (signInErr) throw signInErr;
     } catch (err: any) {
       toast.error(err?.message ?? "Could not create account");
     } finally {
@@ -137,7 +139,7 @@ function AccountSignIn() {
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email: clean,
-        options: { emailRedirectTo: `${SITE}/account`, shouldCreateUser: true },
+        options: { emailRedirectTo: `${SITE}/auth/callback`, shouldCreateUser: true },
       });
       if (error) throw error;
       setSent(true);
@@ -196,18 +198,20 @@ function AccountSignIn() {
 
   return (
     <div className="bg-[#faf9f7] min-h-screen">
-      <div className="mx-auto max-w-md px-4 sm:px-6 py-16 sm:py-24">
-        <p className="eyebrow mb-4">My Account</p>
-        <h1 className="font-display text-4xl sm:text-5xl">
-          {mode === "signup" ? "Create Account" : mode === "reset" ? "Reset Password" : "Sign In"}
-        </h1>
-        <p className="mt-3 text-muted-foreground text-sm leading-relaxed">
-          {mode === "signup"
-            ? "Create a free account to track orders, save addresses, and build your wishlist."
-            : mode === "reset"
-            ? "Enter your email and we'll send a secure reset link."
-            : "Sign in to access your orders, saved addresses, and wishlist."}
-        </p>
+      <div className="mx-auto max-w-md px-5 sm:px-6 py-14 sm:py-20">
+
+        {/* Header */}
+        <div className="text-center mb-8">
+          <p className="eyebrow mb-3">Qureshi Jewelers</p>
+          <h1 className="font-display text-4xl sm:text-5xl">
+            {mode === "reset" ? "Reset Password" : "Your Account"}
+          </h1>
+          <p className="mt-3 text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">
+            {mode === "reset"
+              ? "Enter your email and we'll send a secure reset link."
+              : "Sign in or create a free account to track orders, save addresses, and build your wishlist."}
+          </p>
+        </div>
 
         {/* Google sign-in */}
         {mode !== "reset" && (
@@ -215,10 +219,9 @@ function AccountSignIn() {
             <button
               onClick={handleGoogleSignIn}
               disabled={busy}
-              className="mt-8 w-full flex items-center justify-center gap-3 border border-[#ddd8d0] bg-white py-3.5 text-sm font-medium hover:border-foreground transition-colors disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-3 bg-white border-2 border-[#ddd8d0] py-4 text-[0.85rem] font-medium hover:border-foreground hover:shadow-sm transition-all disabled:opacity-60 active:scale-[0.99]"
             >
-              {/* Google "G" SVG */}
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 18 18" fill="none" aria-hidden="true">
                 <path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
                 <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
                 <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
@@ -229,7 +232,7 @@ function AccountSignIn() {
 
             <div className="flex items-center gap-3 my-6">
               <div className="flex-1 h-px bg-[#e8e4de]" />
-              <span className="text-[0.60rem] uppercase tracking-[0.16em] text-muted-foreground">or</span>
+              <span className="text-[0.60rem] uppercase tracking-[0.16em] text-muted-foreground">or use email</span>
               <div className="flex-1 h-px bg-[#e8e4de]" />
             </div>
           </>
@@ -237,16 +240,18 @@ function AccountSignIn() {
 
         {/* Mode tabs: Sign In / Create Account */}
         {(mode === "signin" || mode === "signup") && (
-          <div className="flex border border-[#e5e1d9] mb-6">
+          <div className="flex gap-2 mb-6">
             {(["signin", "signup"] as const).map(m => (
               <button
                 key={m}
                 onClick={() => { setMode(m); setSent(false); }}
-                className={`flex-1 py-2.5 text-[0.60rem] uppercase tracking-[0.18em] transition-colors ${
-                  mode === m ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+                className={`flex-1 py-3.5 text-[0.65rem] uppercase tracking-[0.18em] border-2 transition-colors ${
+                  mode === m
+                    ? "bg-foreground text-background border-foreground"
+                    : "bg-white text-muted-foreground border-[#ddd8d0] hover:border-foreground hover:text-foreground"
                 }`}
               >
-                {m === "signin" ? "Sign In" : "Create Account"}
+                {m === "signin" ? "Sign In" : "New Account"}
               </button>
             ))}
           </div>
@@ -371,17 +376,18 @@ function AccountSignIn() {
         )}
 
         {/* Benefits footer */}
-        {(mode === "signin" || mode === "signup") && (
+        {mode !== "reset" && (
           <div className="mt-10 pt-8 border-t border-[#e8e4de]">
-            <div className="grid grid-cols-3 gap-3 text-center">
+            <p className="text-center text-[0.58rem] uppercase tracking-[0.16em] text-muted-foreground mb-4">Your account includes</p>
+            <div className="grid grid-cols-3 gap-2.5 text-center">
               {[
                 { icon: ShoppingBag, label: "Order History" },
                 { icon: MapPin,      label: "Saved Addresses" },
                 { icon: Heart,       label: "Wishlist" },
               ].map(({ icon: Icon, label }) => (
-                <div key={label} className="border border-[#e5e1d9] bg-white p-3">
-                  <Icon className="w-4 h-4 mx-auto text-muted-foreground mb-1.5" />
-                  <p className="text-[0.58rem] uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+                <div key={label} className="border border-[#e5e1d9] bg-white py-4 px-2">
+                  <Icon className="w-4 h-4 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-[0.56rem] uppercase tracking-[0.14em] text-muted-foreground leading-tight">{label}</p>
                 </div>
               ))}
             </div>
@@ -398,6 +404,8 @@ function AccountDashboard({ session, onSignOut }: { session: Session; onSignOut:
   const navigate = useNavigate();
   const email = session.user.email ?? "";
   const displayName = (session.user.user_metadata?.full_name as string | undefined) ?? email.split("@")[0];
+  const [portalLoading, setPortalLoading] = useState(false);
+  const openPortal = useServerFn(createPaymentPortalSession);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -405,6 +413,29 @@ function AccountDashboard({ session, onSignOut }: { session: Session; onSignOut:
     toast.success("Signed out");
     navigate({ to: "/" });
   };
+
+  const handlePaymentPortal = async () => {
+    setPortalLoading(true);
+    try {
+      const s = await supabase.auth.getSession();
+      const tok = s.data.session?.access_token;
+      if (!tok) { toast.error("Please sign in again"); return; }
+      const { url } = await openPortal({
+        data: { token: tok, userId: session.user.id, returnUrl: window.location.href },
+      });
+      window.location.href = url;
+    } catch (err: any) {
+      toast.error(err?.message ?? "Could not open payment portal");
+      setPortalLoading(false);
+    }
+  };
+
+  const linkTiles = [
+    { icon: ShoppingBag, label: "Order History",   sub: "View and track all your orders",    to: "/account/orders"    as const },
+    { icon: MapPin,      label: "Saved Addresses", sub: "Manage your shipping addresses",    to: "/account/addresses" as const },
+    { icon: Heart,       label: "Wishlist",         sub: "Items you've saved for later",      to: "/account/wishlist"  as const },
+    { icon: User,        label: "Start a Return",  sub: "14-day hassle-free returns",        to: "/returns"           as const },
+  ];
 
   return (
     <div className="bg-[#faf9f7] min-h-screen">
@@ -424,12 +455,7 @@ function AccountDashboard({ session, onSignOut }: { session: Session; onSignOut:
         </div>
 
         <div className="grid sm:grid-cols-2 gap-4 mb-10">
-          {[
-            { icon: ShoppingBag, label: "Order History",      sub: "View and track all your orders",      to: "/account/orders" as const },
-            { icon: MapPin,      label: "Saved Addresses",    sub: "Manage your shipping addresses",       to: "/account/addresses" as const },
-            { icon: Heart,       label: "Wishlist",           sub: "Items you've saved for later",         to: "/account/wishlist" as const },
-            { icon: User,        label: "Start a Return",     sub: "14-day hassle-free returns",           to: "/returns" as const },
-          ].map(({ icon: Icon, label, sub, to }) => (
+          {linkTiles.map(({ icon: Icon, label, sub, to }) => (
             <Link
               key={label}
               to={to}
@@ -445,6 +471,25 @@ function AccountDashboard({ session, onSignOut }: { session: Session; onSignOut:
               <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
             </Link>
           ))}
+
+          {/* Payment methods — opens Stripe's hosted portal, no card data ever stored here */}
+          <button
+            onClick={handlePaymentPortal}
+            disabled={portalLoading}
+            className="group flex items-center justify-between p-5 bg-white border border-[#e5e1d9] hover:border-foreground transition-colors disabled:opacity-60 text-left"
+          >
+            <div className="flex items-center gap-3">
+              <CreditCard className="w-5 h-5 text-muted-foreground" />
+              <div>
+                <p className="text-[0.65rem] uppercase tracking-[0.14em] font-medium">Payment Methods</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Manage saved cards securely via Stripe</p>
+              </div>
+            </div>
+            {portalLoading
+              ? <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
+              : <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+            }
+          </button>
         </div>
 
         <RecentOrders email={email} />

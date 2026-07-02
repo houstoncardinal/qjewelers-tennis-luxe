@@ -8,6 +8,8 @@ import { useState, useEffect, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useCart } from "@/lib/cart";
 import { subscribeEmail } from "@/lib/products.functions";
+import { supabase } from "@/integrations/supabase/client";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 const NAV_ITEMS = [
   { label: "Shop All",   to: "/shop",                      search: {} },
@@ -42,10 +44,40 @@ const QUICK_LINKS = [
   { label: "Contact Us",  to: "/contact",     icon: Phone },
 ];
 
+function UserAvatar({ user, size = 22 }: { user: SupabaseUser; size?: number }) {
+  const avatar = user.user_metadata?.avatar_url as string | undefined;
+  const initial = ((user.user_metadata?.full_name as string | undefined) || user.email || "U")[0].toUpperCase();
+  if (avatar) {
+    return (
+      <img
+        src={avatar}
+        alt=""
+        style={{ width: size, height: size }}
+        className="rounded-full object-cover ring-1 ring-foreground/15"
+      />
+    );
+  }
+  return (
+    <div
+      style={{ width: size, height: size, fontSize: size * 0.42 }}
+      className="rounded-full bg-foreground text-background flex items-center justify-center font-semibold shrink-0"
+    >
+      {initial}
+    </div>
+  );
+}
+
 export function Header() {
   const { count } = useCart();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [authUser, setAuthUser] = useState<SupabaseUser | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setAuthUser(data.session?.user ?? null));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setAuthUser(s?.user ?? null));
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -103,10 +135,17 @@ export function Header() {
           <div className="hidden md:flex items-center gap-1 shrink-0">
             <Link
               to="/account"
-              className="shrink-0 p-1.5 text-muted-foreground hover:text-foreground transition-colors duration-250"
+              className="shrink-0 p-1.5 text-muted-foreground hover:text-foreground transition-colors duration-250 relative"
               aria-label="My Account"
             >
-              <User className="h-[18px] w-[18px]" />
+              {authUser ? (
+                <>
+                  <UserAvatar user={authUser} size={22} />
+                  <span className="absolute bottom-0.5 right-0.5 w-2 h-2 bg-emerald-500 rounded-full border-[1.5px] border-background" />
+                </>
+              ) : (
+                <User className="h-[18px] w-[18px]" />
+              )}
             </Link>
             <Link
               to="/cart"
@@ -126,6 +165,20 @@ export function Header() {
 
           {/* Mobile icon cluster — logo stays left, all icons grouped right */}
           <div className="flex md:hidden items-center gap-0.5 shrink-0">
+            <Link
+              to="/account"
+              className="relative p-1.5 text-muted-foreground hover:text-foreground transition-colors duration-250"
+              aria-label="My Account"
+            >
+              {authUser ? (
+                <>
+                  <UserAvatar user={authUser} size={22} />
+                  <span className="absolute bottom-0.5 right-0.5 w-2 h-2 bg-emerald-500 rounded-full border-[1.5px] border-background" />
+                </>
+              ) : (
+                <User className="h-5 w-5" />
+              )}
+            </Link>
             <Link
               to="/cart"
               className="relative p-1.5 text-muted-foreground hover:text-foreground transition-colors duration-250"
@@ -224,8 +277,17 @@ export function Header() {
                   className="flex items-center justify-between px-5 py-3.5 border-b border-border/30 last:border-b-0 hover:bg-cream transition-colors duration-150"
                 >
                   <span className="flex items-center gap-3 text-[0.72rem] uppercase tracking-[0.10em] text-muted-foreground">
-                    <Icon className="h-3.5 w-3.5 shrink-0" />
-                    {label}
+                    {label === "My Account" && authUser ? (
+                      <span className="relative shrink-0">
+                        <UserAvatar user={authUser} size={14} />
+                        <span className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full border border-background" />
+                      </span>
+                    ) : (
+                      <Icon className="h-3.5 w-3.5 shrink-0" />
+                    )}
+                    {label === "My Account" && authUser
+                      ? (authUser.user_metadata?.full_name as string | undefined)?.split(" ")[0] ?? "My Account"
+                      : label}
                   </span>
                   <ChevronRight className="h-3 w-3 text-muted-foreground/25 shrink-0" />
                 </Link>
@@ -390,9 +452,9 @@ export function Footer() {
           © {year} Qureshi Jewelers. All rights reserved.
         </p>
         <div className="flex items-center gap-4 text-[0.52rem] uppercase tracking-[0.18em] text-muted-foreground/40">
-          <span>S925 Sterling Silver</span>
+          <Link to="/privacy-policy" className="hover:text-muted-foreground transition-colors duration-250">Privacy Policy</Link>
           <span className="opacity-50">·</span>
-          <span>VVS Moissanite</span>
+          <Link to="/terms-of-service" className="hover:text-muted-foreground transition-colors duration-250">Terms &amp; Conditions</Link>
           <span className="opacity-50">·</span>
           <span>GRA Certified</span>
         </div>

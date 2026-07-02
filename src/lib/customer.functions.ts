@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireAdmin } from "@/lib/admin.functions";
+import { getOrCreateStripeCustomer, createStripePortalSession, isStripeConfigured } from "@/lib/payments/stripe.server";
 
 const db = supabaseAdmin as any;
 
@@ -12,6 +13,37 @@ async function verifyUser(token: string, userId: string) {
   if (data.user.id !== userId) throw new Error("Unauthorized");
   return data.user;
 }
+
+// ─── Sign-up (server-side, bypasses email confirmation) ───────────────────────
+
+export const signUpUser = createServerFn({ method: "POST" })
+  .inputValidator((d: { email: string; password: string }) => d)
+  .handler(async ({ data }) => {
+    const { data: result, error } = await supabaseAdmin.auth.admin.createUser({
+      email: data.email,
+      password: data.password,
+      email_confirm: true,
+    });
+    if (error) throw new Error(error.message);
+    return { userId: result.user.id, email: result.user.email };
+  });
+
+// ─── Stripe Customer Portal ───────────────────────────────────────────────────
+// Generates a short-lived Stripe Billing Portal URL so the customer can manage
+// their saved cards in Stripe's hosted UI. No card data ever reaches our server.
+
+export const createPaymentPortalSession = createServerFn({ method: "POST" })
+  .inputValidator((d: { token: string; userId: string; returnUrl: string }) => d)
+  .handler(async ({ data }) => {
+    if (!isStripeConfigured()) throw new Error("Payment portal is not configured");
+    const user = await verifyUser(data.token, data.userId);
+    const email = user.email;
+    if (!email) throw new Error("Account email is required");
+    const name = (user.user_metadata?.full_name as string | undefined) ?? undefined;
+    const customerId = await getOrCreateStripeCustomer(email, name);
+    const url = await createStripePortalSession(customerId, data.returnUrl);
+    return { url };
+  });
 
 // ─── Addresses ────────────────────────────────────────────────────────────────
 

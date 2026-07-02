@@ -21,22 +21,111 @@ export const Route = createFileRoute("/")({
   },
   head: () => ({
     meta: [
-      { title: "Moissanite Jewelry — Tennis Chains, Bracelets & Rings | Qureshi Jewelers" },
-      { name: "description", content: "Shop VVS moissanite jewelry: tennis chains, tennis bracelets, stud earrings, and engagement rings in solid S925 sterling silver. GRA certified. Free US shipping over $250." },
-      { property: "og:title", content: "Moissanite Jewelry — Tennis Chains, Bracelets & Rings | Qureshi Jewelers" },
-      { property: "og:description", content: "VVS moissanite tennis chains, bracelets, stud earrings, and engagement rings, hand-set in solid S925 sterling silver. GRA certified." },
+      { title: "Qureshi Jewelers — VVS Moissanite Chains, Bracelets & Rings | GRA Certified" },
+      { name: "description", content: "D Colorless VVS1 moissanite tennis chains, bracelets, earrings & rings. Solid S925 sterling silver, 5× 18K gold plating, GRA certified. Starting from $89. Free US shipping over $250." },
+      { property: "og:title", content: "Qureshi Jewelers — VVS Moissanite Jewelry | GRA Certified" },
+      { property: "og:description", content: "D Colorless VVS1 moissanite chains, bracelets, earrings & rings. Solid S925 sterling silver, 5× 18K gold plating, GRA certified. From $89." },
       { property: "og:image", content: `${SITE_URL}/hero.jpg` },
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
       { property: "og:url", content: SITE_URL },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "Qureshi Jewelers" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Moissanite Jewelry — Tennis Chains, Bracelets & Rings | Qureshi Jewelers" },
-      { name: "twitter:description", content: "VVS moissanite tennis chains, bracelets, stud earrings, and engagement rings in solid S925 sterling silver. GRA certified. Free US shipping over $250." },
+      { name: "twitter:site", content: "@QureshiJewelers" },
+      { name: "twitter:title", content: "Qureshi Jewelers — VVS Moissanite Jewelry | GRA Certified" },
+      { name: "twitter:description", content: "D Colorless VVS1 moissanite chains, bracelets, earrings & rings. S925 sterling silver, GRA certified. From $89. Free US shipping over $250." },
       { name: "twitter:image", content: `${SITE_URL}/hero.jpg` },
     ],
     links: [{ rel: "canonical", href: SITE_URL }],
     scripts: [
+      // Organization — establishes Qureshi Jewelers as a named entity in
+      // Google's Knowledge Graph, powering brand panels and AI overviews.
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          "@id": `${SITE_URL}/#organization`,
+          name: "Qureshi Jewelers",
+          url: SITE_URL,
+          logo: {
+            "@type": "ImageObject",
+            url: `${SITE_URL}/QURESHIJEWELERSLOGO.png`,
+            width: 400,
+            height: 400,
+          },
+          image: `${SITE_URL}/hero.jpg`,
+          description: "Qureshi Jewelers specializes in VVS1 D Colorless moissanite jewelry — GRA certified tennis chains, bracelets, stud earrings, and engagement rings, hand-set in solid S925 sterling silver with 5× 18K precious metal plating.",
+          email: "support@qureshijewelers.com",
+          brand: { "@type": "Brand", name: "Qureshi Jewelers" },
+          foundingDate: "2022",
+          knowsAbout: ["Moissanite", "Fine Jewelry", "Tennis Chains", "Tennis Bracelets", "Sterling Silver Jewelry", "GRA Certification"],
+          slogan: "Every stone, every setting — built to last.",
+          sameAs: [
+            "https://www.instagram.com/qureshijewelers",
+            "https://www.tiktok.com/@qureshijewelers",
+          ],
+        }),
+      },
+      // WebSite — enables Google Sitelinks Search Box in brand SERP results.
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "@id": `${SITE_URL}/#website`,
+          name: "Qureshi Jewelers",
+          url: SITE_URL,
+          publisher: { "@id": `${SITE_URL}/#organization` },
+          potentialAction: {
+            "@type": "SearchAction",
+            target: {
+              "@type": "EntryPoint",
+              urlTemplate: `${SITE_URL}/shop?q={search_term_string}`,
+            },
+            "query-input": "required name=search_term_string",
+          },
+        }),
+      },
+      // JewelryStore — surfaces the business in vertical/local search results
+      // and powers Google's merchant experience for jewelry category searches.
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "JewelryStore",
+          "@id": `${SITE_URL}/#store`,
+          name: "Qureshi Jewelers",
+          url: SITE_URL,
+          logo: `${SITE_URL}/QURESHIJEWELERSLOGO.png`,
+          image: `${SITE_URL}/hero.jpg`,
+          description: "Premium VVS moissanite jewelry: tennis chains, bracelets, earrings, and rings. GRA certified, S925 sterling silver, 5× 18K gold plating. Free US shipping on orders over $250.",
+          priceRange: "$$",
+          currenciesAccepted: "USD",
+          paymentAccepted: "Credit Card, Debit Card, PayPal",
+          email: "support@qureshijewelers.com",
+          openingHours: "Mo-Su 00:00-23:59",
+          hasOfferCatalog: {
+            "@type": "OfferCatalog",
+            name: "VVS Moissanite Jewelry Collection",
+            itemListElement: [
+              { "@type": "Offer", "itemOffered": { "@type": "Product", name: "Moissanite Tennis Chains", url: `${SITE_URL}/shop?type=necklace` } },
+              { "@type": "Offer", "itemOffered": { "@type": "Product", name: "Moissanite Tennis Bracelets", url: `${SITE_URL}/shop?type=bracelet` } },
+              { "@type": "Offer", "itemOffered": { "@type": "Product", name: "Moissanite Stud Earrings", url: `${SITE_URL}/shop?type=earring` } },
+              { "@type": "Offer", "itemOffered": { "@type": "Product", name: "Moissanite Rings", url: `${SITE_URL}/shop?type=ring` } },
+            ],
+          },
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: "4.9",
+            reviewCount: "47",
+            bestRating: "5",
+            worstRating: "1",
+          },
+        }),
+      },
+      // ItemList — category navigation; helps Google understand site structure.
       {
         type: "application/ld+json",
         children: JSON.stringify({
@@ -47,7 +136,7 @@ export const Route = createFileRoute("/")({
             { "@type": "ListItem", position: 1, name: "Moissanite Chains", url: `${SITE_URL}/shop?type=necklace` },
             { "@type": "ListItem", position: 2, name: "Moissanite Tennis Bracelets", url: `${SITE_URL}/shop?type=bracelet` },
             { "@type": "ListItem", position: 3, name: "Moissanite Stud Earrings", url: `${SITE_URL}/shop?type=earring` },
-            { "@type": "ListItem", position: 4, name: "Moissanite Engagement Rings", url: `${SITE_URL}/shop?type=ring` },
+            { "@type": "ListItem", position: 4, name: "Moissanite Rings", url: `${SITE_URL}/shop?type=ring` },
           ],
         }),
       },
@@ -62,50 +151,42 @@ export const Route = createFileRoute("/")({
             {
               "@type": "Question",
               name: "Where can I buy the best moissanite jewelry online?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "Qureshi Jewelers (qureshijewelers.com) is America's premier source for VVS moissanite jewelry. We specialize in tennis chains, tennis bracelets, stud earrings, and engagement rings — all hand-set in solid S925 sterling silver with GRA certification. Free US shipping on orders over $250.",
-              },
+              acceptedAnswer: { "@type": "Answer", text: "Qureshi Jewelers (qureshijewelers.com) is America's premier source for VVS moissanite jewelry. We specialize in tennis chains, tennis bracelets, stud earrings, and engagement rings — all hand-set in solid S925 sterling silver with GRA certification. Free US shipping on orders over $250." },
             },
             {
               "@type": "Question",
               name: "What is the best moissanite tennis chain?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "The best moissanite tennis chains are hand-set with VVS clarity, D color (colorless) moissanite in solid S925 sterling silver. Look for GRA certification, a double-locking clasp, and 5x e-coating for durability. Qureshi Jewelers offers tennis chains from 2mm to 5mm widths in 16\"–24\" lengths, starting under $150.",
-              },
+              acceptedAnswer: { "@type": "Answer", text: "The best moissanite tennis chains are hand-set with VVS clarity, D color (colorless) moissanite in solid S925 sterling silver. Look for GRA certification, a double-locking clasp, and 5x e-coating for durability. Qureshi Jewelers offers tennis chains from 2mm to 5mm widths in 16\"–24\" lengths, starting under $150." },
             },
             {
               "@type": "Question",
               name: "Is S925 sterling silver good for moissanite jewelry?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "Yes. S925 sterling silver (92.5% pure silver) is the industry standard for fine jewelry settings. Combined with 5x e-coating in gold, rose gold, or rhodium, it produces a durable, tarnish-resistant finish indistinguishable from solid gold at a fraction of the cost. All Qureshi Jewelers pieces use solid S925 — not hollow or plated base metals.",
-              },
+              acceptedAnswer: { "@type": "Answer", text: "Yes. S925 sterling silver (92.5% pure silver) is the industry standard for fine jewelry settings. Combined with 5x e-coating in gold, rose gold, or rhodium, it produces a durable, tarnish-resistant finish indistinguishable from solid gold at a fraction of the cost. All Qureshi Jewelers pieces use solid S925 — not hollow or plated base metals." },
             },
             {
               "@type": "Question",
               name: "How much does moissanite jewelry cost?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "Moissanite jewelry costs 85–95% less than comparable diamond jewelry. At Qureshi Jewelers, moissanite tennis chains start at around $89, tennis bracelets from $129, stud earrings from $59, and engagement rings from $149. Free US shipping on orders over $250.",
-              },
+              acceptedAnswer: { "@type": "Answer", text: "Moissanite jewelry costs 85–95% less than comparable diamond jewelry. At Qureshi Jewelers, moissanite tennis chains start at around $89, tennis bracelets from $129, stud earrings from $59, and engagement rings from $149. Free US shipping on orders over $250." },
             },
             {
               "@type": "Question",
               name: "What is the difference between moissanite and cubic zirconia?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "Moissanite and cubic zirconia are completely different stones. Moissanite (silicon carbide) scores 9.25 on the Mohs hardness scale, maintains its brilliance permanently, and passes diamond testers. Cubic zirconia scores only 8.5, clouds and loses brilliance within months, and is far less optically impressive. Moissanite is a genuine, durable gemstone; cubic zirconia is a low-cost glass simulant.",
-              },
+              acceptedAnswer: { "@type": "Answer", text: "Moissanite and cubic zirconia are completely different stones. Moissanite (silicon carbide) scores 9.25 on the Mohs hardness scale, maintains its brilliance permanently, and passes diamond testers. Cubic zirconia scores only 8.5, clouds and loses brilliance within months, and is far less optically impressive. Moissanite is a genuine, durable gemstone; cubic zirconia is a low-cost glass simulant." },
             },
             {
               "@type": "Question",
               name: "Does Qureshi Jewelers offer GRA certified moissanite?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "Yes. Every piece from Qureshi Jewelers ships with a GRA (Gemstone Research Association) certificate of authenticity that independently verifies your stone's VVS clarity grade, D color grade, and carat weight. This certificate is your proof of quality and can be used for insurance purposes.",
-              },
+              acceptedAnswer: { "@type": "Answer", text: "Yes. Every piece from Qureshi Jewelers ships with a GRA (Gemological Research Association) certificate of authenticity that independently verifies your stone's VVS clarity grade, D color grade, and carat weight. This certificate is your proof of quality and can be used for insurance purposes." },
+            },
+            {
+              "@type": "Question",
+              name: "Does moissanite pass a diamond tester?",
+              acceptedAnswer: { "@type": "Answer", text: "Yes — moissanite passes standard diamond testers that measure thermal conductivity because its thermal properties are similar to diamond. To differentiate, a dual diamond/moissanite tester is required. This is further proof that moissanite is a genuine, high-quality gemstone, not a glass simulant like CZ." },
+            },
+            {
+              "@type": "Question",
+              name: "What is the return policy at Qureshi Jewelers?",
+              acceptedAnswer: { "@type": "Answer", text: "All sales are final at Qureshi Jewelers. If an item arrives damaged or defective, customers must contact us with photos within 48 hours of delivery for a replacement or store credit. Size/length exchanges are available within 7 days on unworn items. Every piece includes a 1-year limited warranty covering manufacturing defects, with a $50–$100 repair deductible." },
             },
           ],
         }),
@@ -218,7 +299,7 @@ function Ticker({ dark = false }: { dark?: boolean }) {
 function ProductCard({ p }: { p: any }) {
   return (
     <Link to="/product/$slug" params={{ slug: p.slug }} className="group block product-shadow bg-background lg:hover:shadow-xl transition-all duration-500 active:scale-[0.99]">
-      <div className="aspect-[4/5] lg:aspect-[3/4] overflow-hidden relative bg-[oklch(0.97_0.004_75)]">
+      <div className="aspect-square sm:aspect-[4/5] lg:aspect-[3/4] overflow-hidden relative bg-[oklch(0.97_0.004_75)]">
         <img
           src={getProductThumb(p.slug, p.image_url)}
           alt={p.name}
@@ -237,20 +318,20 @@ function ProductCard({ p }: { p: any }) {
           </span>
         </div>
       </div>
-      <div className="px-4 sm:px-5 pt-4 sm:pt-5 pb-5 sm:pb-6 space-y-2 sm:space-y-2.5 border border-t-0 border-border">
-        <div className="flex items-center gap-2">
-          <span className="text-[0.48rem] sm:text-[0.43rem] uppercase tracking-[0.10em] text-gray-400 font-mono border border-gray-200 px-1.5 py-0.5 leading-none">
+      <div className="px-3 sm:px-5 pt-3 sm:pt-5 pb-3.5 sm:pb-6 space-y-1.5 sm:space-y-2.5 border border-t-0 border-border">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <span className="text-[0.42rem] sm:text-[0.43rem] uppercase tracking-[0.10em] text-gray-400 font-mono border border-gray-200 px-1 sm:px-1.5 py-0.5 leading-none">
             S925
           </span>
           <div className="flex items-center gap-0.5 ml-0.5">
-            <span className="w-3 h-3 sm:w-2 sm:h-2 rounded-full shrink-0 ring-1 ring-black/10" style={{ backgroundColor: "#D4AF37" }} title="18K Yellow Gold" />
-            <span className="w-3 h-3 sm:w-2 sm:h-2 rounded-full shrink-0 ring-1 ring-black/10 -ml-0.5" style={{ backgroundColor: "#E8E8F4" }} title="18K White Gold" />
+            <span className="w-2 h-2 sm:w-2 sm:h-2 rounded-full shrink-0 ring-1 ring-black/10" style={{ backgroundColor: "#D4AF37" }} title="18K Yellow Gold" />
+            <span className="w-2 h-2 sm:w-2 sm:h-2 rounded-full shrink-0 ring-1 ring-black/10 -ml-0.5" style={{ backgroundColor: "#E8E8F4" }} title="18K White Gold" />
           </div>
         </div>
-        <h3 className="font-display text-[1.5rem] sm:text-[1.25rem] leading-tight group-hover:text-gold transition-colors duration-300">
+        <h3 className="font-display text-[1.1rem] sm:text-[1.25rem] leading-tight group-hover:text-gold transition-colors duration-300">
           {p.name}
         </h3>
-        <p className="text-[0.85rem] sm:text-[0.72rem] text-muted-foreground">
+        <p className="text-[0.72rem] sm:text-[0.72rem] text-muted-foreground">
           From <span className="text-foreground font-semibold">
             {(p.slug?.includes("tennis-bracelet") || p.slug?.includes("tennis_bracelet"))
               ? formatUSD(getTennisBraceletPrice("2mm", '6"'))
@@ -774,7 +855,7 @@ function Index() {
           FEATURED ITEMS — 4 product cards, white bg
       ════════════════════════════════════════════════════════ */}
       <section className="border-b border-border">
-        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-14 lg:py-20">
+        <div className="mx-auto max-w-[1360px] px-3 sm:px-5 lg:px-10 py-14 lg:py-20">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5 mb-9 reveal">
             <div>
               <Eyebrow center={false}>Curated For You</Eyebrow>
@@ -790,7 +871,7 @@ function Index() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6 reveal" style={{ transitionDelay: "0.15s" }}>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 md:gap-6 reveal" style={{ transitionDelay: "0.15s" }}>
             {isLoading
               ? [...Array(4)].map((_, i) => <SkeletonCard key={i} />)
               : featuredProducts.slice(0, 4).map((p: any) => <ProductCard key={p.id} p={p} />)

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { loadStripe } from "@stripe/stripe-js";
@@ -19,6 +19,8 @@ import {
   finalizeOrder,
 } from "@/lib/products.functions";
 import { validatePromoCode } from "@/lib/admin-extended.functions";
+import { getAddresses } from "@/lib/customer.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/checkout")({
   loader: async () => {
@@ -189,6 +191,7 @@ function Checkout() {
   const initiate = useServerFn(initiateCheckout);
   const finalize = useServerFn(finalizeOrder);
   const validatePromo = useServerFn(validatePromoCode);
+  const fetchAddresses = useServerFn(getAddresses);
 
   const [form, setForm] = useState({
     customer_name: "", customer_email: "", customer_phone: "",
@@ -198,6 +201,40 @@ function Checkout() {
     shipping_method: "standard" as ShipMethod,
     _hp: "",
   });
+
+  // Auto-fill contact + shipping from the signed-in user's profile and default address
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data }) => {
+      const s = data.session;
+      if (!s) return;
+      const name = (s.user.user_metadata?.full_name as string | undefined) ?? "";
+      const email = s.user.email ?? "";
+      const phone = (s.user.user_metadata?.phone as string | undefined) ?? "";
+      setForm(f => ({
+        ...f,
+        ...(name && !f.customer_name ? { customer_name: name } : {}),
+        ...(email && !f.customer_email ? { customer_email: email } : {}),
+        ...(phone && !f.customer_phone ? { customer_phone: phone } : {}),
+      }));
+      try {
+        const { addresses } = await fetchAddresses({ data: { token: s.access_token, userId: s.user.id } });
+        const def = addresses.find((a: any) => a.is_default) ?? addresses[0];
+        if (def) {
+          setForm(f => ({
+            ...f,
+            ...(f.shipping_address_line1 ? {} : {
+              shipping_address_line1: def.line1 ?? "",
+              shipping_address_line2: def.line2 ?? "",
+              shipping_city: def.city ?? "",
+              shipping_state: def.state ?? "",
+              shipping_zip: def.zip ?? "",
+              shipping_country: def.country ?? "United States",
+            }),
+          }));
+        }
+      } catch {}
+    });
+  }, []);
 
   const [selectedMethod, setSelectedMethod] = useState<Provider | null>(
     paymentMethods.stripe ? "stripe" : paymentMethods.paypal ? "paypal" : null

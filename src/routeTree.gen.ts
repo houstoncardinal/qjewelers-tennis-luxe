@@ -28,6 +28,7 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as ProductSlugRouteImport } from './routes/product.$slug'
+import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AdminSubscribersRouteImport } from './routes/admin/subscribers'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminReviewsRouteImport } from './routes/admin/reviews'
@@ -142,6 +143,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
 const ProductSlugRoute = ProductSlugRouteImport.update({
   id: '/product/$slug',
   path: '/product/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminSubscribersRoute = AdminSubscribersRouteImport.update({
@@ -278,6 +284,7 @@ export interface FileRoutesByFullPath {
   '/admin/reviews': typeof AdminReviewsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/subscribers': typeof AdminSubscribersRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/product/$slug': typeof ProductSlugRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/customers/$customerId': typeof AdminCustomersCustomerIdRoute
@@ -317,6 +324,7 @@ export interface FileRoutesByTo {
   '/admin/reviews': typeof AdminReviewsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/subscribers': typeof AdminSubscribersRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/product/$slug': typeof ProductSlugRoute
   '/admin': typeof AdminIndexRoute
   '/admin/customers/$customerId': typeof AdminCustomersCustomerIdRoute
@@ -359,6 +367,7 @@ export interface FileRoutesById {
   '/admin/reviews': typeof AdminReviewsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/subscribers': typeof AdminSubscribersRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/product/$slug': typeof ProductSlugRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/customers/$customerId': typeof AdminCustomersCustomerIdRoute
@@ -402,6 +411,7 @@ export interface FileRouteTypes {
     | '/admin/reviews'
     | '/admin/settings'
     | '/admin/subscribers'
+    | '/auth/callback'
     | '/product/$slug'
     | '/admin/'
     | '/admin/customers/$customerId'
@@ -441,6 +451,7 @@ export interface FileRouteTypes {
     | '/admin/reviews'
     | '/admin/settings'
     | '/admin/subscribers'
+    | '/auth/callback'
     | '/product/$slug'
     | '/admin'
     | '/admin/customers/$customerId'
@@ -482,6 +493,7 @@ export interface FileRouteTypes {
     | '/admin/reviews'
     | '/admin/settings'
     | '/admin/subscribers'
+    | '/auth/callback'
     | '/product/$slug'
     | '/admin/'
     | '/admin/customers/$customerId'
@@ -510,6 +522,7 @@ export interface RootRouteChildren {
   SizeGuideRoute: typeof SizeGuideRoute
   TermsOfServiceRoute: typeof TermsOfServiceRoute
   TrackOrderRoute: typeof TrackOrderRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
   ProductSlugRoute: typeof ProductSlugRoute
 }
 
@@ -646,6 +659,13 @@ declare module '@tanstack/react-router' {
       path: '/product/$slug'
       fullPath: '/product/$slug'
       preLoaderRoute: typeof ProductSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/subscribers': {
@@ -908,6 +928,7 @@ const rootRouteChildren: RootRouteChildren = {
   SizeGuideRoute: SizeGuideRoute,
   TermsOfServiceRoute: TermsOfServiceRoute,
   TrackOrderRoute: TrackOrderRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
   ProductSlugRoute: ProductSlugRoute,
 }
 export const routeTree = rootRouteImport

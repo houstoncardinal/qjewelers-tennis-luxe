@@ -399,11 +399,24 @@ export const Route = createFileRoute("/product/$slug")({
               },
               hasMerchantReturnPolicy: {
                 "@type": "MerchantReturnPolicy",
+                "@id": `${SITE}/#return-policy`,
                 applicableCountry: "US",
                 returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
-                merchantReturnDays: 14,
+                merchantReturnDays: 7,
                 returnMethod: "https://schema.org/ReturnByMail",
-                returnFees: "https://schema.org/FreeReturn",
+                returnFees: "https://schema.org/ReturnShippingFees",
+                returnPolicyCountry: "US",
+                refundType: "https://schema.org/ExchangeRefund",
+                description: "All sales final. Size/length exchanges accepted within 7 days on unworn items; customer pays return shipping. Damaged-on-arrival items replaced within 48 hours of delivery report.",
+              },
+              warranty: {
+                "@type": "WarrantyPromise",
+                durationOfWarranty: {
+                  "@type": "QuantitativeValue",
+                  value: 1,
+                  unitCode: "ANN",
+                },
+                warrantyScope: "Manufacturing defects including stone loss, clasp failure, and plating defects under normal wear. $50–$100 deductible applies.",
               },
             },
             ...(aggregateRating ? { aggregateRating } : {}),
@@ -436,6 +449,50 @@ export const Route = createFileRoute("/product/$slug")({
               { "@type": "ListItem", position: 3, name: categoryLabel, item: `${SITE}/shop?type=${p.type}` },
               { "@type": "ListItem", position: 4, name: p.name, item: pageUrl },
             ],
+          }),
+        },
+        // ItemPage — tells Google this is a product detail page,
+        // enabling rich result eligibility for product-page schemas.
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "ItemPage",
+            "@id": `${pageUrl}#webpage`,
+            url: pageUrl,
+            name: p.seo_title,
+            description: p.seo_description,
+            inLanguage: "en-US",
+            isPartOf: { "@id": `${SITE}/#website` },
+            about: { "@id": `${pageUrl}#product` },
+            breadcrumb: {
+              "@type": "BreadcrumbList",
+              itemListElement: [
+                { "@type": "ListItem", position: 1, name: "Home", item: SITE },
+                { "@type": "ListItem", position: 2, name: "Shop", item: `${SITE}/shop` },
+                { "@type": "ListItem", position: 3, name: categoryLabel, item: `${SITE}/shop?type=${p.type}` },
+                { "@type": "ListItem", position: 4, name: p.name, item: pageUrl },
+              ],
+            },
+            dateModified: new Date().toISOString().slice(0, 10),
+          }),
+        },
+        // Organization — repeated on every product page so Google can anchor
+        // the brand entity regardless of which page it crawls first.
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "@id": `${SITE}/#organization`,
+            name: "Qureshi Jewelers",
+            url: SITE,
+            logo: {
+              "@type": "ImageObject",
+              url: `${SITE}/QURESHIJEWELERSLOGO.png`,
+            },
+            email: "support@qureshijewelers.com",
+            brand: { "@type": "Brand", name: "Qureshi Jewelers" },
           }),
         },
       ],
@@ -1724,35 +1781,45 @@ function ProductPage() {
               ) : isTennis ? (
                 <div className="space-y-5 text-[0.80rem] leading-[1.90]">
                   <p className="text-foreground font-medium">
-                    Continuous brilliance, worn close — the{" "}
-                    <span className="italic">VVS1 Moissanite Tennis Bracelet.</span>
+                    Row after row of stones that outshine diamond — the{" "}
+                    <span className="italic">Qureshi Jewelers VVS1 Moissanite Tennis Bracelet.</span>
                   </p>
                   <p className="text-muted-foreground">
-                    Each stone is a{" "}
+                    Every stone is a{" "}
                     <strong className="text-foreground font-semibold">D Colorless VVS1 Moissanite</strong>{" "}
-                    in a precision round brilliant cut — the highest clarity and color grade available. The{" "}
+                    — the highest clarity and color grade that exists, hand-selected for consistency across the full row.
+                    With a refractive index of 2.65–2.69 (exceeding diamond's 2.42), moissanite returns more light,
+                    more fire, and more brilliance per stone. Each is precision-cut to a{" "}
+                    <strong className="text-foreground font-semibold">round brilliant</strong>{" "}
+                    and locked into a{" "}
                     <strong className="text-foreground font-semibold">4-prong claw inlay setting</strong>{" "}
-                    maximises stone exposure and light return while keeping every stone locked securely in place.
+                    that grips from four angles — maximum stone exposure, minimum risk of loss.
                   </p>
                   <p className="text-muted-foreground">
-                    Built on a{" "}
-                    <strong className="text-foreground font-semibold">solid S925 sterling silver base</strong>{" "}
-                    (92.5% pure) and finished with{" "}
-                    <strong className="text-foreground font-semibold">5 layers of 18K precious metal plating</strong>{" "}
-                    — far beyond the 1–2 coats found on typical fashion jewellery. Choose{" "}
+                    The base is{" "}
+                    <strong className="text-foreground font-semibold">solid S925 sterling silver</strong>{" "}
+                    (92.5% pure silver — the same standard used in fine jewelry worldwide), finished with{" "}
+                    <strong className="text-foreground font-semibold">5 layers of 18K precious metal plating</strong>.
+                    Most fashion jewelry ships with 1–2 coats. Ours ships with five.
+                    That difference is why our bracelets wear like fine jewelry for years, not months.
+                    Choose{" "}
                     <strong className="text-foreground font-semibold">18K Yellow Gold</strong>{" "}
-                    for a warm, classic lustre or{" "}
+                    for a warm, classic look or{" "}
                     <strong className="text-foreground font-semibold">18K White Gold</strong>{" "}
-                    for a clean, contemporary finish.
+                    for a clean, modern finish that pairs with everything.
                   </p>
                   <p className="text-muted-foreground">
-                    The{" "}
-                    <strong className="text-foreground font-semibold">double-locking box clasp</strong>{" "}
-                    keeps the bracelet secured during daily wear, travel, and sport — no accidental openings, no lost jewellery.{" "}
-                    <strong className="text-foreground font-semibold">Hypoallergenic, nickel-free, lead-free, and cadmium-free</strong>{" "}
-                    — safe for all skin types. A{" "}
-                    <strong className="text-foreground font-semibold">GRA moissanite certificate</strong>{" "}
-                    is included with every order.
+                    Security starts with the{" "}
+                    <strong className="text-foreground font-semibold">double-locking box clasp</strong> —
+                    engineered to stay shut through workouts, travel, and daily wear without a second thought.
+                    The entire piece is{" "}
+                    <strong className="text-foreground font-semibold">hypoallergenic, nickel-free, lead-free, and cadmium-free</strong>,
+                    so it's safe for every skin type, including the most sensitive.
+                    Every bracelet ships with a{" "}
+                    <strong className="text-foreground font-semibold">GRA Moissanite Certificate</strong>{" "}
+                    independently verifying your stone's VVS1 clarity, D color grade, and carat weight —
+                    your permanent record of authenticity. Backed by our{" "}
+                    <strong className="text-foreground font-semibold">1-year warranty</strong>.
                   </p>
                   <div className="border border-border">
                     {[
