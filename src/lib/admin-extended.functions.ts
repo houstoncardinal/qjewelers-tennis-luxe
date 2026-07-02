@@ -27,6 +27,7 @@ export const getProductImagesAdmin = createServerFn({ method: "GET" })
       .from("product_images")
       .select("*")
       .eq("product_slug", data.slug)
+      .not("alt_text", "like", "__color_cover__%")
       .order("sort_order", { ascending: true });
     if (error) throw new Error(error.message);
     return { images: images ?? [] };
@@ -141,7 +142,19 @@ export const getAdminProduct = createServerFn({ method: "GET" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!product) throw new Error("Product not found");
-    return { product };
+    // Load color cover images from product_images (stored with alt_text prefix __color_cover__:)
+    const { data: colorRows } = await (supabaseAdmin as any)
+      .from("product_images")
+      .select("alt_text, url")
+      .eq("product_slug", data.slug)
+      .like("alt_text", "__color_cover__:%");
+    const color_images: Record<string, string> = Object.fromEntries(
+      (colorRows ?? []).map((r: { alt_text: string; url: string }) => [
+        r.alt_text.replace("__color_cover__:", ""),
+        r.url,
+      ])
+    );
+    return { product: { ...product, color_images } };
   });
 
 export const updateProduct = createServerFn({ method: "POST" })
@@ -173,18 +186,39 @@ export const updateProduct = createServerFn({ method: "POST" })
   }) => d)
   .handler(async ({ data }) => {
     requireAdmin(data.token);
-    const { slug, token: _t, ...fields } = data;
+    // Strip color_images — stored in product_images table, not on products row
+    const { slug, token: _t, color_images, ...fields } = data;
     const { error } = await supabaseAdmin
       .from("products")
       .update({ ...fields, updated_at: new Date().toISOString() } as any)
       .eq("slug", slug);
     if (error) throw new Error(error.message);
+    // Sync color cover images into product_images with __color_cover__: prefix
+    if (color_images !== undefined) {
+      await (supabaseAdmin as any)
+        .from("product_images")
+        .delete()
+        .eq("product_slug", slug)
+        .like("alt_text", "__color_cover__%");
+      const inserts = Object.entries(color_images)
+        .filter(([, url]) => !!url)
+        .map(([color, url]) => ({
+          product_slug: slug,
+          url,
+          alt_text: `__color_cover__:${color}`,
+          sort_order: -9000,
+          is_primary: false,
+        }));
+      if (inserts.length > 0) {
+        await (supabaseAdmin as any).from("product_images").insert(inserts);
+      }
+    }
     writeAuditLog({
       adminUserId: getCurrentAdminId(),
       action: "product_updated",
       targetType: "products",
       targetId: slug,
-      details: fields,
+      details: { ...fields, color_images_keys: color_images ? Object.keys(color_images) : undefined },
     }).catch((e) => console.warn("[AuditLog] product_updated failed:", e));
     return { success: true };
   });

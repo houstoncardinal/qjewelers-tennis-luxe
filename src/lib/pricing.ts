@@ -169,12 +169,24 @@ export const RING_SIZE_DESCRIPTIONS: Record<string, string> = {
 // Shared across the product editor and the new-product screen so generated
 // variants always draw from the same option set.
 
-// Full generic size set — covers chains (2-6mm widths) AND pendants/earrings (7-15mm face sizes)
-export const AVAILABLE_SIZES = ["2mm", "3mm", "4mm", "5mm", "6mm", "6.5mm", "7mm", "8mm", "9mm", "10mm", "12mm", "15mm"];
+// Full generic size set — covers chains (2-6mm widths) AND pendants/earrings (7-15mm face sizes).
+// Includes half-sizes so admin can precisely match supplier options.
+export const AVAILABLE_SIZES = [
+  "2mm", "2.5mm", "3mm", "3.5mm", "4mm", "4.5mm",
+  "5mm", "5.5mm", "6mm", "6.5mm", "7mm", "7.5mm",
+  "8mm", "8.5mm", "9mm", "9.5mm", "10mm", "10.5mm",
+  "11mm", "11.5mm", "12mm", "12.5mm", "13mm", "13.5mm",
+  "14mm", "14.5mm", "15mm",
+];
 
 // Pendant-specific sizes: face/diameter sizes, NOT chain widths.
 // 2mm-4mm are chain widths; pendants start at 5mm.
-export const SIZES_PENDANT = ["5mm", "6mm", "6.5mm", "7mm", "8mm", "9mm", "10mm", "12mm", "15mm"];
+export const SIZES_PENDANT = [
+  "5mm", "5.5mm", "6mm", "6.5mm", "7mm", "7.5mm",
+  "8mm", "8.5mm", "9mm", "9.5mm", "10mm", "10.5mm",
+  "11mm", "11.5mm", "12mm", "12.5mm", "13mm", "13.5mm",
+  "14mm", "14.5mm", "15mm",
+];
 
 export const AVAILABLE_LENGTHS = ['6"', '6.5"', '7"', '7.5"', '8"', '8.5"', '9"', '16"', '18"', '20"', '22"', '24"'];
 export const AVAILABLE_RING_SIZES = [

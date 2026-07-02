@@ -97,7 +97,19 @@ export const getProductBySlug = createServerFn({ method: "GET" })
         .eq("is_active", true)
         .maybeSingle();
       if (!error && product) {
-        return { product: product as unknown as ProductRow };
+        // Attach color_images from product_images table
+        const { data: colorRows } = await (supabaseAdmin as any)
+          .from("product_images")
+          .select("alt_text, url")
+          .eq("product_slug", data.slug)
+          .like("alt_text", "__color_cover__%");
+        const color_images: Record<string, string> = Object.fromEntries(
+          (colorRows ?? []).map((r: { alt_text: string; url: string }) => [
+            r.alt_text.replace("__color_cover__:", ""),
+            r.url,
+          ])
+        );
+        return { product: { ...product, color_images } as unknown as ProductRow };
       }
     } catch (e) {
       console.warn("[Products] Supabase unavailable for slug lookup");
@@ -115,6 +127,7 @@ export const getProductGallery = createServerFn({ method: "GET" })
         .from("product_images")
         .select("url, alt_text, sort_order, is_primary")
         .eq("product_slug", data.slug)
+        .not("alt_text", "like", "__color_cover__%")
         .order("sort_order", { ascending: true });
       if (!error) return { images: (imgs ?? []) as Array<{ url: string; alt_text: string; sort_order: number; is_primary: boolean }> };
     } catch {}

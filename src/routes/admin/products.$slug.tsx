@@ -1377,16 +1377,16 @@ function VariantsManager({
                   {selSizes.length === sizeOptions.length ? "Clear" : "All"}
                 </button>
               </div>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5">
                 {sizeOptions.map(s => {
                   const active = selSizes.includes(s);
                   return (
                     <button key={s} onClick={() => toggleSize(s)}
-                      className="flex flex-col items-center justify-center px-2 py-3 rounded-lg border transition-all"
+                      className="flex flex-col items-center justify-center px-1 py-2.5 rounded-lg border transition-all"
                       style={active ? { background: "#111827", border: "1px solid #111827", color: "white" }
                         : { background: "white", border: "1px solid rgba(0,0,0,0.10)", color: "#6b7280" }}>
-                      <span className="text-[0.80rem] font-bold leading-none">{s}</span>
-                      {active && <Check className="h-3 w-3 mt-1 text-amber-400" />}
+                      <span className="text-[0.68rem] font-bold leading-none">{s}</span>
+                      {active && <Check className="h-2.5 w-2.5 mt-1 text-amber-400" />}
                     </button>
                   );
                 })}
