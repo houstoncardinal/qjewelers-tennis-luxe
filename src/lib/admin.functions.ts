@@ -137,7 +137,7 @@ export const adminAuth = createServerFn({ method: "POST" })
     if (user.totp_enabled) {
       setCookie(PENDING_2FA_COOKIE, signValue(user.id, Date.now() + PENDING_2FA_TTL_MS), {
         httpOnly: true,
-        secure: true,
+        secure: process.env.NODE_ENV !== "development",
         sameSite: "lax",
         path: "/",
         maxAge: PENDING_2FA_TTL_MS / 1000,
@@ -147,7 +147,7 @@ export const adminAuth = createServerFn({ method: "POST" })
 
     setCookie(SESSION_COOKIE, signValue(user.id, Date.now() + SESSION_TTL_MS), {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV !== "development",
       sameSite: "lax",
       path: "/",
       maxAge: SESSION_TTL_MS / 1000,
@@ -174,7 +174,7 @@ export const verifyTotpLogin = createServerFn({ method: "POST" })
     deleteCookie(PENDING_2FA_COOKIE, { path: "/" });
     setCookie(SESSION_COOKIE, signValue(user.id, Date.now() + SESSION_TTL_MS), {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV !== "development",
       sameSite: "lax",
       path: "/",
       maxAge: SESSION_TTL_MS / 1000,

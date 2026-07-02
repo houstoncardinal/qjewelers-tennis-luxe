@@ -915,8 +915,12 @@ function VariantsManager({
 
   // Variant configuration state
   const [selColors, setSelColors] = useState<string[]>(colors.length > 0 ? colors : []);
-  const [selSizes, setSelSizes] = useState<string[]>([size].filter(Boolean));
-  const [selLengths, setSelLengths] = useState<string[]>([length].filter(Boolean));
+  const [selSizes, setSelSizes] = useState<string[]>(
+    size ? size.split(",").map(s => s.trim()).filter(Boolean) : []
+  );
+  const [selLengths, setSelLengths] = useState<string[]>(
+    length ? length.split(",").map(l => l.trim()).filter(Boolean) : []
+  );
   const [selRingSizes, setSelRingSizes] = useState<string[]>([]);
 
   // Database variants
