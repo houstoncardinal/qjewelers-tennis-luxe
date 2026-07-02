@@ -23,9 +23,9 @@ const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://qureshijewelers.com"
 // rather than collapsing into the generic /shop canonical.
 const CATEGORY_SEO: Record<string, { title: string; description: string; h1Keyword: string }> = {
   necklace: {
-    title: "Moissanite Tennis Chains — S925 Sterling Silver | Qureshi Jewelers",
-    description: "Shop VVS moissanite tennis chains in solid S925 sterling silver, 18K gold, rose gold, or white gold. GRA certified, 2mm-5mm widths, 16\"-24\" lengths. Free US shipping over $250.",
-    h1Keyword: "Moissanite Tennis Chains",
+    title: "Moissanite Chains — S925 Sterling Silver | Qureshi Jewelers",
+    description: "Shop VVS moissanite chains in solid S925 sterling silver, 18K gold, rose gold, or white gold. GRA certified, multiple widths and lengths. Free US shipping over $250.",
+    h1Keyword: "Moissanite Chains",
   },
   bracelet: {
     title: "Moissanite Tennis Bracelets — S925 Sterling Silver | Qureshi Jewelers",
@@ -59,8 +59,8 @@ export const Route = createFileRoute("/shop")({
     const cat = type ? CATEGORY_SEO[type] : undefined;
     const pageUrl = `${SITE_URL}/shop${type ? `?type=${type}` : ""}`;
 
-    const title = cat?.title ?? "Moissanite Jewelry — Tennis Chains, Bracelets & Rings | Qureshi Jewelers";
-    const description = cat?.description ?? "Browse S925 sterling silver VVS moissanite tennis chains, tennis bracelets, stud earrings, and engagement rings. GRA certified. Free US shipping over $250.";
+    const title = cat?.title ?? "Moissanite Jewelry — Chains, Bracelets & Rings | Qureshi Jewelers";
+    const description = cat?.description ?? "Browse S925 sterling silver VVS moissanite chains, tennis bracelets, stud earrings, and engagement rings. GRA certified. Free US shipping over $250.";
 
     const breadcrumbItems: any[] = [
       { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
@@ -149,7 +149,7 @@ export const Route = createFileRoute("/shop")({
 });
 
 const TYPE_LABELS: Record<string, string> = {
-  necklace: "Tennis Chains",
+  necklace: "Chains",
   bracelet: "Tennis Bracelets",
   earring:  "Stud Earrings",
   ring:     "Engagement Rings",

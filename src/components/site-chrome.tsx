@@ -350,7 +350,7 @@ export function Footer() {
 
           <FooterCol heading="Shop">
             <ul className="space-y-3.5">
-              <FooterLink to="/shop" search={{ type: "necklace" }}>Tennis Chains</FooterLink>
+              <FooterLink to="/shop" search={{ type: "necklace" }}>Chains</FooterLink>
               <FooterLink to="/shop" search={{ type: "bracelet" }}>Tennis Bracelets</FooterLink>
               <FooterLink to="/shop" search={{ type: "earring" }}>Stud Earrings</FooterLink>
               <FooterLink to="/shop" search={{ type: "ring" }}>Engagement Rings</FooterLink>

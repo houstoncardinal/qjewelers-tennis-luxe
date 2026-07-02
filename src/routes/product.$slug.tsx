@@ -177,7 +177,7 @@ function ShareBar({ productName, description, pageUrl, imageUrl }: {
 // filter tabs, so breadcrumb schema and on-page breadcrumbs always agree
 // with what the linked category page itself displays.
 const CATEGORY_LABEL: Record<string, string> = {
-  necklace: "Tennis Chains",
+  necklace: "Chains",
   bracelet: "Tennis Bracelets",
   earring:  "Stud Earrings",
   ring:     "Engagement Rings",
@@ -2074,7 +2074,7 @@ function ProductPage() {
                       ? `${SITE}${op.image_url}`
                       : `${SITE}/QURESHIJEWELERSLOGO.png`;
                   const typeLabel: Record<string, string> = {
-                    necklace: "Tennis Chain",
+                    necklace: "Chain",
                     bracelet: "Tennis Bracelet",
                     earring:  "Stud Earrings",
                     ring:     "Ring",

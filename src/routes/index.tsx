@@ -44,7 +44,7 @@ export const Route = createFileRoute("/")({
           "@type": "ItemList",
           name: "Moissanite Jewelry Categories",
           itemListElement: [
-            { "@type": "ListItem", position: 1, name: "Moissanite Tennis Chains", url: `${SITE_URL}/shop?type=necklace` },
+            { "@type": "ListItem", position: 1, name: "Moissanite Chains", url: `${SITE_URL}/shop?type=necklace` },
             { "@type": "ListItem", position: 2, name: "Moissanite Tennis Bracelets", url: `${SITE_URL}/shop?type=bracelet` },
             { "@type": "ListItem", position: 3, name: "Moissanite Stud Earrings", url: `${SITE_URL}/shop?type=earring` },
             { "@type": "ListItem", position: 4, name: "Moissanite Engagement Rings", url: `${SITE_URL}/shop?type=ring` },
