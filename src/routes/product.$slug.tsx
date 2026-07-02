@@ -575,7 +575,7 @@ function ProductPage() {
   const isBracelet    = product.type === "bracelet";
   const isEarring     = product.type === "earring";
   const isRing        = product.type === "ring";
-  const isTennis      = slug.includes("tennis");
+  const isTennis      = slug.includes("tennis") || slug.includes("anklet");
   const isTennisChain = isTennis && !isBracelet;
 
   // Rings are variant-aware: when this product has real product_variants
@@ -683,7 +683,7 @@ function ProductPage() {
   const showColorImage = (color: string, fallbackIdx: number) => {
     const ci = colorImages[color];
     if (ci) { setColorOverrideUrl(ci); }
-    else { setColorOverrideUrl(null); setActiveImg(fallbackIdx); }
+    else { setColorOverrideUrl(null); setActiveImg(Math.min(fallbackIdx, gallery.length - 1)); }
   };
 
   const prevImg = () => setActiveImg(i => Math.max(0, i - 1));
