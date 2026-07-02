@@ -1,7 +1,7 @@
 // Size and length pricing modifiers — applied on top of product base_price.
 export const SIZES_NECKLACE = ["2mm", "3mm", "4mm", "5mm", "6.5mm"] as const;
 export const SIZES_BRACELET = ["2mm", "3mm", "4mm", "5mm", "6.5mm"] as const;
-export const SIZES_EARRING = ["3mm", "4mm", "5mm", "6mm", "8mm"] as const;
+export const SIZES_EARRING = ["3mm", "4mm", "5mm", "6mm", "6.5mm", "8mm", "10mm"] as const;
 export const LENGTHS_NECKLACE = ['16"', '18"', '20"', '22"', '24"'] as const;
 export const LENGTHS_BRACELET = ['6"', '7"', '8"', '9"'] as const;
 export const LENGTH_BRACELET_DEFAULT = '8"' as const;
@@ -169,7 +169,13 @@ export const RING_SIZE_DESCRIPTIONS: Record<string, string> = {
 // Shared across the product editor and the new-product screen so generated
 // variants always draw from the same option set.
 
-export const AVAILABLE_SIZES = ["2mm", "3mm", "4mm", "5mm", "6mm", "6.5mm", "8mm"];
+// Full generic size set — covers chains (2-6mm widths) AND pendants/earrings (7-15mm face sizes)
+export const AVAILABLE_SIZES = ["2mm", "3mm", "4mm", "5mm", "6mm", "6.5mm", "7mm", "8mm", "9mm", "10mm", "12mm", "15mm"];
+
+// Pendant-specific sizes: face/diameter sizes, NOT chain widths.
+// 2mm-4mm are chain widths; pendants start at 5mm.
+export const SIZES_PENDANT = ["5mm", "6mm", "6.5mm", "7mm", "8mm", "9mm", "10mm", "12mm", "15mm"];
+
 export const AVAILABLE_LENGTHS = ['6"', '6.5"', '7"', '7.5"', '8"', '8.5"', '9"', '16"', '18"', '20"', '22"', '24"'];
 export const AVAILABLE_RING_SIZES = [
   "Ring Size 5", "Ring Size 6", "Ring Size 7", "Ring Size 8",
@@ -177,8 +183,11 @@ export const AVAILABLE_RING_SIZES = [
 ];
 export const DEFAULT_RING_SIZES = ["Ring Size 6", "Ring Size 7", "Ring Size 8", "Ring Size 9", "Ring Size 10", "Ring Size 11"];
 
-export const isRingType = (type: string | null | undefined) => type === "ring";
-export const isRingSlug = (slug: string) => /\bring\b/i.test(slug) && !slug.includes("earring");
+export const isRingType    = (type: string | null | undefined) => type === "ring";
+export const isPendantType = (type: string | null | undefined) => type === "pendant";
+export const isEarringType = (type: string | null | undefined) => type === "earring";
+export const isRingSlug    = (slug: string) => /\bring\b/i.test(slug) && !slug.includes("earring");
+export const isPendantSlug = (slug: string) => /\bpendant\b/i.test(slug);
 export const AVAILABLE_COLORS = ["silver", "gold", "rose_gold", "white_gold"];
 
 export const COLOR_LABELS: Record<string, string> = {

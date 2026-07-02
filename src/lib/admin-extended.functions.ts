@@ -1230,7 +1230,7 @@ Source: ${params.sourceUrl.replace(/[?#].*$/, "").slice(0, 120)}
 13. colorGrade: D | E | F | G | null
 14. additionalTags: 8–12 specific lowercase hyphenated SEO tags
 15. confidence: "high" if 6+ concrete specs | "medium" if 3–5 | "low" if mostly inferred
-16. detectedVariations: Array of ALL available variation combinations. Each object must have some of: width (e.g. "3mm"), length (e.g. "18 inch"), color (e.g. "gold", "white gold", "rose gold"), other (any extra attribute), and unitPrice (per-unit cost at min MOQ — null if not known). Extract from the SKU data above, variation tables, or any attribute selectors. If the product has no meaningful variations, return []. Cap at 30 entries.
+16. detectedVariations: Array of ALL selectable purchase options for THIS specific product listing only — not related products, not compatibility notes. For pendant products: only extract SIZE (diameter/face size, e.g. "5mm", "8mm") and COLOR. Do NOT extract chain lengths (16", 18", 20") for pendants — those are not pendant variants. For earring and ring products: do not include chain lengths either. Each variation object: width (e.g. "3mm" for chains, pendant face diameter), length (only for chains/bracelets), color, other (any extra non-chain attribute), unitPrice. If no meaningful variations, return []. Cap at 30 entries.
 
 Return ONLY this exact JSON (no markdown, no commentary):
 {"luxuryTitle":"","shortDescription":"","fullDescription":"","seoDescription":"","productType":null,"stoneShape":null,"metalPurity":null,"supplierPrice":null,"caratWeight":null,"stoneDiameter":null,"stoneCount":null,"clarity":null,"colorGrade":null,"additionalTags":[],"confidence":"medium","detectedVariations":[]}`;
@@ -1267,7 +1267,32 @@ function mergeWithAI(
   ai: AIEnrichment | null,
   sourceUrl: string
 ) {
-  const aiEnriched = ai !== null;
+  const aiEnriched  = ai !== null;
+  const finalType   = ai?.productType ?? base.detectedType;
+
+  // Type-aware post-processing: even if GPT-4o correctly labelled the type,
+  // ensure the detected axes and variations are consistent with it.
+  const isPendant  = finalType === "pendant" || /\bpendant\b/i.test(base.rawName);
+  const isEarring  = finalType === "earring";
+  const isRingProd = finalType === "ring";
+
+  // Strip chain lengths from detectedLengths for product types that don't use them
+  const safeLengths = (isPendant || isEarring || isRingProd) ? [] : base.detectedLengths;
+
+  // Strip chain-width sizes (≤4mm) from pendant size detections
+  const safeSizes = isPendant
+    ? base.detectedSizes.filter(s => parseFloat(s) >= 4.5)
+    : base.detectedSizes;
+
+  // Strip length field from AI-detected variations for pendant/earring/ring
+  const safeVariations = (ai?.detectedVariations ?? []).map(v => {
+    if (isPendant || isEarring || isRingProd) {
+      const { length: _l, ...rest } = v as any;
+      return rest;
+    }
+    return v;
+  });
+
   return {
     ...base,
     sourceUrl,
@@ -1277,7 +1302,9 @@ function mergeWithAI(
     shortDescription:   (ai?.shortDescription   || base.shortDescription),
     description:        (ai?.fullDescription    || base.description),
     seoDescription:     ai?.seoDescription      ?? "",
-    detectedType:       ai?.productType         ?? base.detectedType,
+    detectedType:       finalType,
+    detectedSizes:      safeSizes,
+    detectedLengths:    safeLengths,
     stoneCount:         ai?.stoneCount          ?? base.stoneCount,
     caratWeight:        ai?.caratWeight         ?? base.caratWeight,
     stoneDiameter:      ai?.stoneDiameter       ?? base.stoneDiameter,
@@ -1287,7 +1314,7 @@ function mergeWithAI(
     clarity:            ai?.clarity             ?? null,
     colorGrade:         ai?.colorGrade          ?? null,
     suggestedTags:      [...new Set([...base.suggestedTags, ...(ai?.additionalTags ?? [])])].slice(0, 18),
-    detectedVariations: ai?.detectedVariations  ?? [],
+    detectedVariations: safeVariations,
   };
 }
 
@@ -1934,8 +1961,27 @@ function parseProductPage(html: string, seed: string) {
   const fullText = `${rawName} ${description} ${attributes.map(a => `${a.name} ${a.value}`).join(" ")}`;
   const detectedType    = detectType(rawName) ?? detectType(fullText);
   const detectedColors  = detectColors(fullText);
-  const detectedSizes   = detectSizeOrLength(attributes, /size|width|gauge|diameter|stone\s*size/i, fullText, AVAILABLE_SIZES);
-  const detectedLengths = detectSizeOrLength(attributes, /length|chain\s*length|extension/i, fullText, AVAILABLE_LENGTHS);
+
+  // Detect product-type context for type-aware filtering below
+  const isPendantProduct = /\bpendant\b/i.test(rawName) || /\bpendant\b/i.test(fullText.slice(0, 400));
+  const isEarringProduct = detectedType === "earring";
+  const isRingProduct    = detectedType === "ring";
+
+  // For pendants, only match sizes ≥5mm — chain widths (2-4mm) are not pendant dimensions
+  const sizePool = isPendantProduct ? AVAILABLE_SIZES.filter(s => parseFloat(s) >= 4.5) : AVAILABLE_SIZES;
+  let detectedSizes = detectSizeOrLength(attributes, /size|width|gauge|diameter|stone\s*size/i, fullText, sizePool);
+
+  // Lengths are only a valid variant axis for chains, bracelets, and anklets —
+  // never for pendants, earrings, or rings.
+  let detectedLengths = (isPendantProduct || isEarringProduct || isRingProduct)
+    ? []
+    : detectSizeOrLength(attributes, /length|chain\s*length|extension/i, fullText, AVAILABLE_LENGTHS);
+
+  // Final safety filter: for pendants, strip any stray chain-width entries (2-4mm)
+  // that may have slipped in from full-text scanning or attribute ambiguity
+  if (isPendantProduct) {
+    detectedSizes = detectedSizes.filter(s => parseFloat(s) >= 4.5);
+  }
 
   const isMoissanite = /moissanite/i.test(fullText);
   const isVVS        = /\bvvs1?\b/i.test(fullText);
@@ -1987,8 +2033,21 @@ function buildBaseFromJina(title: string, content: string, images: string[], url
   const fullText = `${title}\n\n${content}`;
   const type = detectType(fullText);
   const colors = detectColors(fullText);
-  const sizes = detectSizeOrLength([], /^size$/i, fullText, AVAILABLE_SIZES);
-  const lengths = detectSizeOrLength([], /^length$/i, fullText, AVAILABLE_LENGTHS);
+
+  const isPendantProduct = /\bpendant\b/i.test(title) || /\bpendant\b/i.test(content.slice(0, 400));
+  const isEarringProduct = type === "earring";
+  const isRingProduct    = type === "ring";
+
+  const sizePool = isPendantProduct ? AVAILABLE_SIZES.filter(s => parseFloat(s) >= 4.5) : AVAILABLE_SIZES;
+  let sizes   = detectSizeOrLength([], /^size$/i, fullText, sizePool);
+  const lengths = (isPendantProduct || isEarringProduct || isRingProduct)
+    ? []
+    : detectSizeOrLength([], /^length$/i, fullText, AVAILABLE_LENGTHS);
+
+  if (isPendantProduct) {
+    sizes = sizes.filter(s => parseFloat(s) >= 4.5);
+  }
+
   const stoneShape = detectStoneShape(fullText);
   const metalPurity = detectMetalPurity(fullText);
   const supplierPrice = detectSupplierPrice(fullText);

@@ -13,6 +13,8 @@ import {
   AVAILABLE_RING_SIZES, DEFAULT_RING_SIZES,
   isTennisBraceletSlug, isRingType, isRingSlug,
   SIZES_TENNIS_BRACELET, LENGTHS_TENNIS_BRACELET, getTennisBraceletPrice,
+  SIZES_PENDANT, SIZES_EARRING,
+  isPendantType, isPendantSlug, isEarringType,
   formatUSD, TYPE_LABELS,
 } from "@/lib/pricing";
 
@@ -380,23 +382,34 @@ function AdminNewProduct() {
   // UI
   const [saving,      setSaving]      = useState(false);
 
-  const isTennis = isTennisBraceletSlug(slug);
-  const isRing   = isRingType(type) || isRingSlug(slug);
-  const sizeOptions   = isTennis ? [...SIZES_TENNIS_BRACELET] : AVAILABLE_SIZES;
-  const lengthOptions = isTennis ? [...LENGTHS_TENNIS_BRACELET] : AVAILABLE_LENGTHS;
+  const isTennis  = isTennisBraceletSlug(slug);
+  const isRing    = isRingType(type)    || isRingSlug(slug);
+  const isPendant = isPendantType(type) || isPendantSlug(slug);
+  const isEarring = isEarringType(type);
+
+  // Type-specific size options: tennis bracelets get widths, pendants get face sizes,
+  // earrings get earring diameters, everything else gets the full generic list.
+  const sizeOptions = isTennis
+    ? [...SIZES_TENNIS_BRACELET]
+    : isPendant ? [...SIZES_PENDANT]
+    : isEarring ? [...SIZES_EARRING]
+    : AVAILABLE_SIZES;
+
+  const lengthOptions  = isTennis ? [...LENGTHS_TENNIS_BRACELET] : AVAILABLE_LENGTHS;
+  const showLengthAxis = !isRing && !isPendant && !isEarring;
   const hasVariantSelection = selColors.length > 0 || selSizes.length > 0 || selLengths.length > 0 || selRingSizes.length > 0;
 
   const combos = useMemo(() => {
     const colors  = selColors.length > 0    ? selColors    : [null];
-    // For rings, ring sizes go into the "size" slot; regular size/length axes are suppressed
     const sizes   = isRing
       ? (selRingSizes.length > 0 ? selRingSizes : [null])
       : (selSizes.length > 0 ? selSizes : [null]);
-    const lengths = isRing ? [null] : (selLengths.length > 0 ? selLengths : [null]);
+    // Pendants and earrings never use chain length as a variant axis
+    const lengths = (isRing || isPendant || isEarring) ? [null] : (selLengths.length > 0 ? selLengths : [null]);
     const out: { color: string | null; size: string | null; length: string | null }[] = [];
     for (const c of colors) for (const s of sizes) for (const l of lengths) out.push({ color: c, size: s, length: l });
     return out;
-  }, [selColors, selSizes, selLengths, selRingSizes, isRing]);
+  }, [selColors, selSizes, selLengths, selRingSizes, isRing, isPendant, isEarring]);
 
   // Pre-fill from URL import (sessionStorage set by ImportModal in products list)
   useEffect(() => {
@@ -425,9 +438,12 @@ function AdminNewProduct() {
         setImages([cover, ...allImages.filter(i => i !== cover)]);
       }
 
-      const detectedIsRing =
-        imp.detectedType === "ring" ||
-        /\bring\b/i.test(imp.name ?? "") && !/earring/i.test(imp.name ?? "");
+      const detectedIsRing    = imp.detectedType === "ring" ||
+        (/\bring\b/i.test(imp.name ?? "") && !/earring/i.test(imp.name ?? ""));
+      const detectedIsPendant = imp.detectedType === "pendant" ||
+        /\bpendant\b/i.test(imp.name ?? "");
+      const detectedIsEarring = imp.detectedType === "earring" ||
+        /\bearrings?\b/i.test(imp.name ?? "");
 
       if (imp.detectedType && Object.keys(TYPE_LABELS).includes(imp.detectedType)) {
         setType(imp.detectedType);
@@ -437,28 +453,29 @@ function AdminNewProduct() {
         setSelColors(imp.detectedColors);
       }
 
-      // For rings: auto-populate default ring sizes (6–11) and switch to
-      // variant mode — rings almost always ship in multiple sizes.
       if (detectedIsRing) {
+        // Rings: auto-populate standard finger sizes and enable variant mode
         setSelRingSizes([...DEFAULT_RING_SIZES]);
         setPricingMode("variants");
       } else {
-        // A single detected size/length is a fixed spec of the product (e.g.
-        // "this anklet is 6mm, 8 inches" — not a customer choice), so it goes
-        // on the product's own size/length field. Only genuinely *multiple*
-        // detected values represent a real variant axis the customer picks
-        // between — pushing a single value into the variant picker would
-        // create one redundant variant row and silently switch the product
-        // into variant-pricing mode it doesn't need.
-        const sizes = imp.detectedSizes ?? [];
-        const lengths = imp.detectedLengths ?? [];
+        // A single detected size/length is a fixed spec (e.g. "6mm anklet") —
+        // goes on the product's own field. Multiple values are a real variant
+        // axis the customer picks between.
+        const rawSizes   = imp.detectedSizes   ?? [];
+        const rawLengths = imp.detectedLengths ?? [];
+
+        // Pendants and earrings never have a chain-length variant axis —
+        // strip any length data that leaked through from the import.
+        const sizes   = detectedIsPendant
+          ? rawSizes.filter(s => parseFloat(s) >= 4.5) // keep ≥5mm for pendants
+          : rawSizes;
+        const lengths = (detectedIsPendant || detectedIsEarring) ? [] : rawLengths;
+
         if (sizes.length === 1) setSize(sizes[0]);
         else if (sizes.length > 1) setSelSizes(sizes);
         if (lengths.length === 1) setLength(lengths[0]);
         else if (lengths.length > 1) setSelLengths(lengths);
 
-        // Variant pricing only makes sense when at least one axis genuinely
-        // has more than one option.
         const colorCount = imp.detectedColors?.length ?? 0;
         if (colorCount > 1 || sizes.length > 1 || lengths.length > 1) setPricingMode("variants");
       }
@@ -1026,16 +1043,18 @@ function AdminNewProduct() {
                         />
                       </div>
 
-                      <div>
-                        <label className={labelCls}>Lengths</label>
-                        <ChipRow
-                          options={lengthOptions}
-                          selected={selLengths}
-                          onToggle={toggleLength}
-                          onAll={() => setSelLengths([...lengthOptions])}
-                          onClear={() => setSelLengths([])}
-                        />
-                      </div>
+                      {showLengthAxis && (
+                        <div>
+                          <label className={labelCls}>Lengths</label>
+                          <ChipRow
+                            options={lengthOptions}
+                            selected={selLengths}
+                            onToggle={toggleLength}
+                            onAll={() => setSelLengths([...lengthOptions])}
+                            onClear={() => setSelLengths([])}
+                          />
+                        </div>
+                      )}
                     </>
                   )}
 

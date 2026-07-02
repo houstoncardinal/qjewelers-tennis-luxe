@@ -39,8 +39,13 @@ import {
   isTennisBraceletSlug,
   isAnkletSlug,
   SIZES_TENNIS_ANKLET,
+  SIZES_PENDANT,
+  SIZES_EARRING,
   isRingType,
   isRingSlug,
+  isPendantType,
+  isPendantSlug,
+  isEarringType,
 } from "@/lib/pricing";
 import { getProductThumb } from "@/lib/product-images";
 
@@ -917,11 +922,25 @@ function VariantsManager({
   const [pricingMode, setPricingMode] = useState<"none" | "supplier" | "markup">("none");
   const [markupPercent, setMarkupPercent] = useState<string>("500");
   const [fetchingCost, setFetchingCost] = useState(false);
-  const isAnklet = isAnkletSlug(slug);
-  const isTennis = isTennisBraceletSlug(slug) || isAnklet;
-  const isRing = isRingType(productType) || isRingSlug(slug);
-  const sizeOptions = isTennis ? (isAnklet ? [...SIZES_TENNIS_ANKLET] : [...SIZES_TENNIS_BRACELET]) : AVAILABLE_SIZES;
-  const lengthOptions = isTennis ? [...LENGTHS_TENNIS_BRACELET] : AVAILABLE_LENGTHS;
+  const isAnklet  = isAnkletSlug(slug);
+  const isTennis  = isTennisBraceletSlug(slug) || isAnklet;
+  const isRing    = isRingType(productType) || isRingSlug(slug);
+  const isPendant = isPendantType(productType) || isPendantSlug(slug);
+  const isEarring = isEarringType(productType);
+
+  // Size options depend on product type: tennis bracelets get width presets,
+  // pendants get face-size options (≥5mm), earrings get earring sizes,
+  // everything else gets the full generic size list.
+  const sizeOptions = isTennis
+    ? (isAnklet ? [...SIZES_TENNIS_ANKLET] : [...SIZES_TENNIS_BRACELET])
+    : isPendant  ? [...SIZES_PENDANT]
+    : isEarring  ? [...SIZES_EARRING]
+    : AVAILABLE_SIZES;
+
+  // Lengths only apply to chains, bracelets, and anklets.
+  // Pendants, earrings, and rings never have a chain-length variant axis.
+  const showLengthAxis = !isRing && !isPendant && !isEarring;
+  const lengthOptions  = isTennis ? [...LENGTHS_TENNIS_BRACELET] : AVAILABLE_LENGTHS;
   const visibleVariantPrice = (v: ProductVariant) =>
     isTennis && v.size && v.length
       ? getTennisBraceletPrice(v.size, v.length)
@@ -960,14 +979,15 @@ function VariantsManager({
   // Generate preview of all combinations
   const generatePreview = useCallback(() => {
     const combos: Array<{ color: string | null; size: string | null; length: string | null }> = [];
-    const colors = selColors.length > 0 ? selColors : [null];
-    const sizes = isRing
+    const colors  = selColors.length > 0 ? selColors : [null];
+    const sizes   = isRing
       ? (selRingSizes.length > 0 ? selRingSizes : [null])
       : (selSizes.length > 0 ? selSizes : [null]);
-    const lengths = isRing ? [null] : (selLengths.length > 0 ? selLengths : [null]);
+    // Pendants and earrings never get length as a variant axis
+    const lengths = (isRing || isPendant || isEarring) ? [null] : (selLengths.length > 0 ? selLengths : [null]);
     for (const c of colors) for (const s of sizes) for (const l of lengths) combos.push({ color: c, size: s, length: l });
     return combos;
-  }, [selColors, selSizes, selLengths, selRingSizes, isRing]);
+  }, [selColors, selSizes, selLengths, selRingSizes, isRing, isPendant, isEarring]);
 
   // Regenerate preview when selections change
   useEffect(() => {
@@ -1351,8 +1371,8 @@ function VariantsManager({
             </div>
           )}
 
-          {/* Lengths — hidden for ring products */}
-          {!isRing && (
+          {/* Lengths — only for chains/bracelets; hidden for rings, pendants, earrings */}
+          {showLengthAxis && (
           <div>
             <div className="flex items-center justify-between mb-3">
               <label className="text-[0.60rem] uppercase tracking-[0.16em] font-semibold text-gray-500 flex items-center gap-1.5">
