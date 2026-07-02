@@ -13,7 +13,7 @@ import {
   getTennisBraceletPrice, getTennisChainPrice,
   formatUSD,
   SIZES_NECKLACE, SIZES_EARRING, SIZES_RING, SIZES_TENNIS_BRACELET, SIZES_TENNIS_CHAIN, SIZES_TENNIS_ANKLET,
-  isAnkletSlug,
+  isAnkletSlug, isPendantSlug,
   LENGTHS_NECKLACE, LENGTHS_BRACELET, LENGTHS_TENNIS_BRACELET, LENGTHS_TENNIS_CHAIN,
   LENGTH_BRACELET_DEFAULT, TENNIS_BRACELET_LENGTH_DEFAULT, TENNIS_CHAIN_LENGTH_DEFAULT,
   type Size, type EarringSize, type RingSize, type Length,
@@ -576,6 +576,7 @@ function ProductPage() {
   const isBracelet    = product.type === "bracelet";
   const isEarring     = product.type === "earring";
   const isRing        = product.type === "ring";
+  const isPendant     = product.type === "pendant" || isPendantSlug(slug);
   const isAnklet      = isAnkletSlug(slug);
   const isTennis      = slug.includes("tennis") || isAnklet;
   const isTennisChain = isTennis && !isBracelet;
@@ -594,7 +595,23 @@ function ProductPage() {
     ? [...new Set(ringVariants.map(v => v.size).filter((s): s is string => !!s))]
     : [...SIZES_RING];
 
-  const sizes = isAnklet ? SIZES_TENNIS_ANKLET : isTennisChain ? SIZES_TENNIS_CHAIN : isTennis ? SIZES_TENNIS_BRACELET : isEarring ? SIZES_EARRING : isRing ? ringCarats : SIZES_NECKLACE;
+  // Pendants are fully variant-driven: sizes, metals, and chain length are
+  // read from the product_variants rows so each pendant listing is independent.
+  const pendantVariants = isPendant ? (variants ?? []) : [];
+  const pendantColors: string[] = pendantVariants.length > 0
+    ? [...new Set(pendantVariants.map(v => v.color).filter((c): c is string => !!c && !!COLOR_MAP[c]))]
+    : (product.color ?? "gold").split(",").map((c: string) => c.trim()).filter((c: string) => !!COLOR_MAP[c]);
+  const pendantSizes: string[] = pendantVariants.length > 0
+    ? [...new Set(pendantVariants.map(v => v.size).filter((s): s is string => !!s))]
+        .sort((a, b) => parseFloat(a) - parseFloat(b))
+    : ["5mm", "6.5mm", "7mm", "8mm", "9mm", "10mm"];
+  // If all variants share the same length, hide the length selector and show it as fixed info.
+  const pendantLengths: string[] = pendantVariants.length > 0
+    ? [...new Set(pendantVariants.map(v => v.length).filter((l): l is string => !!l))]
+    : ['18"'];
+  const pendantSingleLength = pendantLengths.length === 1 ? pendantLengths[0] : null;
+
+  const sizes = isAnklet ? SIZES_TENNIS_ANKLET : isTennisChain ? SIZES_TENNIS_CHAIN : isTennis ? SIZES_TENNIS_BRACELET : isEarring ? SIZES_EARRING : isRing ? ringCarats : isPendant ? pendantSizes : SIZES_NECKLACE;
   const sizeDescriptions = isTennisChain ? TENNIS_CHAIN_SIZE_DESCRIPTIONS : isTennis ? TENNIS_BRACELET_SIZE_DESCRIPTIONS : isEarring ? EARRING_SIZE_DESCRIPTIONS : isRing ? RING_SIZE_DESCRIPTIONS : SIZE_DESCRIPTIONS;
 
   const defaultSize: string = (() => {
@@ -605,11 +622,12 @@ function ProductPage() {
       const match = Object.entries(RING_SLUG_SIZE_MAP).find(([key]) => slug.includes(key));
       return match ? match[1] : (ringCarats.includes("1ct") ? "1ct" : ringCarats[0]);
     }
+    if (isPendant) return pendantSizes[0] ?? "5mm";
     return (["2mm", "3mm", "4mm", "5mm", "6.5mm"] as const).find(s => slug.includes(s)) ?? "3mm";
   })();
 
   const defaultLength: string = (() => {
-    if (isEarring || isRing) return '18"';
+    if (isEarring || isRing || (isPendant && pendantSingleLength)) return pendantSingleLength ?? '18"';
     if (isTennisChain) return TENNIS_CHAIN_LENGTH_DEFAULT;
     if (isTennis) return TENNIS_BRACELET_LENGTH_DEFAULT;
     if (isBracelet) return LENGTH_BRACELET_DEFAULT;
@@ -634,6 +652,7 @@ function ProductPage() {
   const [earringMetal, setEarringMetal] = useState<"white_gold" | "gold">("gold");
   const [tennisMetal,  setTennisMetal]  = useState<string>(tennisColors[0] ?? "gold");
   const [ringMetal,    setRingMetal]    = useState<string>(ringColors[0] ?? product.color);
+  const [pendantMetal, setPendantMetal] = useState<string>(pendantColors[0] ?? "gold");
   const [touchStartX,  setTouchStartX]  = useState<number | null>(null);
   const [showReviewForm, setShowReviewForm] = useState(false);
 
@@ -667,6 +686,9 @@ function ProductPage() {
   const matchedRingVariant = isRing
     ? ringVariants.find(v => (v.color ?? product.color) === ringMetal && (v.size ?? defaultSize) === size)
     : undefined;
+  const matchedPendantVariant = isPendant
+    ? pendantVariants.find(v => v.color === pendantMetal && v.size === size)
+    : undefined;
 
   const price = isTennisChain
     ? getTennisChainPrice(size, length)
@@ -676,9 +698,11 @@ function ProductPage() {
         ? calculateEarringPrice(Number(product.base_price), size as EarringSize)
         : isRing
           ? (matchedRingVariant?.price_override ?? calculateRingPrice(Number(product.base_price), size as RingSize))
-          : calculatePrice(Number(product.base_price), size as Size, length as Length);
+          : isPendant
+            ? (matchedPendantVariant?.price_override ?? Number(product.base_price))
+            : calculatePrice(Number(product.base_price), size as Size, length as Length);
 
-  const activeColor = isTennis ? tennisMetal : isEarring ? earringMetal : isRing ? ringMetal : product.color;
+  const activeColor = isTennis ? tennisMetal : isEarring ? earringMetal : isRing ? ringMetal : isPendant ? pendantMetal : product.color;
   const colorInfo   = COLOR_MAP[activeColor];
 
   const colorImages: Record<string, string> = (product as any).color_images ?? {};
@@ -701,8 +725,8 @@ function ProductPage() {
   };
 
   const handleAdd = (goToCart = false) => {
-    const cartColor = isTennis ? tennisMetal : isEarring ? earringMetal : isRing ? ringMetal : product.color;
-    const cartLength = isRing || isEarring ? "" : length;
+    const cartColor = isTennis ? tennisMetal : isEarring ? earringMetal : isRing ? ringMetal : isPendant ? pendantMetal : product.color;
+    const cartLength = isRing || isEarring || (isPendant && !!pendantSingleLength) ? (pendantSingleLength ?? "") : length;
     add({
       id: `${product.id}-${size}-${cartLength}-${cartColor}`,
       productId: product.id,
@@ -742,7 +766,9 @@ function ProductPage() {
       ? `${size} · ${earringMetal === "white_gold" ? "White Gold" : "Yellow Gold"}`
       : isRing
         ? size
-        : `${size} · ${length}`;
+        : isPendant
+          ? `${size} · ${COLOR_MAP[pendantMetal]?.label ?? pendantMetal}`
+          : `${size} · ${length}`;
 
   return (
     <>
@@ -1066,6 +1092,45 @@ function ProductPage() {
                 </div>
               )}
 
+              {/* ── Pendant Metal selector ────────────────── */}
+              {isPendant && pendantColors.length > 0 && (
+                <div className="mb-6">
+                  <div className="flex items-baseline justify-between mb-3.5">
+                    <p className="text-[0.52rem] uppercase tracking-[0.28em] font-semibold">Metal</p>
+                    <span className="text-[0.57rem] italic text-muted-foreground">
+                      {COLOR_MAP[pendantMetal]?.label ?? pendantMetal.replace("_", " ")}
+                    </span>
+                  </div>
+                  <div className={`grid gap-2.5 ${pendantColors.length === 1 ? "grid-cols-1" : pendantColors.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+                    {pendantColors.map((key, idx) => {
+                      const info = COLOR_MAP[key];
+                      const active = pendantMetal === key;
+                      const single = pendantColors.length === 1;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => { if (!single) { setPendantMetal(key); showColorImage(key, idx); } }}
+                          aria-pressed={active}
+                          className={`relative py-5 text-center border transition-all duration-150 flex flex-col items-center justify-center gap-2 ${
+                            active
+                              ? "border-foreground bg-foreground text-background"
+                              : "border-border hover:border-foreground/40 hover:bg-cream"
+                          } ${single ? "cursor-default" : ""}`}
+                        >
+                          <span className="w-[18px] h-[18px] rounded-full shrink-0 ring-1 ring-black/10 shadow-sm" style={{ backgroundColor: info?.hex ?? "#ccc" }} />
+                          <span className="text-[0.70rem] font-semibold leading-none">{info?.label ?? key.replace("_", " ")}</span>
+                          <span className={`text-[0.40rem] uppercase tracking-[0.16em] ${active ? "text-background/50" : "text-muted-foreground/50"}`}>
+                            {single ? "Only finish available" : "5× plated"}
+                          </span>
+                          {active && <span className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: "var(--gradient-gold-h)" }} />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* ── Metal selector (earrings) — must come before Size ── */}
               {isEarring && (
                 <div className="mb-6">
@@ -1116,7 +1181,7 @@ function ProductPage() {
               <div className="mb-6">
                 <div className="flex items-baseline justify-between mb-3.5">
                   <p className="text-[0.52rem] uppercase tracking-[0.28em] font-semibold">
-                    {isEarring ? "Stone Size" : isRing ? "Ring Size" : "Width"}
+                    {isEarring ? "Stone Size" : isRing ? "Ring Size" : isPendant ? "Stone Size" : "Width"}
                   </p>
                   <span className="text-[0.57rem] italic text-muted-foreground">{sizeDescriptions[size]}</span>
                 </div>
@@ -1142,7 +1207,9 @@ function ProductPage() {
                           ? calculateEarringPrice(Number(product.base_price), s as EarringSize)
                           : isRing
                             ? calculateRingPrice(Number(product.base_price), s as RingSize)
-                            : calculatePrice(Number(product.base_price), s as Size, length as Length);
+                            : isPendant
+                              ? (pendantVariants.find(v => v.color === pendantMetal && v.size === s)?.price_override ?? Number(product.base_price))
+                              : calculatePrice(Number(product.base_price), s as Size, length as Length);
                     const active = size === s;
                     return (
                       <button
@@ -1224,8 +1291,46 @@ function ProductPage() {
                 </div>
               )}
 
+              {/* ── Pendant fixed chain length info (no selector needed when single length) ── */}
+              {isPendant && pendantSingleLength && (
+                <div className="mb-6 flex items-center justify-between px-4 py-3.5 bg-cream border border-border">
+                  <div>
+                    <p className="text-[0.44rem] uppercase tracking-[0.22em] text-muted-foreground mb-0.5">Chain Length</p>
+                    <p className="text-[0.76rem] font-semibold leading-none">{pendantSingleLength}</p>
+                  </div>
+                  <span className="text-[0.52rem] italic text-muted-foreground">
+                    {LENGTH_DESCRIPTIONS[pendantSingleLength] ?? "Pendant chain"}
+                  </span>
+                </div>
+              )}
+
+              {/* ── Pendant multi-length selector (when pendant offers several chain lengths) ── */}
+              {isPendant && !pendantSingleLength && (
+                <div className="mb-6">
+                  <div className="flex items-baseline justify-between mb-3.5">
+                    <p className="text-[0.52rem] uppercase tracking-[0.28em] font-semibold">Chain Length</p>
+                  </div>
+                  <div className={`grid gap-1.5 ${pendantLengths.length <= 3 ? `grid-cols-${pendantLengths.length}` : "grid-cols-3"}`}>
+                    {pendantLengths.map(l => {
+                      const active = length === l;
+                      return (
+                        <button key={l} onClick={() => setLength(l)}
+                          className={`relative py-3 text-center border transition-all duration-150 ${active ? "border-foreground bg-foreground text-background" : "border-border hover:border-foreground/40 hover:bg-cream"}`}
+                        >
+                          <span className="block text-[0.74rem] font-semibold leading-none mb-1">{l}</span>
+                          <span className={`block text-[0.42rem] uppercase tracking-[0.08em] ${active ? "text-background/50" : "text-muted-foreground/55"}`}>
+                            {LENGTH_DESCRIPTIONS[l] ?? ""}
+                          </span>
+                          {active && <span className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: "var(--gradient-gold-h)" }} />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* ── Length selector ──────────────────────── */}
-              {!isEarring && !isRing && (
+              {!isEarring && !isRing && !isPendant && (
                 <div className="mb-6">
                   <div className="flex items-baseline justify-between mb-3.5">
                     <p className="text-[0.52rem] uppercase tracking-[0.28em] font-semibold">Length</p>
