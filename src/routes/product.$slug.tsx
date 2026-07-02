@@ -579,7 +579,7 @@ function ProductPage() {
   const isPendant     = product.type === "pendant" || isPendantSlug(slug);
   const isAnklet      = isAnkletSlug(slug);
   const isTennis      = slug.includes("tennis") || isAnklet;
-  const isTennisChain = isTennis && !isBracelet;
+  const isTennisChain = isTennis && !isBracelet && !isAnklet;
 
   // Rings are variant-aware: when this product has real product_variants
   // rows, the color/carat selectors only ever show what's actually been
@@ -1552,7 +1552,16 @@ function ProductPage() {
               {/* Luxury spec table */}
               <dl className="border border-border mb-7 overflow-hidden">
                 <div className="h-[2px]" style={{ background: "var(--gradient-gold-h)" }} />
-                {(isTennisChain ? [
+                {(isAnklet ? [
+                  { k: "Material",    v: "Solid S925 Sterling Silver (92.5% purity)",          hl: false },
+                  { k: "Plating",     v: "18K Yellow Gold · Rose Gold · White Gold",            hl: true  },
+                  { k: "Stone",       v: "VVS1 Moissanite · D Colorless · Round Brilliant",     hl: false },
+                  { k: "Setting",     v: "4-Prong Claw Inlay",                                  hl: false },
+                  { k: "Clasp",       v: "Double-Locking Box Clasp",                            hl: false },
+                  { k: "Width",       v: "6mm",                                                 hl: false },
+                  { k: "Length",      v: '8.5" base · fits up to 10.5" (2" extender)',         hl: false },
+                  { k: "Certificate", v: "GRA Moissanite Certificate",                           hl: false },
+                ] : isTennisChain ? [
                   { k: "Material",    v: "Solid S925 Sterling Silver (92.5% purity)",                                                      hl: false },
                   { k: "Plating",     v: platingSummary(product.color),                                                                   hl: true  },
                   { k: "Stone",       v: "VVS1 Moissanite · D Colorless · Round Brilliant",                                                hl: false },
@@ -1595,7 +1604,67 @@ function ProductPage() {
                 ))}
               </dl>
 
-              {isTennisChain ? (
+              {isAnklet ? (
+                <div className="space-y-5 text-[0.80rem] leading-[1.90]">
+                  <p className="text-foreground font-medium">
+                    Pure brilliance, worn at the ankle — the{" "}
+                    <span className="italic">VVS1 Moissanite Tennis Anklet.</span>
+                  </p>
+                  <p className="text-muted-foreground">
+                    Each stone is a{" "}
+                    <strong className="text-foreground font-semibold">D Colorless VVS1 Moissanite</strong>{" "}
+                    in a precision round brilliant cut — the highest clarity and color grade available, delivering fire and brilliance that rivals natural diamonds. The{" "}
+                    <strong className="text-foreground font-semibold">4-prong claw inlay setting</strong>{" "}
+                    maximises stone exposure and light return while securing every stone permanently in place.
+                  </p>
+                  <p className="text-muted-foreground">
+                    Built on a{" "}
+                    <strong className="text-foreground font-semibold">solid S925 sterling silver base</strong>{" "}
+                    (92.5% pure silver) and finished with{" "}
+                    <strong className="text-foreground font-semibold">5 layers of 18K precious metal plating</strong>{" "}
+                    — far beyond the 1–2 coats standard in fashion jewellery. Choose from{" "}
+                    <strong className="text-foreground font-semibold">18K Yellow Gold</strong>{" "}
+                    for a warm, timeless lustre,{" "}
+                    <strong className="text-foreground font-semibold">18K Rose Gold</strong>{" "}
+                    for a refined, romantic tone, or{" "}
+                    <strong className="text-foreground font-semibold">18K White Gold</strong>{" "}
+                    for a crisp, contemporary finish.
+                  </p>
+                  <p className="text-muted-foreground">
+                    The <strong className="text-foreground font-semibold">6mm width</strong> delivers confident, full-presence sparkle at the ankle. A built-in{" "}
+                    <strong className="text-foreground font-semibold">2-inch adjustable extender</strong>{" "}
+                    fits ankles from 8.5&quot; to 10.5&quot; for a precise, custom fit. The{" "}
+                    <strong className="text-foreground font-semibold">double-locking box clasp</strong>{" "}
+                    keeps the anklet secured through daily wear, the beach, and every occasion in between.{" "}
+                    <strong className="text-foreground font-semibold">Hypoallergenic, nickel-free, lead-free, and cadmium-free</strong>{" "}
+                    — safe for all skin types. Every piece ships with a{" "}
+                    <strong className="text-foreground font-semibold">GRA moissanite certificate</strong>{" "}
+                    verifying the stone's grade, cut, and authenticity. Flat price: <strong className="text-foreground font-semibold">$249</strong> — regardless of metal finish.
+                  </p>
+                  <div className="border border-border">
+                    {[
+                      ["Stone",        "D Colorless VVS1 Moissanite"],
+                      ["Cut",          "Round Brilliant · 4-Prong Claw Inlay"],
+                      ["Base Metal",   "Solid S925 Sterling Silver (92.5%)"],
+                      ["Plating",      "18K Yellow Gold · Rose Gold · White Gold"],
+                      ["Clasp",        "Double-Locking Box Clasp"],
+                      ["Width",        "6mm"],
+                      ["Base Length",  '8.5"'],
+                      ["Adjustable",   'Fits up to 10.5" (2" extender included)'],
+                      ["Price",        "$249 — all metals"],
+                      ["Gender",       "Women's"],
+                      ["Health",       "Hypoallergenic · Lead-Free · Nickel-Free"],
+                      ["Occasions",    "Daily · Beach · Anniversary · Gifting"],
+                      ["Certificate",  "GRA Certified"],
+                    ].map(([k, v]) => (
+                      <div key={k} className="flex items-start border-b border-border last:border-0 px-4 py-3 gap-3">
+                        <span className="text-[0.44rem] uppercase tracking-[0.16em] text-muted-foreground/60 shrink-0 w-[72px] sm:w-[90px] pt-0.5">{k}</span>
+                        <span className="text-[0.72rem] sm:text-[0.74rem] text-foreground min-w-0 break-words">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : isTennisChain ? (
                 <div className="space-y-5 text-[0.80rem] leading-[1.90]">
                   <p className="text-foreground font-medium">
                     An unbroken line of VVS brilliance — the{" "}
@@ -1964,10 +2033,10 @@ function ProductPage() {
             }
           </button>
           <button
-            onClick={() => handleAdd(true)}
+            onClick={() => navigate({ to: "/cart" })}
             className="shrink-0 border border-foreground/25 px-4 py-3.5 text-[0.54rem] uppercase tracking-[0.16em] font-semibold hover:border-foreground hover:bg-foreground hover:text-background active:scale-[0.99] transition-all whitespace-nowrap"
           >
-            Buy Now
+            View Cart
           </button>
         </div>
       </div>

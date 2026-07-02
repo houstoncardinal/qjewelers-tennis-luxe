@@ -562,7 +562,7 @@ function Index() {
           />
 
           {/* Editorial content */}
-          <div className="absolute inset-0 flex items-start sm:items-center px-6 sm:px-8 lg:px-14 xl:px-20 pt-[10svh] sm:pt-0">
+          <div className="absolute inset-0 flex items-start sm:items-center px-6 sm:px-8 lg:px-14 xl:px-20 pt-[10svh] pb-[10svh] sm:py-0">
             <div className="w-[78vw] sm:w-auto max-w-[78vw] sm:max-w-lg">
 
               {/* Eyebrow / certification micro-banner */}
