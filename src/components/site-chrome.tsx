@@ -168,7 +168,7 @@ export function Header() {
 
         {/* Panel — slides in from the right */}
         <div
-          className={`absolute top-0 right-0 bottom-0 w-full max-w-sm bg-background shadow-2xl transition-transform duration-300 ease-out ${open ? "translate-x-0" : "translate-x-full"}`}
+          className={`absolute top-0 right-0 bottom-0 w-full max-w-sm bg-background shadow-2xl flex flex-col overflow-hidden transition-transform duration-300 ease-out ${open ? "translate-x-0" : "translate-x-full"}`}
         >
           {/* ── Top bar: logo + close ── */}
           <div className="flex items-center justify-between px-5 h-16 border-b border-border shrink-0">
