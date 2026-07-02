@@ -595,6 +595,14 @@ function ProductPage() {
     ? [...new Set(ringVariants.map(v => v.size).filter((s): s is string => !!s))]
     : [...SIZES_RING];
 
+  // Anklets are variant-driven for length: the DB determines the single
+  // offered length so the selector doesn't hard-code bracelet lengths.
+  const ankletVariants = isAnklet ? (variants ?? []) : [];
+  const ankletLengths: string[] = ankletVariants.length > 0
+    ? [...new Set(ankletVariants.map(v => v.length).filter((l): l is string => !!l))]
+    : ['8.5"'];
+  const ankletSingleLength = ankletLengths.length === 1 ? ankletLengths[0] : null;
+
   // Pendants are fully variant-driven: sizes, metals, and chain length are
   // read from the product_variants rows so each pendant listing is independent.
   const pendantVariants = isPendant ? (variants ?? []) : [];
@@ -628,6 +636,7 @@ function ProductPage() {
 
   const defaultLength: string = (() => {
     if (isEarring || isRing || (isPendant && pendantSingleLength)) return pendantSingleLength ?? '18"';
+    if (isAnklet && ankletSingleLength) return ankletSingleLength;
     if (isTennisChain) return TENNIS_CHAIN_LENGTH_DEFAULT;
     if (isTennis) return TENNIS_BRACELET_LENGTH_DEFAULT;
     if (isBracelet) return LENGTH_BRACELET_DEFAULT;
@@ -689,12 +698,17 @@ function ProductPage() {
   const matchedPendantVariant = isPendant
     ? pendantVariants.find(v => v.color === pendantMetal && v.size === size)
     : undefined;
+  const matchedAnkletVariant = isAnklet
+    ? ankletVariants.find(v => v.color === tennisMetal && v.size === size)
+    : undefined;
 
   const price = isTennisChain
     ? getTennisChainPrice(size, length)
-    : isTennis
-      ? getTennisBraceletPrice(size, length)
-      : isEarring
+    : isAnklet
+      ? (matchedAnkletVariant?.price_override ?? Number(product.base_price))
+      : isTennis
+        ? getTennisBraceletPrice(size, length)
+        : isEarring
         ? calculateEarringPrice(Number(product.base_price), size as EarringSize)
         : isRing
           ? (matchedRingVariant?.price_override ?? calculateRingPrice(Number(product.base_price), size as RingSize))
@@ -760,7 +774,9 @@ function ProductPage() {
   const breadcrumbLabel = isRing ? "Engagement Rings" : isBracelet ? "Bracelets" : isEarring ? "Earrings" : "Chains";
 
   // Earring config label for the sticky mobile bar
-  const mobileConfigLabel = isTennis
+  const mobileConfigLabel = isAnklet
+    ? `${size} · ${ankletSingleLength ?? length} · ${COLOR_MAP[tennisMetal]?.label ?? "Yellow Gold"}`
+    : isTennis
     ? `${size} · ${length} · ${COLOR_MAP[tennisMetal]?.label ?? "Yellow Gold"}`
     : isEarring
       ? `${size} · ${earringMetal === "white_gold" ? "White Gold" : "Yellow Gold"}`
@@ -1291,6 +1307,28 @@ function ProductPage() {
                 </div>
               )}
 
+              {/* ── Anklet fixed length info ─────────────── */}
+              {isAnklet && ankletSingleLength && (
+                <div className="mb-6 border border-border overflow-hidden">
+                  <div className="h-[2px]" style={{ background: "var(--gradient-gold-h)" }} />
+                  <div className="px-4 py-4 bg-cream">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-[0.44rem] uppercase tracking-[0.22em] text-muted-foreground mb-1">Anklet Length</p>
+                        <p className="text-[0.86rem] font-semibold leading-none">{ankletSingleLength}</p>
+                        <p className="text-[0.48rem] text-muted-foreground/70 mt-1.5">+2 inches adjustable · fits up to {
+                          (() => { const base = parseFloat(ankletSingleLength); return `${base + 2}"`; })()
+                        }</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-[0.44rem] uppercase tracking-[0.18em] text-muted-foreground mb-1">Width</p>
+                        <p className="text-[0.86rem] font-semibold leading-none">{size}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* ── Pendant fixed chain length info (no selector needed when single length) ── */}
               {isPendant && pendantSingleLength && (
                 <div className="mb-6 flex items-center justify-between px-4 py-3.5 bg-cream border border-border">
@@ -1330,7 +1368,7 @@ function ProductPage() {
               )}
 
               {/* ── Length selector ──────────────────────── */}
-              {!isEarring && !isRing && !isPendant && (
+              {!isEarring && !isRing && !isPendant && !(isAnklet && ankletSingleLength) && (
                 <div className="mb-6">
                   <div className="flex items-baseline justify-between mb-3.5">
                     <p className="text-[0.52rem] uppercase tracking-[0.28em] font-semibold">Length</p>
