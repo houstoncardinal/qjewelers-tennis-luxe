@@ -534,7 +534,7 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
               </div>
               {loadStep === "enriching" && (
                 <p className="px-6 pb-2 text-[0.57rem] text-amber-600">
-                  ✨ Claude AI is rewriting your product copy for luxury retail — this takes 3–8 seconds…
+                  ✨ GPT-4o is rewriting your product copy for luxury retail — this takes 3–8 seconds…
                 </p>
               )}
             </div>
@@ -601,7 +601,7 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
               <div className="space-y-3">
                 <div className="bg-gray-50 border border-gray-200 px-4 py-3 text-[0.65rem] text-gray-700 leading-relaxed">
                   <p className="font-semibold mb-1">Can't auto-fetch? Paste any product text instead:</p>
-                  <p className="text-gray-500">Copy the product title, description, and specs from the supplier page — no HTML or technical knowledge needed. Claude will extract everything.</p>
+                  <p className="text-gray-500">Copy the product title, description, and specs from the supplier page — no HTML or technical knowledge needed. GPT-4o will extract everything.</p>
                 </div>
                 <div>
                   <label className="block text-[0.58rem] uppercase tracking-[0.16em] text-gray-400 mb-1.5">Product URL <span className="normal-case tracking-normal text-gray-300">(optional — helps with image import)</span></label>
@@ -655,7 +655,7 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                   <div className="flex items-center justify-between bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 px-4 py-2.5">
                     <div className="flex items-center gap-2">
                       <Sparkles className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                      <span className="text-[0.64rem] font-semibold text-amber-800 uppercase tracking-[0.1em]">AI Enriched by Claude</span>
+                      <span className="text-[0.64rem] font-semibold text-amber-800 uppercase tracking-[0.1em]">AI Enriched by GPT-4o</span>
                     </div>
                     {result.confidence && (
                       <span className={`text-[0.58rem] uppercase tracking-[0.12em] font-bold px-2.5 py-1 rounded-full border ${
