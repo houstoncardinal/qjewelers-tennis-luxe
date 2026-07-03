@@ -688,7 +688,7 @@ function ProductPage() {
         .sort((a, b) => parseFloat(a) - parseFloat(b))
     : [...SIZES_EARRING];
 
-  const sizes = isAnklet ? SIZES_TENNIS_ANKLET : isTennisChain ? SIZES_TENNIS_CHAIN : isTennis ? SIZES_TENNIS_BRACELET : isEarring ? earringSizes : isRing ? ringCarats : isPendant ? pendantSizes : SIZES_NECKLACE;
+  const sizes = isAnklet ? SIZES_TENNIS_ANKLET : isTennisChain ? SIZES_TENNIS_CHAIN : isTennis ? SIZES_TENNIS_BRACELET : isEarring ? closureSizes : isRing ? ringCarats : isPendant ? pendantSizes : SIZES_NECKLACE;
   const sizeDescriptions = isTennisChain ? TENNIS_CHAIN_SIZE_DESCRIPTIONS : isTennis ? TENNIS_BRACELET_SIZE_DESCRIPTIONS : isEarring ? EARRING_SIZE_DESCRIPTIONS : isRing ? RING_SIZE_DESCRIPTIONS : SIZE_DESCRIPTIONS;
 
   const defaultSize: string = (() => {
@@ -726,8 +726,15 @@ function ProductPage() {
       })()
     : [];
 
+  // Closure-type selector: some earrings (e.g. black moissanite) offer both
+  // Screw Back and Friction Back, each with different available size ranges.
+  const hasClosureOptions = isEarring && product.slug.includes("black");
+  const SCREW_BACK_SIZES  = new Set(["5mm", "6mm", "6.5mm"]);
+  const FRICTION_BACK_SIZES = new Set(["5mm", "6mm", "6.5mm", "8mm"]);
+
   const [size,         setSize]         = useState<string>(defaultSize);
   const [length,       setLength]       = useState<string>(defaultLength);
+  const [closureType,  setClosureType]  = useState<"screw_back" | "friction_back">("screw_back");
   const [qty,          setQty]          = useState(1);
   const [activeImg,       setActiveImg]       = useState(0);
   const [colorOverrideUrl,setColorOverrideUrl] = useState<string | null>(null);
@@ -738,6 +745,11 @@ function ProductPage() {
   const [pendantMetal, setPendantMetal] = useState<string>(pendantColors[0] ?? "gold");
   const [touchStartX,  setTouchStartX]  = useState<number | null>(null);
   const [showReviewForm, setShowReviewForm] = useState(false);
+
+  // Sizes available for the currently selected closure type
+  const closureSizes = hasClosureOptions
+    ? earringSizes.filter(s => (closureType === "screw_back" ? SCREW_BACK_SIZES : FRICTION_BACK_SIZES).has(s))
+    : earringSizes;
 
   const thumbRef = useRef<HTMLDivElement>(null);
 
@@ -816,17 +828,21 @@ function ProductPage() {
   const handleAdd = (goToCart = false) => {
     const cartColor = isTennis ? tennisMetal : isEarring ? earringMetal : isRing ? ringMetal : isPendant ? pendantMetal : product.color;
     const cartLength = isRing || isEarring || (isPendant && !!pendantSingleLength) ? (pendantSingleLength ?? "") : length;
+    const cartClosure = hasClosureOptions
+      ? (closureType === "screw_back" ? "Screw Back" : "Friction Back")
+      : undefined;
     add({
-      id: `${product.id}-${size}-${cartLength}-${cartColor}`,
+      id: `${product.id}-${size}-${cartLength}-${cartColor}${cartClosure ? `-${closureType}` : ""}`,
       productId: product.id,
       slug: product.slug,
       name: product.name,
       color: cartColor,
       size,
       length: cartLength,
+      closureType: cartClosure,
       unitPrice: price,
       image: isTennis
-        ? (tennisMetal === "white_gold" ? gallery[1] : gallery[0])  // white gold → gallery[1]
+        ? (tennisMetal === "white_gold" ? gallery[1] : gallery[0])
         : isEarring
           ? (earringMetal === "white_gold" ? gallery[1] : gallery[0])
           : gallery[0],
@@ -854,7 +870,7 @@ function ProductPage() {
     : isTennis
     ? `${size} · ${length} · ${COLOR_MAP[tennisMetal]?.label ?? "Yellow Gold"}`
     : isEarring
-      ? `${size} · ${earringMetal === "white_gold" ? "White Gold" : "Yellow Gold"}`
+      ? [size, hasClosureOptions ? (closureType === "screw_back" ? "Screw Back" : "Friction Back") : null, earringMetal === "white_gold" ? "White Gold" : "Yellow Gold"].filter(Boolean).join(" · ")
       : isRing
         ? size
         : isPendant
@@ -1282,6 +1298,65 @@ function ProductPage() {
                 </div>
               )}
 
+              {/* ── Closure type selector (earrings with dual closure options) ── */}
+              {hasClosureOptions && (
+                <div className="mb-6">
+                  <div className="flex items-baseline justify-between mb-3.5">
+                    <p className="text-[0.52rem] uppercase tracking-[0.28em] font-semibold">Closure Type</p>
+                    <span className="text-[0.57rem] italic text-muted-foreground">
+                      {closureType === "screw_back" ? "Threads secure · best for daily retention" : "Quick on/off · push-back butterfly"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {([
+                      {
+                        key: "screw_back"   as const,
+                        label: "Screw Back",
+                        sub: "5mm · 6mm · 6.5mm",
+                        note: "Threaded post",
+                      },
+                      {
+                        key: "friction_back" as const,
+                        label: "Friction Back",
+                        sub: "5mm · 6mm · 6.5mm · 8mm",
+                        note: "Butterfly push-back",
+                      },
+                    ]).map(({ key, label, sub, note }) => {
+                      const active = closureType === key;
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => {
+                            setClosureType(key);
+                            // If selected size isn't available in new closure, fall back to largest valid
+                            if (key === "screw_back" && !SCREW_BACK_SIZES.has(size)) {
+                              setSize("6.5mm");
+                            }
+                          }}
+                          className={`relative py-4 text-center border transition-all duration-150 flex flex-col items-center justify-center gap-1.5 ${
+                            active
+                              ? "border-foreground bg-foreground text-background"
+                              : "border-border hover:border-foreground/40 hover:bg-cream"
+                          }`}
+                        >
+                          <span className="text-[0.70rem] font-semibold leading-none">{label}</span>
+                          <span className={`text-[0.40rem] uppercase tracking-[0.12em] ${active ? "text-background/70" : "text-muted-foreground/60"}`}>{note}</span>
+                          <span className={`text-[0.36rem] uppercase tracking-[0.08em] ${active ? "text-background/50" : "text-muted-foreground/40"}`}>{sub}</span>
+                          {active && (
+                            <span className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: "var(--gradient-gold-h)" }} />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {closureType === "screw_back" && (
+                    <p className="mt-2 text-[0.42rem] text-muted-foreground/60 uppercase tracking-[0.10em]">
+                      Screw back available up to 6.5mm — select Friction Back for the 8mm size
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* ── Size selector ────────────────────────── */}
               <div className="mb-6">
                 <div className="flex items-baseline justify-between mb-3.5">
@@ -1549,10 +1624,10 @@ function ProductPage() {
                       ) : (
                         <>
                           <p className="text-[0.82rem] font-semibold leading-tight">
-                            {size} · {earringMetal === "white_gold" ? "18K White Gold" : "18K Yellow Gold"}
+                            {[size, hasClosureOptions ? (closureType === "screw_back" ? "Screw Back" : "Friction Back") : null, earringMetal === "white_gold" ? "18K White Gold" : "18K Yellow Gold"].filter(Boolean).join(" · ")}
                           </p>
                           <p className="text-[0.48rem] text-muted-foreground/65 mt-1.5">
-                            VVS1 · 3-Prong · Screw-back · GRA Certified
+                            VVS1 · {product.slug.includes("black") ? "4-Prong" : "3-Prong"} · GRA Certified
                           </p>
                         </>
                       )}

@@ -330,7 +330,7 @@ function AdminOrderDetail() {
       <tr>
         <td style="padding:10px 0;border-bottom:1px solid #eee;">
           <div style="font-weight:600;font-size:14px;">${item.name}</div>
-          <div style="color:#666;font-size:12px;margin-top:2px;">${[item.color, item.size, item.length].filter(Boolean).join(" · ")}</div>
+          <div style="color:#666;font-size:12px;margin-top:2px;">${[item.size, item.closureType, item.color?.replace(/_/g," "), item.length].filter(Boolean).join(" · ")}</div>
         </td>
         <td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:center;font-size:14px;">${item.quantity ?? 1}</td>
         <td style="padding:10px 0;border-bottom:1px solid #eee;text-align:right;font-size:14px;">${formatUSD(Number(item.unitPrice))}</td>
@@ -525,9 +525,9 @@ function AdminOrderDetail() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-800">{item.name}</p>
-                      {(item.color || item.size || item.length) && (
+                      {(item.size || item.closureType || item.color || item.length) && (
                         <p className="text-xs text-gray-400 mt-0.5">
-                          {[item.color, item.size, item.length].filter(Boolean).join(" · ")}
+                          {[item.size, item.closureType, item.color?.replace(/_/g, " "), item.length].filter(Boolean).join(" · ")}
                         </p>
                       )}
                       <p className="text-xs text-gray-400 mt-1">Qty: {item.quantity ?? 1}</p>

@@ -182,6 +182,7 @@ const orderItemSchema = z.object({
   color: z.string(),
   size: z.string(),
   length: z.string(),
+  closureType: z.string().optional(),
   unitPrice: z.number().nonnegative(),
   quantity: z.number().int().min(1).max(50),
 });

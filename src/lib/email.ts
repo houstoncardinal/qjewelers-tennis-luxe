@@ -113,7 +113,7 @@ export interface OrderEmailData {
   orderNumber:       string;
   customerName:      string;
   customerEmail:     string;
-  items:             Array<{ name: string; color: string; size: string; length: string; unitPrice: number; quantity: number }>;
+  items:             Array<{ name: string; color: string; size: string; length: string; closureType?: string; unitPrice: number; quantity: number }>;
   subtotal:          number;
   discount:          number;
   promoCode:         string | null;
@@ -137,7 +137,7 @@ export async function sendOrderConfirmation(data: OrderEmailData): Promise<void>
   };
 
   const itemsHtml = data.items.map(it => {
-    const config = [it.size, it.length, it.color.replace("_", " ")].filter(Boolean).join(" · ");
+    const config = [it.size, it.closureType, it.length, it.color.replace(/_/g, " ")].filter(Boolean).join(" · ");
     const price  = fmt(it.unitPrice * it.quantity);
     return itemRow(it.name.split("—")[0].trim(), config + (it.quantity > 1 ? ` · Qty ${it.quantity}` : ""), price);
   }).join("");

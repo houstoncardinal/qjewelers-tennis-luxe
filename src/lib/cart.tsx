@@ -4,13 +4,14 @@ import { saveAbandonedCart, markCartRecovered } from "@/lib/customer.functions";
 import { useServerFn } from "@tanstack/react-start";
 
 export interface CartItem {
-  id: string; // composite: productId-size-length
+  id: string; // composite: productId-size-length[-closureType]
   productId: string;
   slug: string;
   name: string;
   color: string;
   size: string;
   length: string;
+  closureType?: string; // e.g. "Screw Back" | "Friction Back"
   unitPrice: number;
   quantity: number;
   image: string;

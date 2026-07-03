@@ -20,7 +20,7 @@ export interface OrderPayload {
   shipping_zip: string;
   shipping_country: string;
   notes: string | null;
-  items: Array<{ name: string; color: string; size: string; length: string; unitPrice: number; quantity: number }>;
+  items: Array<{ name: string; color: string; size: string; length: string; closureType?: string; unitPrice: number; quantity: number }>;
   subtotal: number;
   discount_amount: number;
   promo_code: string | null;
