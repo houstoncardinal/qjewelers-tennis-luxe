@@ -2002,25 +2002,6 @@ function ProductPage() {
                       safe for daily wear on even sensitive skin. Each pair ships with a{" "}
                       <strong className="text-foreground font-semibold">moissanite certificate of authenticity</strong>.
                     </p>
-                    <div className="border border-border">
-                      {[
-                        ["Stone",       "Black Moissanite · Round Brilliant Cut"],
-                        ["Setting",     "4-Prong Solitaire Basket"],
-                        ["Base Metal",  "Solid S925 Sterling Silver"],
-                        ["Plating",     "5× 18K White Gold (exclusive colorway)"],
-                        ["Sizes",       "5mm · 6mm · 6.5mm (1ct) · 8mm"],
-                        ["Closure",     "Screw Back (5–6.5mm) · Friction Back (5–8mm)"],
-                        ["Gender",      "Unisex — Men's & Women's"],
-                        ["Health",      "Hypoallergenic · Lead-Free · Nickel-Free · Cadmium-Free"],
-                        ["Occasions",   "Daily · Streetwear · Anniversary · Gifting"],
-                        ["Certificate", "Moissanite Certificate of Authenticity Included"],
-                      ].map(([k, v]) => (
-                        <div key={k} className="flex items-start border-b border-border last:border-0 px-4 py-3 gap-3">
-                          <span className="text-[0.44rem] uppercase tracking-[0.16em] text-muted-foreground/60 shrink-0 w-[72px] sm:w-[90px] pt-0.5">{k}</span>
-                          <span className="text-[0.72rem] sm:text-[0.74rem] text-foreground min-w-0 break-words">{v}</span>
-                        </div>
-                      ))}
-                    </div>
                   </div>
                 ) : (
                   /* ── Standard VVS Moissanite Stud Earrings ── */
@@ -2053,24 +2034,6 @@ function ProductPage() {
                       <strong className="text-foreground font-semibold">8mm</strong> showstopper.
                       Choose the size and metal that matches your style.
                     </p>
-                    <div className="border border-border">
-                      {[
-                        ["Stone",       "D Colorless VVS1 Moissanite"],
-                        ["Cut",         "Round Brilliant · 3-Prong Setting"],
-                        ["Base Metal",  "Solid S925 Sterling Silver"],
-                        ["Plating",     "5× 18K White Gold & Yellow Gold"],
-                        ["Closure",     "Screw-Back (Threaded)"],
-                        ["Gender",      "Unisex — Men's & Women's"],
-                        ["Health",      "Hypoallergenic · Lead-Free · Nickel-Free"],
-                        ["Occasions",   "Daily · Anniversary · Wedding · Gifting"],
-                        ["Certificate", "GRA Certified"],
-                      ].map(([k, v]) => (
-                        <div key={k} className="flex items-start border-b border-border last:border-0 px-4 py-3 gap-3">
-                          <span className="text-[0.44rem] uppercase tracking-[0.16em] text-muted-foreground/60 shrink-0 w-[72px] sm:w-[90px] pt-0.5">{k}</span>
-                          <span className="text-[0.72rem] sm:text-[0.74rem] text-foreground min-w-0 break-words">{v}</span>
-                        </div>
-                      ))}
-                    </div>
                   </div>
                 )
               ) : (
