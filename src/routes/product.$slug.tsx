@@ -676,7 +676,19 @@ function ProductPage() {
     : ['18"'];
   const pendantSingleLength = pendantLengths.length === 1 ? pendantLengths[0] : null;
 
-  const sizes = isAnklet ? SIZES_TENNIS_ANKLET : isTennisChain ? SIZES_TENNIS_CHAIN : isTennis ? SIZES_TENNIS_BRACELET : isEarring ? SIZES_EARRING : isRing ? ringCarats : isPendant ? pendantSizes : SIZES_NECKLACE;
+  // Earrings are variant-aware: when product_variants exist, both the available
+  // sizes and available metals are read from those rows — not hardcoded lists.
+  // Falls back to SIZES_EARRING / product.color for listings without variants.
+  const earringVariants = isEarring ? (variants ?? []) : [];
+  const earringColors: string[] = earringVariants.length > 0
+    ? [...new Set(earringVariants.map(v => v.color).filter((c): c is string => !!c && !!COLOR_MAP[c]))]
+    : (product.color ?? "gold").split(",").map((c: string) => c.trim()).filter((c: string) => !!COLOR_MAP[c]);
+  const earringSizes: string[] = earringVariants.length > 0
+    ? [...new Set(earringVariants.map(v => v.size).filter((s): s is string => !!s))]
+        .sort((a, b) => parseFloat(a) - parseFloat(b))
+    : [...SIZES_EARRING];
+
+  const sizes = isAnklet ? SIZES_TENNIS_ANKLET : isTennisChain ? SIZES_TENNIS_CHAIN : isTennis ? SIZES_TENNIS_BRACELET : isEarring ? earringSizes : isRing ? ringCarats : isPendant ? pendantSizes : SIZES_NECKLACE;
   const sizeDescriptions = isTennisChain ? TENNIS_CHAIN_SIZE_DESCRIPTIONS : isTennis ? TENNIS_BRACELET_SIZE_DESCRIPTIONS : isEarring ? EARRING_SIZE_DESCRIPTIONS : isRing ? RING_SIZE_DESCRIPTIONS : SIZE_DESCRIPTIONS;
 
   const defaultSize: string = (() => {
@@ -688,6 +700,11 @@ function ProductPage() {
       return match ? match[1] : (ringCarats.includes("1ct") ? "1ct" : ringCarats[0]);
     }
     if (isPendant) return pendantSizes[0] ?? "5mm";
+    if (isEarring) {
+      // Prefer the DB size field if it's a valid available size, otherwise first available
+      const dbSize = product.size ?? "";
+      return earringSizes.includes(dbSize) ? dbSize : (earringSizes[0] ?? "5mm");
+    }
     return (["2mm", "3mm", "4mm", "5mm", "6.5mm"] as const).find(s => slug.includes(s)) ?? "3mm";
   })();
 
@@ -715,7 +732,7 @@ function ProductPage() {
   const [activeImg,       setActiveImg]       = useState(0);
   const [colorOverrideUrl,setColorOverrideUrl] = useState<string | null>(null);
   const [addedToBag,   setAddedToBag]   = useState(false);
-  const [earringMetal, setEarringMetal] = useState<"white_gold" | "gold">("gold");
+  const [earringMetal, setEarringMetal] = useState<string>(earringColors[0] ?? "gold");
   const [tennisMetal,  setTennisMetal]  = useState<string>(tennisColors[0] ?? "gold");
   const [ringMetal,    setRingMetal]    = useState<string>(ringColors[0] ?? product.color);
   const [pendantMetal, setPendantMetal] = useState<string>(pendantColors[0] ?? "gold");
@@ -1066,7 +1083,8 @@ function ProductPage() {
                 {/* Diamond comparison anchor */}
                 {isEarring && (() => {
                   const diamondMap: Record<string, string> = {
-                    "3mm": "$820", "4mm": "$1,500", "5mm": "$3,200", "6mm": "$6,800", "8mm": "$24,000",
+                    "3mm": "$820", "4mm": "$1,500", "5mm": "$3,200", "6mm": "$6,800",
+                    "6.5mm": "$10,000", "8mm": "$24,000", "10mm": "$60,000",
                   };
                   return (
                     <div className="flex items-center gap-2 text-[0.54rem] text-muted-foreground">
@@ -1210,43 +1228,56 @@ function ProductPage() {
                   <div className="flex items-baseline justify-between mb-3.5">
                     <p className="text-[0.52rem] uppercase tracking-[0.28em] font-semibold">Metal</p>
                     <span className="text-[0.57rem] italic text-muted-foreground">
-                      {earringMetal === "white_gold" ? "Cool · Icy white brilliance" : "Warm · Classic yellow lustre"}
+                      {earringMetal === "white_gold" ? "Cool · Icy white brilliance" : earringMetal === "rose_gold" ? "Warm · Romantic rose tone" : "Warm · Classic yellow lustre"}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    {([
-                      { key: "gold"       as const, label: "18K Yellow Gold", hex: "#D4AF37" },
-                      { key: "white_gold" as const, label: "18K White Gold",  hex: "#E8E8F4" },
-                    ]).map(({ key, label, hex }) => {
-                      const active = earringMetal === key;
-                      return (
-                        <button
-                          key={key}
-                          onClick={() => { setEarringMetal(key); showColorImage(key, key === "white_gold" ? 1 : 0); }}
-                          className={`relative py-5 text-center border transition-all duration-150 flex flex-col items-center justify-center gap-2 ${
-                            active
-                              ? "border-foreground bg-foreground text-background"
-                              : "border-border hover:border-foreground/40 hover:bg-cream"
-                          }`}
-                        >
-                          <span
-                            className="w-[18px] h-[18px] rounded-full shrink-0 ring-1 ring-black/10 shadow-sm"
-                            style={{ backgroundColor: hex }}
-                          />
-                          <span className="text-[0.70rem] font-semibold leading-none">{label}</span>
-                          <span className={`text-[0.40rem] uppercase tracking-[0.16em] ${active ? "text-background/50" : "text-muted-foreground/50"}`}>
-                            5× plated
-                          </span>
-                          {active && (
+                  {earringColors.length === 1 ? (
+                    /* Single-metal product — show a locked chip, no selector */
+                    <div className="relative py-5 text-center border border-foreground bg-foreground text-background flex flex-col items-center justify-center gap-2">
+                      <span
+                        className="w-[18px] h-[18px] rounded-full shrink-0 ring-1 ring-black/10 shadow-sm"
+                        style={{ backgroundColor: COLOR_MAP[earringColors[0]]?.hex ?? "#E8E8F4" }}
+                      />
+                      <span className="text-[0.70rem] font-semibold leading-none">{COLOR_MAP[earringColors[0]]?.label ?? earringColors[0]}</span>
+                      <span className="text-[0.40rem] uppercase tracking-[0.16em] text-background/50">5× plated</span>
+                      <span className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: "var(--gradient-gold-h)" }} />
+                    </div>
+                  ) : (
+                    <div className={`grid gap-2.5 ${earringColors.length === 2 ? "grid-cols-2" : earringColors.length === 3 ? "grid-cols-3" : "grid-cols-4"}`}>
+                      {earringColors.map((key) => {
+                        const info = COLOR_MAP[key];
+                        if (!info) return null;
+                        const active = earringMetal === key;
+                        const imgIdx = key === "white_gold" ? 1 : 0;
+                        return (
+                          <button
+                            key={key}
+                            onClick={() => { setEarringMetal(key); showColorImage(key, imgIdx); }}
+                            className={`relative py-5 text-center border transition-all duration-150 flex flex-col items-center justify-center gap-2 ${
+                              active
+                                ? "border-foreground bg-foreground text-background"
+                                : "border-border hover:border-foreground/40 hover:bg-cream"
+                            }`}
+                          >
                             <span
-                              className="absolute bottom-0 left-0 right-0 h-[2px]"
-                              style={{ background: "var(--gradient-gold-h)" }}
+                              className="w-[18px] h-[18px] rounded-full shrink-0 ring-1 ring-black/10 shadow-sm"
+                              style={{ backgroundColor: info.hex }}
                             />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
+                            <span className="text-[0.70rem] font-semibold leading-none">{info.label}</span>
+                            <span className={`text-[0.40rem] uppercase tracking-[0.16em] ${active ? "text-background/50" : "text-muted-foreground/50"}`}>
+                              5× plated
+                            </span>
+                            {active && (
+                              <span
+                                className="absolute bottom-0 left-0 right-0 h-[2px]"
+                                style={{ background: "var(--gradient-gold-h)" }}
+                              />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1313,42 +1344,51 @@ function ProductPage() {
                 </div>
               </div>
 
-              {/* Size-on-ear visual guide (earrings only) */}
-              {isEarring && (
-                <div className="mt-3 mb-6 px-4 py-4 bg-cream border border-border">
-                  <p className="text-[0.42rem] uppercase tracking-[0.22em] text-muted-foreground mb-4">Actual size on ear (to scale)</p>
-                  <div className="flex items-end justify-around">
-                    {([
-                      { s: "3mm", px: 15, label: "Subtle" },
-                      { s: "4mm", px: 20, label: "Classic" },
-                      { s: "5mm", px: 25, label: "Statement" },
-                      { s: "6mm", px: 30, label: "Bold" },
-                      { s: "8mm", px: 40, label: "Iced Out" },
-                    ] as const).map(({ s, px, label }) => {
-                      const active = size === s;
-                      return (
-                        <button
-                          key={s}
-                          onClick={() => setSize(s)}
-                          className={`flex flex-col items-center gap-2 transition-all duration-150 ${active ? "opacity-100" : "opacity-35 hover:opacity-65"}`}
-                        >
-                          <div
-                            className="rounded-full transition-colors duration-150"
-                            style={{
-                              width: px,
-                              height: px,
-                              background: active ? "var(--foreground)" : "var(--foreground)",
-                              opacity: active ? 1 : 0.5,
-                            }}
-                          />
-                          <span className={`text-[0.38rem] uppercase tracking-[0.10em] leading-none ${active ? "text-foreground font-semibold" : "text-muted-foreground"}`}>{s}</span>
-                          <span className={`text-[0.34rem] uppercase tracking-[0.08em] ${active ? "text-muted-foreground" : "text-muted-foreground/50"}`}>{label}</span>
-                        </button>
-                      );
-                    })}
+              {/* Size-on-ear visual guide (earrings only) — proportional to real mm */}
+              {isEarring && (() => {
+                // 96 dpi × 1.5 scale factor for readability — proportions are exact
+                const mmToPx = (s: string) => Math.round(parseFloat(s) * 5.67);
+                const SCALE_LABEL: Record<string, string> = {
+                  "3mm": "Subtle", "4mm": "Classic", "5mm": "Statement",
+                  "6mm": "Bold", "6.5mm": "Bold", "8mm": "Iced Out", "10mm": "Ultra",
+                };
+                const CARAT_LABEL: Record<string, string> = {
+                  "3mm": "~0.1ct", "4mm": "~0.25ct", "5mm": "0.5ct",
+                  "6mm": "0.8ct", "6.5mm": "1ct", "8mm": "2ct", "10mm": "3ct+",
+                };
+                return (
+                  <div className="mt-3 mb-6 px-4 py-5 bg-cream border border-border">
+                    <p className="text-[0.42rem] uppercase tracking-[0.22em] text-muted-foreground mb-5">Size on ear · to scale</p>
+                    <div className="flex items-end justify-around gap-1">
+                      {earringSizes.map(s => {
+                        const px = mmToPx(s);
+                        const active = size === s;
+                        return (
+                          <button
+                            key={s}
+                            onClick={() => setSize(s)}
+                            className={`flex flex-col items-center gap-1.5 transition-all duration-150 ${active ? "opacity-100" : "opacity-30 hover:opacity-60"}`}
+                          >
+                            <span className={`text-[0.34rem] uppercase tracking-[0.08em] leading-none ${active ? "text-muted-foreground" : "text-muted-foreground/50"}`}>
+                              {CARAT_LABEL[s] ?? ""}
+                            </span>
+                            <div
+                              className="rounded-full transition-all duration-150"
+                              style={{
+                                width: px,
+                                height: px,
+                                background: active ? "var(--foreground)" : "var(--foreground)",
+                              }}
+                            />
+                            <span className={`text-[0.40rem] font-semibold uppercase tracking-[0.10em] leading-none ${active ? "text-foreground" : "text-muted-foreground"}`}>{s}</span>
+                            <span className={`text-[0.32rem] uppercase tracking-[0.08em] ${active ? "text-muted-foreground" : "text-muted-foreground/40"}`}>{SCALE_LABEL[s] ?? ""}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Ring size note */}
               {isRing && (
@@ -1639,9 +1679,9 @@ function ProductPage() {
                 ] : isEarring ? [
                   { k: "Material",    v: "Solid S925 Sterling Silver",                                                                     hl: false },
                   { k: "Plating",     v: platingSummary(product.color),                                                                   hl: true  },
-                  { k: "Stone",       v: "VVS1 Moissanite · D Colorless",                                                                  hl: false },
-                  { k: "Setting",     v: "3-Prong Round Brilliant",                                                                        hl: false },
-                  { k: "Backing",     v: "Screw Back (Threaded)",                                                                          hl: false },
+                  { k: "Stone",       v: product.slug.includes("black") ? "VVS1 Black Moissanite · Round Brilliant" : "VVS1 Moissanite · D Colorless",    hl: false },
+                  { k: "Setting",     v: product.slug.includes("3-prong") || product.slug.includes("3prong") ? "3-Prong Round Brilliant" : "Classic 4-Prong Basket",    hl: false },
+                  { k: "Backing",     v: product.slug.includes("black") ? "Screw Back (5–6.5mm) · Friction Back (5–8mm)" : "Screw Back (Threaded)",      hl: false },
                   { k: "Certificate", v: "GRA Moissanite Certificate",                                                                     hl: false },
                 ] : [
                   { k: "Material",                    v: "Solid S925 Sterling Silver",                                                     hl: false },
