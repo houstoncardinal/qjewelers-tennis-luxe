@@ -1040,7 +1040,9 @@ function ProductPage() {
                   {isTennis
                     ? "18K Yellow & White Gold · S925 · VVS1 · GRA Certified"
                     : isEarring
-                      ? "18K Yellow & White Gold · S925 · VVS1 · GRA Certified"
+                      ? product.slug.includes("black")
+                        ? "18K White Gold · S925 · Black Moissanite · Certificate Included"
+                        : "18K Yellow & White Gold · S925 · VVS1 · GRA Certified"
                       : `${colorInfo?.label ?? product.color.replace("_", " ")} · S925 Sterling Silver · VVS · GRA`
                   }
                 </p>
@@ -1968,67 +1970,127 @@ function ProductPage() {
                   </div>
                 </div>
               ) : isEarring ? (
-                <div className="space-y-5 text-[0.80rem] leading-[1.90]">
-                  <p className="text-foreground font-medium">
-                    Timeless luxury meets everyday brilliance in our{" "}
-                    <span className="italic">3-Prong VVS Moissanite Stud Earrings.</span>
-                  </p>
-                  <p className="text-muted-foreground">
-                    Featuring{" "}
-                    <strong className="text-foreground font-semibold">D Colorless VVS1 Moissanite</strong>{" "}
-                    stones in a precision round brilliant cut, each pair is set in{" "}
-                    <strong className="text-foreground font-semibold">solid S925 sterling silver</strong>{" "}
-                    and available in{" "}
-                    <strong className="text-foreground font-semibold">18K White Gold or 18K Yellow Gold</strong>{" "}
-                    plating — five layers deep for lasting durability. The{" "}
-                    <strong className="text-foreground font-semibold">threaded screw-back closure</strong>{" "}
-                    locks your earrings securely in place — ideal for active wear, travel, or any occasion where you can't afford to lose a stone.
-                  </p>
-                  <p className="text-muted-foreground">
-                    Crafted to be{" "}
-                    <strong className="text-foreground font-semibold">hypoallergenic, lead-free, nickel-free, and cadmium-free</strong>,
-                    making them safe for even the most sensitive ears.{" "}
-                    <strong className="text-foreground font-semibold">GRA moissanite certificate</strong>{" "}
-                    included with every order.
-                  </p>
-                  <p className="text-muted-foreground">
-                    Available in five sizes — from a subtle{" "}
-                    <strong className="text-foreground font-semibold">3mm</strong> everyday stud to a bold{" "}
-                    <strong className="text-foreground font-semibold">8mm</strong> showstopper.
-                    Choose the size and metal that matches your style.
-                  </p>
-                  <div className="border border-border">
-                    {[
-                      ["Stone",       "D Colorless VVS1 Moissanite"],
-                      ["Cut",         "Round Brilliant · 3-Prong Setting"],
-                      ["Base Metal",  "Solid S925 Sterling Silver"],
-                      ["Plating",     "5× 18K White Gold & Yellow Gold"],
-                      ["Closure",     "Screw-Back (Threaded)"],
-                      ["Gender",      "Unisex — Men's & Women's"],
-                      ["Health",      "Hypoallergenic · Lead-Free · Nickel-Free"],
-                      ["Occasions",   "Daily · Anniversary · Wedding · Gifting"],
-                      ["Certificate", "GRA Certified"],
-                    ].map(([k, v]) => (
-                      <div key={k} className="flex items-start border-b border-border last:border-0 px-4 py-3 gap-3">
-                        <span className="text-[0.44rem] uppercase tracking-[0.16em] text-muted-foreground/60 shrink-0 w-[72px] sm:w-[90px] pt-0.5">{k}</span>
-                        <span className="text-[0.72rem] sm:text-[0.74rem] text-foreground min-w-0 break-words">{v}</span>
-                      </div>
-                    ))}
+                product.slug.includes("black") ? (
+                  /* ── Black Moissanite Solitaire Studs ── */
+                  <div className="space-y-5 text-[0.80rem] leading-[1.90]">
+                    <p className="text-foreground font-medium">
+                      Bold, rare, and impossible to ignore — the{" "}
+                      <span className="italic">Black Moissanite Solitaire Stud Earrings.</span>
+                    </p>
+                    <p className="text-muted-foreground">
+                      Each stone is a{" "}
+                      <strong className="text-foreground font-semibold">genuine Black Moissanite</strong>{" "}
+                      in a precision round brilliant cut — not dyed, not coated, not CZ. Set in a{" "}
+                      <strong className="text-foreground font-semibold">4-prong solitaire basket</strong>{" "}
+                      cast in{" "}
+                      <strong className="text-foreground font-semibold">solid S925 sterling silver</strong>{" "}
+                      and finished in{" "}
+                      <strong className="text-foreground font-semibold">5× 18K White Gold plating</strong>{" "}
+                      — the only colorway that lets the deep black stone command full attention.
+                    </p>
+                    <p className="text-muted-foreground">
+                      Available with a{" "}
+                      <strong className="text-foreground font-semibold">Screw Back closure</strong>{" "}
+                      (sizes 5mm–6.5mm) or a{" "}
+                      <strong className="text-foreground font-semibold">Friction Back closure</strong>{" "}
+                      (sizes 5mm–8mm). The 6.5mm is the most popular — it sits at approximately{" "}
+                      <strong className="text-foreground font-semibold">1 carat equivalent</strong>{" "}
+                      and strikes the ideal balance between presence and wearability.
+                    </p>
+                    <p className="text-muted-foreground">
+                      Hypoallergenic, lead-free, nickel-free, and cadmium-free —{" "}
+                      safe for daily wear on even sensitive skin. Each pair ships with a{" "}
+                      <strong className="text-foreground font-semibold">moissanite certificate of authenticity</strong>.
+                    </p>
+                    <div className="border border-border">
+                      {[
+                        ["Stone",       "Black Moissanite · Round Brilliant Cut"],
+                        ["Setting",     "4-Prong Solitaire Basket"],
+                        ["Base Metal",  "Solid S925 Sterling Silver"],
+                        ["Plating",     "5× 18K White Gold (exclusive colorway)"],
+                        ["Sizes",       "5mm · 6mm · 6.5mm (1ct) · 8mm"],
+                        ["Closure",     "Screw Back (5–6.5mm) · Friction Back (5–8mm)"],
+                        ["Gender",      "Unisex — Men's & Women's"],
+                        ["Health",      "Hypoallergenic · Lead-Free · Nickel-Free · Cadmium-Free"],
+                        ["Occasions",   "Daily · Streetwear · Anniversary · Gifting"],
+                        ["Certificate", "Moissanite Certificate of Authenticity Included"],
+                      ].map(([k, v]) => (
+                        <div key={k} className="flex items-start border-b border-border last:border-0 px-4 py-3 gap-3">
+                          <span className="text-[0.44rem] uppercase tracking-[0.16em] text-muted-foreground/60 shrink-0 w-[72px] sm:w-[90px] pt-0.5">{k}</span>
+                          <span className="text-[0.72rem] sm:text-[0.74rem] text-foreground min-w-0 break-words">{v}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  /* ── Standard VVS Moissanite Stud Earrings ── */
+                  <div className="space-y-5 text-[0.80rem] leading-[1.90]">
+                    <p className="text-foreground font-medium">
+                      Timeless luxury meets everyday brilliance in our{" "}
+                      <span className="italic">3-Prong VVS Moissanite Stud Earrings.</span>
+                    </p>
+                    <p className="text-muted-foreground">
+                      Featuring{" "}
+                      <strong className="text-foreground font-semibold">D Colorless VVS1 Moissanite</strong>{" "}
+                      stones in a precision round brilliant cut, each pair is set in{" "}
+                      <strong className="text-foreground font-semibold">solid S925 sterling silver</strong>{" "}
+                      and available in{" "}
+                      <strong className="text-foreground font-semibold">18K White Gold or 18K Yellow Gold</strong>{" "}
+                      plating — five layers deep for lasting durability. The{" "}
+                      <strong className="text-foreground font-semibold">threaded screw-back closure</strong>{" "}
+                      locks your earrings securely in place — ideal for active wear, travel, or any occasion where you can't afford to lose a stone.
+                    </p>
+                    <p className="text-muted-foreground">
+                      Crafted to be{" "}
+                      <strong className="text-foreground font-semibold">hypoallergenic, lead-free, nickel-free, and cadmium-free</strong>,
+                      making them safe for even the most sensitive ears.{" "}
+                      <strong className="text-foreground font-semibold">GRA moissanite certificate</strong>{" "}
+                      included with every order.
+                    </p>
+                    <p className="text-muted-foreground">
+                      Available in sizes from a subtle{" "}
+                      <strong className="text-foreground font-semibold">3mm</strong> everyday stud to a bold{" "}
+                      <strong className="text-foreground font-semibold">8mm</strong> showstopper.
+                      Choose the size and metal that matches your style.
+                    </p>
+                    <div className="border border-border">
+                      {[
+                        ["Stone",       "D Colorless VVS1 Moissanite"],
+                        ["Cut",         "Round Brilliant · 3-Prong Setting"],
+                        ["Base Metal",  "Solid S925 Sterling Silver"],
+                        ["Plating",     "5× 18K White Gold & Yellow Gold"],
+                        ["Closure",     "Screw-Back (Threaded)"],
+                        ["Gender",      "Unisex — Men's & Women's"],
+                        ["Health",      "Hypoallergenic · Lead-Free · Nickel-Free"],
+                        ["Occasions",   "Daily · Anniversary · Wedding · Gifting"],
+                        ["Certificate", "GRA Certified"],
+                      ].map(([k, v]) => (
+                        <div key={k} className="flex items-start border-b border-border last:border-0 px-4 py-3 gap-3">
+                          <span className="text-[0.44rem] uppercase tracking-[0.16em] text-muted-foreground/60 shrink-0 w-[72px] sm:w-[90px] pt-0.5">{k}</span>
+                          <span className="text-[0.72rem] sm:text-[0.74rem] text-foreground min-w-0 break-words">{v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
               ) : (
                 <p className="text-[0.80rem] leading-[1.90] text-muted-foreground">{product.description}</p>
               )}
             </AccordionSection>
 
-            <AccordionSection title="Why VVS Moissanite?">
+            <AccordionSection title={isEarring && product.slug.includes("black") ? "Why Black Moissanite?" : "Why VVS Moissanite?"}>
               <div className="grid sm:grid-cols-2 gap-3 mb-5">
-                {[
+                {(isEarring && product.slug.includes("black") ? [
+                  { icon: Eye,         label: "Genuine Black Moissanite",       description: "Not dyed, not coated, not CZ. True black silicon carbide — the same material as moissanite, in a rare opaque black variety." },
+                  { icon: Diamond,     label: "Brilliant Cut",                  description: "Precision 57–58 facets deliver a subtle, sophisticated sparkle — a mirror-like depth that catches light without the flash of colorless stones." },
+                  { icon: ShieldCheck, label: "9.25 Mohs Hardness",             description: "Second only to diamond on the Mohs scale. Scratch-resistant and built for daily wear — these studs won't cloud, chip, or fade over time." },
+                  { icon: Award,       label: "Certificate of Authenticity",    description: "Each pair ships with a moissanite certificate confirming genuine stone composition — not glass, not CZ, not simulant." },
+                ] : [
                   { icon: Eye,         ...MOISSANITE_QUALITY.clarity },
                   { icon: Award,       ...MOISSANITE_QUALITY.color },
                   { icon: Diamond,     ...MOISSANITE_QUALITY.cut },
                   { icon: ShieldCheck, ...MOISSANITE_QUALITY.certificate },
-                ].map(item => {
+                ]).map(item => {
                   const Icon = item.icon;
                   return (
                     <div key={item.label} className="p-4 bg-cream border border-border">
