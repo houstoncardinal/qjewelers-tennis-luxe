@@ -23,7 +23,9 @@ const EARRING_SIZE_MULTIPLIER: Record<string, number> = {
   "4mm": 1.17,
   "5mm": 1.34,
   "6mm": 1.85,
+  "6.5mm": 2.15,
   "8mm": 2.69,
+  "10mm": 3.4,
 };
 
 const LENGTH_ADD: Record<string, number> = {
@@ -104,7 +106,9 @@ export const EARRING_SIZE_DESCRIPTIONS: Record<string, string> = {
   "4mm": "Classic · The sweet spot",
   "5mm": "Statement · Bold look",
   "6mm": "Ultra · Maximum brilliance",
+  "6.5mm": "1ct · Most popular size",
   "8mm": "Showstopper · Iced out",
+  "10mm": "Ultra Bold · Maximum presence",
 };
 
 export const LENGTH_DESCRIPTIONS: Record<string, string> = {
