@@ -755,7 +755,8 @@ function ProductPage() {
     return "5× 18K " + cols.map(c => (COLOR_MAP[c]?.label ?? "").replace("18K ", "")).join(" · ");
   };
 
-  const earringVideo = isEarring ? productImages.earringVideo : null;
+  // Only the 3-prong earring listing has a matching video — suppress for all others
+  const earringVideo = isEarring && (slug.includes("3-prong") || slug.includes("3prong")) ? productImages.earringVideo : null;
 
   const gallery = buildProductGallery(slug, galleryImages ?? [], product.image_url);
 
@@ -1346,8 +1347,8 @@ function ProductPage() {
 
               {/* Size-on-ear visual guide (earrings only) — proportional to real mm */}
               {isEarring && (() => {
-                // 96 dpi × 1.5 scale factor for readability — proportions are exact
-                const mmToPx = (s: string) => Math.round(parseFloat(s) * 5.67);
+                // True 96 dpi scale (1mm = 3.78px) — physically accurate on standard screens
+                const mmToPx = (s: string) => Math.round(parseFloat(s) * 3.78);
                 const SCALE_LABEL: Record<string, string> = {
                   "3mm": "Subtle", "4mm": "Classic", "5mm": "Statement",
                   "6mm": "Bold", "6.5mm": "Bold", "8mm": "Iced Out", "10mm": "Ultra",
@@ -1676,14 +1677,20 @@ function ProductPage() {
                   { k: "Widths",      v: "2mm · 3mm · 4mm · 5mm · 6mm",                                                                   hl: false },
                   { k: "Lengths",     v: '6" · 6.5" · 7" · 7.5" · 8" · 8.5" · 9"',                                                       hl: false },
                   { k: "Certificate", v: "GRA Moissanite Certificate",                                                                     hl: false },
-                ] : isEarring ? [
-                  { k: "Material",    v: "Solid S925 Sterling Silver",                                                                     hl: false },
-                  { k: "Plating",     v: platingSummary(product.color),                                                                   hl: true  },
-                  { k: "Stone",       v: product.slug.includes("black") ? "VVS1 Black Moissanite · Round Brilliant" : "VVS1 Moissanite · D Colorless",    hl: false },
-                  { k: "Setting",     v: product.slug.includes("3-prong") || product.slug.includes("3prong") ? "3-Prong Round Brilliant" : "Classic 4-Prong Basket",    hl: false },
-                  { k: "Backing",     v: product.slug.includes("black") ? "Screw Back (5–6.5mm) · Friction Back (5–8mm)" : "Screw Back (Threaded)",      hl: false },
-                  { k: "Certificate", v: "GRA Moissanite Certificate",                                                                     hl: false },
-                ] : [
+                ] : isEarring ? ([
+                  { k: "Material",    v: "Solid S925 Sterling Silver (92.5% purity)",                                                                                                    hl: false },
+                  { k: "Plating",     v: platingSummary(product.color),                                                                                                                 hl: true  },
+                  { k: "Stone",       v: product.slug.includes("black") ? "VVS1 Black Moissanite · Round Brilliant Cut" : "VVS1 Moissanite · D Colorless · Round Brilliant Cut",       hl: false },
+                  { k: "Setting",     v: product.slug.includes("3-prong") || product.slug.includes("3prong") ? "3-Prong Round Brilliant" : "Classic 4-Prong Basket",                   hl: false },
+                  ...(product.slug.includes("black") ? [
+                    { k: "Sizes",     v: "5mm (0.5ct) · 6mm (0.8ct) · 6.5mm (1ct) · 8mm (2ct) per stone",                                                                             hl: false },
+                    { k: "Closure",   v: "Screw Back (5–6.5mm) · Friction Back (5–8mm) · 8mm: Friction Back only",                                                                     hl: false },
+                  ] : [
+                    { k: "Closure",   v: "Screw Back (Threaded)",                                                                                                                       hl: false },
+                  ]),
+                  { k: "Certificate", v: "GRA Moissanite Certificate — included with every order",                                                                                      hl: false },
+                  { k: "Health",      v: "Hypoallergenic · Nickel-Free · Lead-Free · Cadmium-Free",                                                                                     hl: false },
+                ] as { k: string; v: string; hl: boolean }[]) : [
                   { k: "Material",                    v: "Solid S925 Sterling Silver",                                                     hl: false },
                   { k: "Plating",                     v: platingSummary(product.color),                                                   hl: true  },
                   { k: "Stone",                       v: "VVS1 Moissanite · D Color",                                                     hl: false },
