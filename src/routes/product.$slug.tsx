@@ -1825,28 +1825,6 @@ function ProductPage() {
                     <strong className="text-foreground font-semibold">GRA moissanite certificate</strong>{" "}
                     verifying the stone's grade, cut, and authenticity. Flat price: <strong className="text-foreground font-semibold">$249</strong> — regardless of metal finish.
                   </p>
-                  <div className="border border-border">
-                    {[
-                      ["Stone",        "D Colorless VVS1 Moissanite"],
-                      ["Cut",          "Round Brilliant · 4-Prong Claw Inlay"],
-                      ["Base Metal",   "Solid S925 Sterling Silver (92.5%)"],
-                      ["Plating",      "18K Yellow Gold · Rose Gold · White Gold"],
-                      ["Clasp",        "Double-Locking Box Clasp"],
-                      ["Width",        "6mm"],
-                      ["Base Length",  '8.5"'],
-                      ["Adjustable",   'Fits up to 10.5" (2" extender included)'],
-                      ["Price",        "$249 — all metals"],
-                      ["Gender",       "Women's"],
-                      ["Health",       "Hypoallergenic · Lead-Free · Nickel-Free"],
-                      ["Occasions",    "Daily · Beach · Anniversary · Gifting"],
-                      ["Certificate",  "GRA Certified"],
-                    ].map(([k, v]) => (
-                      <div key={k} className="flex items-start border-b border-border last:border-0 px-4 py-3 gap-3">
-                        <span className="text-[0.44rem] uppercase tracking-[0.16em] text-muted-foreground/60 shrink-0 w-[72px] sm:w-[90px] pt-0.5">{k}</span>
-                        <span className="text-[0.72rem] sm:text-[0.74rem] text-foreground min-w-0 break-words">{v}</span>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               ) : isTennisChain ? (
                 <div className="space-y-5 text-[0.80rem] leading-[1.90]">
@@ -1883,27 +1861,6 @@ function ProductPage() {
                     <strong className="text-foreground font-semibold">GRA moissanite certificate</strong>{" "}
                     verifying the stone's grade, cut, and authenticity.
                   </p>
-                  <div className="border border-border">
-                    {[
-                      ["Stone",       "D Colorless VVS1 Moissanite"],
-                      ["Cut",         "Round Brilliant · 4-Prong Claw Inlay"],
-                      ["Base Metal",  "Solid S925 Sterling Silver (92.5%)"],
-                      ["Plating",     platingSummary(product.color)],
-                      ["Clasp",       "Double-Locking Box Clasp"],
-                      ["Widths",      "3mm · 4mm · 5mm · 6mm"],
-                      ["Lengths",     '16" · 18" · 20" · 22" · 24"'],
-                      ["Starting at", `$${getTennisChainPrice("3mm", '16"').toLocaleString()}`],
-                      ["Gender",      "Unisex — Men's & Women's"],
-                      ["Health",      "Hypoallergenic · Lead-Free · Nickel-Free"],
-                      ["Occasions",   "Daily · Anniversary · Gifting · Special Events"],
-                      ["Certificate", "GRA Certified"],
-                    ].map(([k, v]) => (
-                      <div key={k} className="flex items-start border-b border-border last:border-0 px-4 py-3 gap-3">
-                        <span className="text-[0.44rem] uppercase tracking-[0.16em] text-muted-foreground/60 shrink-0 w-[72px] sm:w-[90px] pt-0.5">{k}</span>
-                        <span className="text-[0.72rem] sm:text-[0.74rem] text-foreground min-w-0 break-words">{v}</span>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               ) : isTennis ? (
                 <div className="space-y-5 text-[0.80rem] leading-[1.90]">
@@ -1948,26 +1905,6 @@ function ProductPage() {
                     your permanent record of authenticity. Backed by our{" "}
                     <strong className="text-foreground font-semibold">1-year warranty</strong>.
                   </p>
-                  <div className="border border-border">
-                    {[
-                      ["Stone",       "D Colorless VVS1 Moissanite"],
-                      ["Cut",         "Round Brilliant · 4-Prong Claw Inlay"],
-                      ["Base Metal",  "Solid S925 Sterling Silver (92.5%)"],
-                      ["Plating",     "5× 18K Yellow Gold & White Gold"],
-                      ["Clasp",       "Double-Locking Box Clasp"],
-                      ["Widths",      "2mm · 3mm · 4mm · 5mm · 6mm"],
-                      ["Lengths",     '6" · 6.5" · 7" · 7.5" · 8" · 8.5" · 9"'],
-                      ["Gender",      "Unisex — Men's & Women's"],
-                      ["Health",      "Hypoallergenic · Lead-Free · Nickel-Free"],
-                      ["Occasions",   "Daily · Anniversary · Party · Gifting"],
-                      ["Certificate", "GRA Certified"],
-                    ].map(([k, v]) => (
-                      <div key={k} className="flex items-start border-b border-border last:border-0 px-4 py-3 gap-3">
-                        <span className="text-[0.44rem] uppercase tracking-[0.16em] text-muted-foreground/60 shrink-0 w-[72px] sm:w-[90px] pt-0.5">{k}</span>
-                        <span className="text-[0.72rem] sm:text-[0.74rem] text-foreground min-w-0 break-words">{v}</span>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               ) : isEarring ? (
                 product.slug.includes("black") ? (
