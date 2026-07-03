@@ -688,8 +688,8 @@ function ProductPage() {
         .sort((a, b) => parseFloat(a) - parseFloat(b))
     : [...SIZES_EARRING];
 
-  const sizes = isAnklet ? SIZES_TENNIS_ANKLET : isTennisChain ? SIZES_TENNIS_CHAIN : isTennis ? SIZES_TENNIS_BRACELET : isEarring ? closureSizes : isRing ? ringCarats : isPendant ? pendantSizes : SIZES_NECKLACE;
-  const sizeDescriptions = isTennisChain ? TENNIS_CHAIN_SIZE_DESCRIPTIONS : isTennis ? TENNIS_BRACELET_SIZE_DESCRIPTIONS : isEarring ? EARRING_SIZE_DESCRIPTIONS : isRing ? RING_SIZE_DESCRIPTIONS : SIZE_DESCRIPTIONS;
+  // sizes and sizeDescriptions depend on closureSizes (which requires closureType state)
+  // — declared below the useState block
 
   const defaultSize: string = (() => {
     if (isAnklet) return "6mm";
@@ -750,6 +750,9 @@ function ProductPage() {
   const closureSizes = hasClosureOptions
     ? earringSizes.filter(s => (closureType === "screw_back" ? SCREW_BACK_SIZES : FRICTION_BACK_SIZES).has(s))
     : earringSizes;
+
+  const sizes = isAnklet ? SIZES_TENNIS_ANKLET : isTennisChain ? SIZES_TENNIS_CHAIN : isTennis ? SIZES_TENNIS_BRACELET : isEarring ? closureSizes : isRing ? ringCarats : isPendant ? pendantSizes : SIZES_NECKLACE;
+  const sizeDescriptions = isTennisChain ? TENNIS_CHAIN_SIZE_DESCRIPTIONS : isTennis ? TENNIS_BRACELET_SIZE_DESCRIPTIONS : isEarring ? EARRING_SIZE_DESCRIPTIONS : isRing ? RING_SIZE_DESCRIPTIONS : SIZE_DESCRIPTIONS;
 
   const thumbRef = useRef<HTMLDivElement>(null);
 

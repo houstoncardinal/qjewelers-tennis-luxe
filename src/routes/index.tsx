@@ -569,6 +569,7 @@ function Index() {
   };
 
   const [heroType, setHeroType] = useState("all");
+  const [isDockPaused, setIsDockPaused] = useState(false);
   const heroProducts = useMemo(() => {
     const pool = heroType === "all" ? sig : sig.filter((p: any) => p.type === heroType);
     const colorOrder: Record<string, number> = { gold: 0, rose_gold: 1, silver: 2, white_gold: 3 };
@@ -576,6 +577,9 @@ function Index() {
       .sort((a: any, b: any) => (colorOrder[a.color] ?? 9) - (colorOrder[b.color] ?? 9))
       .slice(0, 12);
   }, [sig, heroType]);
+
+  // Belt speed: ~55px/s constant; more products = longer loop = longer duration
+  const beltDuration = Math.max(20, heroProducts.length * 2.4);
 
   // One per category, gold color variant preferred, max 4 total
   const goldOr = (type: string) =>
@@ -726,7 +730,11 @@ function Index() {
         </div>
 
         {/* ── Product browser dock ──────────────────────────── */}
-        <div className="flex-shrink-0 bg-background border-t border-border">
+        <div
+          className="flex-shrink-0 bg-background border-t border-border"
+          onMouseEnter={() => setIsDockPaused(true)}
+          onMouseLeave={() => setIsDockPaused(false)}
+        >
 
           {/* Tab bar */}
           <div
@@ -762,52 +770,64 @@ function Index() {
             </Link>
           </div>
 
-          {/* Product horizontal scroll */}
+          {/* Product infinite belt */}
           <div
-            className="flex gap-3 lg:gap-4 px-5 lg:px-10 py-4 overflow-x-auto"
+            className="overflow-hidden py-4"
             style={{
-              scrollbarWidth: "none",
-              maskImage: "linear-gradient(to right, transparent, black 4%, black 93%, transparent)",
-              WebkitMaskImage: "linear-gradient(to right, transparent, black 4%, black 93%, transparent)",
+              maskImage: "linear-gradient(to right, transparent, black 5%, black 95%, transparent)",
+              WebkitMaskImage: "linear-gradient(to right, transparent, black 5%, black 95%, transparent)",
             }}
           >
-            {isLoading
-              ? [...Array(10)].map((_, i) => (
-                  <div key={i} className="shrink-0 w-[108px] animate-pulse">
-                    <div className="w-[108px] h-[130px] bg-[oklch(0.96_0.004_78)] mb-2" />
-                    <div className="h-1.5 bg-[oklch(0.95_0.004_78)] w-4/5 mb-1.5" />
-                    <div className="h-1.5 bg-[oklch(0.95_0.004_78)] w-1/2" />
-                  </div>
-                ))
-              : heroProducts.map((p: any) => (
-                  <Link
-                    key={p.id}
-                    to="/product/$slug"
-                    params={{ slug: p.slug }}
-                    className="shrink-0 group w-[108px]"
-                  >
-                    <div className="w-[108px] h-[130px] overflow-hidden bg-[oklch(0.97_0.004_75)] mb-2 relative">
-                      <img
-                        src={getProductThumb(p.slug, p.image_url)}
-                        alt={p.name}
-                        loading="eager"
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.07]"
-                      />
-                      <div
-                        className="absolute top-0 left-0 right-0 h-[2px] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"
-                        style={{ background: "var(--gradient-gold-h)" }}
-                      />
-                    </div>
-                    <p className="text-[0.50rem] font-medium text-foreground truncate mb-0.5 leading-tight">{p.name}</p>
-                    <p className="text-[0.46rem] text-muted-foreground">
-                      From {(p.slug?.includes("tennis-bracelet") || p.slug?.includes("tennis_bracelet"))
-                        ? formatUSD(getTennisBraceletPrice("2mm", '6"'))
-                        : formatUSD(Number(p.base_price))}
-                    </p>
-                  </Link>
-                ))
-            }
-            <div className="shrink-0 w-2 lg:w-4" />
+            <div
+              key={heroType}
+              className="flex gap-3 lg:gap-4"
+              style={{
+                display: "inline-flex",
+                animation: `marquee ${beltDuration}s linear infinite`,
+                animationPlayState: isDockPaused ? "paused" : "running",
+                willChange: "transform",
+              }}
+            >
+              {[0, 1].flatMap(copyIdx =>
+                isLoading
+                  ? [...Array(10)].map((_, i) => (
+                      <div key={`skel-${copyIdx}-${i}`} className="shrink-0 w-[108px] animate-pulse">
+                        <div className="w-[108px] h-[130px] bg-[oklch(0.96_0.004_78)] mb-2" />
+                        <div className="h-1.5 bg-[oklch(0.95_0.004_78)] w-4/5 mb-1.5" />
+                        <div className="h-1.5 bg-[oklch(0.95_0.004_78)] w-1/2" />
+                      </div>
+                    ))
+                  : heroProducts.map((p: any) => (
+                      <Link
+                        key={`${copyIdx}-${p.id}`}
+                        to="/product/$slug"
+                        params={{ slug: p.slug }}
+                        className="shrink-0 group w-[108px]"
+                        tabIndex={copyIdx === 1 ? -1 : undefined}
+                        aria-hidden={copyIdx === 1 ? true : undefined}
+                      >
+                        <div className="w-[108px] h-[130px] overflow-hidden bg-[oklch(0.97_0.004_75)] mb-2 relative">
+                          <img
+                            src={getProductThumb(p.slug, p.image_url)}
+                            alt={p.name}
+                            loading="eager"
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.07]"
+                          />
+                          <div
+                            className="absolute top-0 left-0 right-0 h-[2px] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"
+                            style={{ background: "var(--gradient-gold-h)" }}
+                          />
+                        </div>
+                        <p className="text-[0.50rem] font-medium text-foreground truncate mb-0.5 leading-tight">{p.name}</p>
+                        <p className="text-[0.46rem] text-muted-foreground">
+                          From {(p.slug?.includes("tennis-bracelet") || p.slug?.includes("tennis_bracelet"))
+                            ? formatUSD(getTennisBraceletPrice("2mm", '6"'))
+                            : formatUSD(Number(p.base_price))}
+                        </p>
+                      </Link>
+                    ))
+              )}
+            </div>
           </div>
         </div>
       </section>
