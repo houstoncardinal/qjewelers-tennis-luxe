@@ -791,8 +791,8 @@ function Index() {
               {[0, 1].flatMap(copyIdx =>
                 isLoading
                   ? [...Array(10)].map((_, i) => (
-                      <div key={`skel-${copyIdx}-${i}`} className="shrink-0 w-[108px] animate-pulse">
-                        <div className="w-[108px] h-[130px] bg-[oklch(0.96_0.004_78)] mb-2" />
+                      <div key={`skel-${copyIdx}-${i}`} className="shrink-0 w-[160px] animate-pulse">
+                        <div className="w-[160px] h-[192px] bg-[oklch(0.96_0.004_78)] mb-2" />
                         <div className="h-1.5 bg-[oklch(0.95_0.004_78)] w-4/5 mb-1.5" />
                         <div className="h-1.5 bg-[oklch(0.95_0.004_78)] w-1/2" />
                       </div>
@@ -802,11 +802,11 @@ function Index() {
                         key={`${copyIdx}-${p.id}`}
                         to="/product/$slug"
                         params={{ slug: p.slug }}
-                        className="shrink-0 group w-[108px]"
+                        className="shrink-0 group w-[160px]"
                         tabIndex={copyIdx === 1 ? -1 : undefined}
                         aria-hidden={copyIdx === 1 ? true : undefined}
                       >
-                        <div className="w-[108px] h-[130px] overflow-hidden bg-[oklch(0.97_0.004_75)] mb-2 relative">
+                        <div className="w-[160px] h-[192px] overflow-hidden bg-[oklch(0.97_0.004_75)] mb-2 relative">
                           <img
                             src={getProductThumb(p.slug, p.image_url)}
                             alt={p.name}
