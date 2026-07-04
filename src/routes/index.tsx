@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, useMemo, useRef } from "react";
-import { ArrowRight, ShieldCheck, Gem, Award, Truck, Star, Check, Sparkles, Eye, Diamond, X, Leaf, Crown } from "lucide-react";
+import { ArrowRight, ShieldCheck, Gem, Award, Truck, Star, Check, Sparkles, Eye, Diamond, X, Leaf, Crown, Heart, RotateCcw } from "lucide-react";
 import { listProducts } from "@/lib/products.functions";
 import { images, getProductThumb } from "@/lib/product-images";
 import { formatUSD, getTennisBraceletPrice, getTennisChainPrice } from "@/lib/pricing";
@@ -296,50 +296,108 @@ function Ticker({ dark = false }: { dark?: boolean }) {
 
 // ─── Product Card (white, shadow hover) ──────────────────────────────────────
 
+const CARD_BADGES: Record<string, { label: string; dark?: boolean }> = {
+  necklace: { label: "Best Seller" },
+  bracelet: { label: "GRA Certified" },
+  earring:  { label: "Customer Fav" },
+  ring:     { label: "New Arrival" },
+};
+
 function ProductCard({ p }: { p: any }) {
+  const price =
+    p.slug?.includes("tennis-bracelet") || p.slug?.includes("tennis_bracelet")
+      ? formatUSD(getTennisBraceletPrice("2mm", '6"'))
+      : p.slug?.includes("tennis-chain") || p.slug?.includes("tennis_chain")
+        ? formatUSD(getTennisChainPrice("3mm", '16"'))
+        : formatUSD(Number(p.base_price));
+
+  const badge = CARD_BADGES[p.type];
+
   return (
-    <Link to="/product/$slug" params={{ slug: p.slug }} className="group block product-shadow bg-background lg:hover:shadow-xl transition-shadow duration-500 active:scale-[0.99]">
-      <div className="aspect-square sm:aspect-[4/5] lg:aspect-[3/4] overflow-hidden relative bg-[oklch(0.97_0.004_75)]">
+    <Link
+      to="/product/$slug"
+      params={{ slug: p.slug }}
+      className="group flex flex-col bg-white active:scale-[0.99] transition-transform duration-150"
+      style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}
+    >
+      {/* ── Image ── */}
+      <div className="aspect-[3/4] overflow-hidden relative bg-[oklch(0.97_0.004_75)] shrink-0">
         <img
           src={getProductThumb(p.slug, p.image_url)}
           alt={p.name}
           loading="lazy"
-          className="h-full w-full object-cover tile-img transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.08] group-active:scale-[1.03]"
+          className="h-full w-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.06]"
         />
-        {/* Gold top edge on hover */}
+
+        {/* Gold top edge reveal */}
         <div
-          className="absolute top-0 left-0 right-0 h-[3px] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] origin-left"
+          className="absolute top-0 left-0 right-0 h-[3px] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"
           style={{ background: "var(--gradient-gold-h)" }}
         />
-        {/* Select Options label on hover (desktop) */}
-        <div className="absolute inset-x-0 bottom-0 py-4 px-5 bg-gradient-to-t from-black/65 via-black/25 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 lg:flex hidden items-center justify-center">
-          <span className="text-white text-[0.55rem] uppercase tracking-[0.26em] font-semibold">
+
+        {/* Badge */}
+        {badge && (
+          <div className="absolute top-3 left-3 z-10">
+            <span className="text-[0.42rem] uppercase tracking-[0.18em] bg-foreground text-background px-2 py-1 font-semibold leading-none">
+              {badge.label}
+            </span>
+          </div>
+        )}
+
+        {/* Wishlist — desktop hover */}
+        <button
+          onClick={e => e.preventDefault()}
+          className="absolute top-3 right-3 z-10 w-7 h-7 rounded-full bg-white/85 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:flex shadow-sm hover:bg-white"
+          aria-label="Save to wishlist"
+        >
+          <Heart className="h-3 w-3 text-gray-500" />
+        </button>
+
+        {/* Desktop hover CTA */}
+        <div className="absolute inset-x-0 bottom-0 pb-4 pt-10 bg-gradient-to-t from-black/70 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:flex items-end justify-center">
+          <span className="text-white text-[0.50rem] uppercase tracking-[0.28em] border border-white/60 px-5 py-2 hover:bg-white/10 transition-colors">
             Select Options
           </span>
         </div>
       </div>
-      <div className="px-3 sm:px-5 pt-3 sm:pt-5 pb-3.5 sm:pb-6 space-y-1.5 sm:space-y-2.5 border border-t-0 border-border">
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          <span className="text-[0.42rem] sm:text-[0.43rem] uppercase tracking-[0.10em] text-gray-400 font-mono border border-gray-200 px-1 sm:px-1.5 py-0.5 leading-none">
-            S925
-          </span>
-          <div className="flex items-center gap-0.5 ml-0.5">
-            <span className="w-2 h-2 sm:w-2 sm:h-2 rounded-full shrink-0 ring-1 ring-black/10" style={{ backgroundColor: "#D4AF37" }} title="18K Yellow Gold" />
-            <span className="w-2 h-2 sm:w-2 sm:h-2 rounded-full shrink-0 ring-1 ring-black/10 -ml-0.5" style={{ backgroundColor: "#E8E8F4" }} title="18K White Gold" />
-          </div>
+
+      {/* ── Info ── */}
+      <div className="flex flex-col gap-1.5 px-3.5 sm:px-4 pt-3.5 sm:pt-4 pb-3.5 sm:pb-4 border border-t-0 border-border flex-1">
+        {/* Stars */}
+        <div className="flex items-center gap-0.5">
+          {[...Array(5)].map((_, i) => (
+            <Star key={i} className="h-2.5 w-2.5 text-amber-400 fill-amber-400" />
+          ))}
+          <span className="text-[0.47rem] text-gray-400 ml-1.5 leading-none">4.9</span>
         </div>
-        <h3 className="font-display text-[1.1rem] sm:text-[1.25rem] leading-tight group-hover:text-gold transition-colors duration-300">
+
+        {/* Name */}
+        <h3 className="font-display text-[1rem] sm:text-[1.15rem] leading-[1.25] group-hover:text-gold transition-colors duration-300 line-clamp-2">
           {p.name}
         </h3>
-        <p className="text-[0.72rem] sm:text-[0.72rem] text-muted-foreground">
-          From <span className="text-foreground font-semibold">
-            {(p.slug?.includes("tennis-bracelet") || p.slug?.includes("tennis_bracelet"))
-              ? formatUSD(getTennisBraceletPrice("2mm", '6"'))
-              : (p.slug?.includes("tennis-chain") || p.slug?.includes("tennis_chain"))
-                ? formatUSD(getTennisChainPrice("3mm", '16"'))
-                : formatUSD(Number(p.base_price))}
-          </span>
+
+        {/* Material chips */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[0.40rem] uppercase tracking-[0.10em] text-gray-400 font-mono border border-gray-200 px-1.5 py-0.5 leading-none">S925</span>
+          <span className="text-[0.40rem] uppercase tracking-[0.10em] text-gray-400 font-mono border border-gray-200 px-1.5 py-0.5 leading-none">VVS D</span>
+          <div className="flex items-center gap-0.5 ml-0.5">
+            <span className="w-2 h-2 rounded-full ring-1 ring-black/10" style={{ backgroundColor: "#D4AF37" }} title="18K Yellow Gold" />
+            <span className="w-2 h-2 rounded-full ring-1 ring-black/10 -ml-0.5" style={{ backgroundColor: "#E8E8F4" }} title="18K White Gold" />
+          </div>
+        </div>
+
+        {/* Price */}
+        <p className="text-[0.70rem] text-muted-foreground mt-auto pt-0.5">
+          From{" "}
+          <span className="text-foreground font-bold text-[0.90rem]">{price}</span>
         </p>
+
+        {/* Mobile CTA — always visible, desktop hidden */}
+        <div className="md:hidden mt-1">
+          <div className="w-full text-center py-2.5 bg-foreground text-background text-[0.48rem] uppercase tracking-[0.22em] font-semibold group-hover:opacity-90 transition-opacity">
+            View Item →
+          </div>
+        </div>
       </div>
     </Link>
   );
@@ -347,12 +405,13 @@ function ProductCard({ p }: { p: any }) {
 
 function SkeletonCard() {
   return (
-    <div className="bg-background border border-border">
+    <div className="flex flex-col bg-white border border-border shrink-0">
       <div className="aspect-[3/4] bg-[oklch(0.96_0.004_75)] animate-pulse" />
-      <div className="px-4 pt-4 pb-5 space-y-2">
-        <div className="h-2 w-16 bg-[oklch(0.94_0.004_75)] animate-pulse" />
-        <div className="h-5 w-4/5 bg-[oklch(0.94_0.004_75)] animate-pulse" />
-        <div className="h-3 w-14 bg-[oklch(0.94_0.004_75)] animate-pulse" />
+      <div className="px-3.5 pt-3.5 pb-4 space-y-2.5 border-t-0">
+        <div className="h-2 w-12 bg-[oklch(0.94_0.004_75)] rounded animate-pulse" />
+        <div className="h-4 w-4/5 bg-[oklch(0.94_0.004_75)] rounded animate-pulse" />
+        <div className="h-3 w-1/2 bg-[oklch(0.94_0.004_75)] rounded animate-pulse" />
+        <div className="h-3 w-16 bg-[oklch(0.94_0.004_75)] rounded animate-pulse" />
       </div>
     </div>
   );
@@ -928,31 +987,84 @@ function Index() {
       </section>
 
       {/* ════════════════════════════════════════════════════════
-          FEATURED ITEMS — 4 product cards, white bg
+          FEATURED ITEMS
       ════════════════════════════════════════════════════════ */}
-      <section className="border-b border-border">
-        <div className="mx-auto max-w-[1360px] px-3 sm:px-5 lg:px-10 py-14 lg:py-20">
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5 mb-9 reveal">
+      <section className="border-b border-border bg-[oklch(0.985_0.003_75)]">
+        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 pt-12 lg:pt-18 pb-10 lg:pb-16">
+
+          {/* ── Header ── */}
+          <div className="flex items-end justify-between mb-5 reveal">
             <div>
               <Eyebrow center={false}>Curated For You</Eyebrow>
-              <h2 className="font-display" style={{ fontSize: "clamp(2.2rem, 4.5vw, 4rem)" }}>
+              <h2 className="font-display" style={{ fontSize: "clamp(1.9rem, 3vw, 3rem)" }}>
                 Featured Items
               </h2>
             </div>
             <Link
               to="/shop"
-              className="inline-flex items-center gap-2 text-[0.6rem] uppercase tracking-[0.28em] lux-link text-muted-foreground hover:text-foreground transition-colors duration-300 shrink-0 mb-1"
+              className="hidden sm:flex items-center gap-1.5 text-[0.55rem] uppercase tracking-[0.22em] text-muted-foreground hover:text-foreground transition-colors pb-1"
             >
               View All <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 md:gap-6 reveal" style={{ transitionDelay: "0.15s" }}>
+          {/* ── Trust strip ── */}
+          <div className="flex items-center gap-5 mb-7 overflow-x-auto pb-1 reveal" style={{ transitionDelay: "0.05s" }}>
+            {[
+              { icon: ShieldCheck, text: "GRA Certified" },
+              { icon: Truck,       text: "Free Shipping $250+" },
+              { icon: RotateCcw,   text: "30-Day Returns" },
+              { icon: Award,       text: "Lifetime Guarantee" },
+            ].map(({ icon: Icon, text }) => (
+              <span key={text} className="flex items-center gap-1.5 shrink-0 text-[0.48rem] uppercase tracking-[0.20em] text-muted-foreground">
+                <Icon className="h-3 w-3 shrink-0" style={{ color: "#C9A84C" }} />
+                {text}
+              </span>
+            ))}
+          </div>
+
+          {/* ── Mobile: snap-scroll row (1.5 cards peek) ── */}
+          <div
+            className="flex md:hidden gap-3 overflow-x-auto pb-4 -mx-5 px-5 snap-x snap-mandatory reveal"
+            style={{ scrollbarWidth: "none", transitionDelay: "0.10s" }}
+          >
+            {isLoading
+              ? [...Array(4)].map((_, i) => (
+                  <div key={i} className="w-[70vw] shrink-0 snap-start"><SkeletonCard /></div>
+                ))
+              : featuredProducts.slice(0, 4).map((p: any) => (
+                  <div key={p.id} className="w-[70vw] shrink-0 snap-start">
+                    <ProductCard p={p} />
+                  </div>
+                ))
+            }
+          </div>
+
+          {/* ── Desktop: 4-column grid ── */}
+          <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 reveal" style={{ transitionDelay: "0.10s" }}>
             {isLoading
               ? [...Array(4)].map((_, i) => <SkeletonCard key={i} />)
               : featuredProducts.slice(0, 4).map((p: any) => <ProductCard key={p.id} p={p} />)
             }
           </div>
+
+          {/* ── Bottom CTA ── */}
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 reveal" style={{ transitionDelay: "0.15s" }}>
+            <Link
+              to="/shop"
+              className="inline-flex items-center gap-2.5 px-8 py-3.5 bg-foreground text-background text-[0.52rem] uppercase tracking-[0.26em] font-semibold hover:opacity-90 transition-opacity w-full sm:w-auto justify-center"
+            >
+              Shop All Jewelry <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+            <Link
+              to="/shop"
+              search={{ type: "necklace" as any }}
+              className="inline-flex items-center gap-2 px-8 py-3.5 border border-border text-[0.52rem] uppercase tracking-[0.26em] text-muted-foreground hover:text-foreground hover:border-foreground transition-colors w-full sm:w-auto justify-center"
+            >
+              New Arrivals
+            </Link>
+          </div>
+
         </div>
       </section>
 
