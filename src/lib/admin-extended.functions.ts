@@ -250,7 +250,7 @@ export const createProduct = createServerFn({ method: "POST" })
     const { token: _t, color_images, ...fields } = data;
     const payload = {
       ...fields,
-      image_url: fields.image_url || "/main.jpg",
+      image_url: fields.image_url || "https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/main.jpg",
       is_featured: fields.is_featured ?? false,
       is_active: fields.is_active ?? true,
       sort_order: fields.sort_order ?? 999,
@@ -385,6 +385,144 @@ export const quickUpdateProduct = createServerFn({ method: "POST" })
       .from("products")
       .update({ ...fields, updated_at: new Date().toISOString() } as any)
       .eq("slug", slug);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  });
+
+// ─── Admin: Customer Profile (addresses + wishlist by email) ─────────────────
+// Looks up the Supabase auth user by email, then fetches their saved addresses
+// and wishlist items with product details. Returns null userId if the customer
+// has never created an account (guest-only orders are still visible via orders).
+
+export const adminGetCustomerDetails = createServerFn({ method: "POST" })
+  .inputValidator((d: { token: string; email: string }) => d)
+  .handler(async ({ data }) => {
+    requireAdmin(data.token);
+
+    // Find the Supabase auth user by email
+    const { data: userList } = await (supabaseAdmin as any).auth.admin.listUsers({ perPage: 1000 });
+    const authUser = (userList?.users ?? []).find(
+      (u: any) => (u.email ?? "").toLowerCase() === data.email.toLowerCase()
+    );
+
+    if (!authUser) {
+      return { userId: null, profile: null, addresses: [], wishlist: [] };
+    }
+
+    const userId = authUser.id as string;
+
+    // Fetch addresses and wishlist in parallel
+    const [addrRes, wishRes] = await Promise.all([
+      db.from("customer_addresses")
+        .select("*")
+        .eq("user_id", userId)
+        .order("is_default", { ascending: false })
+        .order("created_at", { ascending: false }),
+      db.from("wishlist_items")
+        .select("id, product_slug, added_at")
+        .eq("user_id", userId)
+        .order("added_at", { ascending: false }),
+    ]);
+
+    const wishlistSlugs: string[] = (wishRes.data ?? []).map((w: any) => w.product_slug);
+
+    // Join wishlist with product details
+    let wishlistProducts: any[] = [];
+    if (wishlistSlugs.length > 0) {
+      const { data: prods } = await supabaseAdmin
+        .from("products")
+        .select("slug, name, base_price, image_url")
+        .in("slug", wishlistSlugs);
+      wishlistProducts = prods ?? [];
+    }
+
+    const wishlist = (wishRes.data ?? []).map((w: any) => ({
+      ...w,
+      product: wishlistProducts.find((p: any) => p.slug === w.product_slug) ?? null,
+    }));
+
+    return {
+      userId,
+      profile: {
+        email: authUser.email,
+        fullName: authUser.user_metadata?.full_name ?? null,
+        phone: authUser.user_metadata?.phone ?? null,
+        createdAt: authUser.created_at,
+        lastSignIn: authUser.last_sign_in_at ?? null,
+      },
+      addresses: addrRes.data ?? [],
+      wishlist,
+    };
+  });
+
+// ─── Admin: Update customer profile (name / phone via Supabase Auth) ─────────
+
+export const adminUpdateCustomerProfile = createServerFn({ method: "POST" })
+  .inputValidator((d: { token: string; userId: string; fullName: string; phone: string }) => d)
+  .handler(async ({ data }) => {
+    requireAdmin(data.token);
+    const { error } = await (supabaseAdmin as any).auth.admin.updateUserById(data.userId, {
+      user_metadata: { full_name: data.fullName, phone: data.phone },
+    });
+    if (error) throw new Error(error.message);
+    writeAuditLog({
+      adminUserId: getCurrentAdminId(),
+      action: "customer_profile_updated",
+      targetType: "auth_users",
+      targetId: data.userId,
+      details: { fullName: data.fullName, phone: data.phone },
+    }).catch(() => {});
+    return { success: true };
+  });
+
+// ─── Admin: Internal messages to customers ────────────────────────────────────
+// Messages are stored in account_messages table and surfaced in the customer
+// dashboard. Admins can compose and send; customers read on next login.
+
+// adminSendCustomerMessage reuses the subscriber_messages table (same inbox the
+// customer sees on their account dashboard), keyed by email so it works whether
+// or not the customer is also a newsletter subscriber.
+export const adminSendCustomerMessage = createServerFn({ method: "POST" })
+  .inputValidator((d: { token: string; email: string; subject: string; body: string; message_type?: string }) => d)
+  .handler(async ({ data }) => {
+    requireAdmin(data.token);
+    const adminId = getCurrentAdminId();
+    const { error } = await db.from("subscriber_messages").insert({
+      subscriber_email: data.email,
+      subject:          data.subject.trim(),
+      body:             data.body.trim(),
+      message_type:     data.message_type ?? "general",
+      sent_at:          new Date().toISOString(),
+    });
+    if (error) throw new Error(error.message);
+    writeAuditLog({
+      adminUserId: adminId,
+      action: "customer_message_sent",
+      targetType: "subscriber_messages",
+      targetId:   data.email,
+      details:    { subject: data.subject },
+    }).catch(() => {});
+    return { success: true };
+  });
+
+export const adminGetCustomerMessages = createServerFn({ method: "POST" })
+  .inputValidator((d: { token: string; email: string }) => d)
+  .handler(async ({ data }) => {
+    requireAdmin(data.token);
+    const { data: msgs, error } = await db
+      .from("subscriber_messages")
+      .select("*")
+      .eq("subscriber_email", data.email)
+      .order("sent_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return { messages: msgs ?? [] };
+  });
+
+export const adminDeleteCustomerMessage = createServerFn({ method: "POST" })
+  .inputValidator((d: { token: string; messageId: string }) => d)
+  .handler(async ({ data }) => {
+    requireAdmin(data.token);
+    const { error } = await db.from("subscriber_messages").delete().eq("id", data.messageId);
     if (error) throw new Error(error.message);
     return { success: true };
   });

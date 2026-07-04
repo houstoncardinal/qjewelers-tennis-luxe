@@ -25,7 +25,7 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "D Colorless VVS1 moissanite tennis chains, bracelets, earrings & rings. Solid S925 sterling silver, 5× 18K gold plating, GRA certified. Starting from $89. Free US shipping over $250." },
       { property: "og:title", content: "Qureshi Jewelers — VVS Moissanite Jewelry | GRA Certified" },
       { property: "og:description", content: "D Colorless VVS1 moissanite chains, bracelets, earrings & rings. Solid S925 sterling silver, 5× 18K gold plating, GRA certified. From $89." },
-      { property: "og:image", content: `${SITE_URL}/hero.jpg` },
+      { property: "og:image", content: "https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/herobg.jpg" },
       { property: "og:image:width", content: "1200" },
       { property: "og:image:height", content: "630" },
       { property: "og:url", content: SITE_URL },
@@ -35,7 +35,7 @@ export const Route = createFileRoute("/")({
       { name: "twitter:site", content: "@QureshiJewelers" },
       { name: "twitter:title", content: "Qureshi Jewelers — VVS Moissanite Jewelry | GRA Certified" },
       { name: "twitter:description", content: "D Colorless VVS1 moissanite chains, bracelets, earrings & rings. S925 sterling silver, GRA certified. From $89. Free US shipping over $250." },
-      { name: "twitter:image", content: `${SITE_URL}/hero.jpg` },
+      { name: "twitter:image", content: "https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/herobg.jpg" },
     ],
     links: [{ rel: "canonical", href: SITE_URL }],
     scripts: [
@@ -51,11 +51,11 @@ export const Route = createFileRoute("/")({
           url: SITE_URL,
           logo: {
             "@type": "ImageObject",
-            url: `${SITE_URL}/QURESHIJEWELERSLOGO.png`,
+            url: "https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/QURESHIJEWELERSLOGO.png",
             width: 400,
             height: 400,
           },
-          image: `${SITE_URL}/hero.jpg`,
+          image: "https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/herobg.jpg",
           description: "Qureshi Jewelers specializes in VVS1 D Colorless moissanite jewelry — GRA certified tennis chains, bracelets, stud earrings, and engagement rings, hand-set in solid S925 sterling silver with 5× 18K precious metal plating.",
           email: "support@qureshijewelers.com",
           brand: { "@type": "Brand", name: "Qureshi Jewelers" },
@@ -98,8 +98,8 @@ export const Route = createFileRoute("/")({
           "@id": `${SITE_URL}/#store`,
           name: "Qureshi Jewelers",
           url: SITE_URL,
-          logo: `${SITE_URL}/QURESHIJEWELERSLOGO.png`,
-          image: `${SITE_URL}/hero.jpg`,
+          logo: "https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/QURESHIJEWELERSLOGO.png",
+          image: "https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/herobg.jpg",
           description: "Premium VVS moissanite jewelry: tennis chains, bracelets, earrings, and rings. GRA certified, S925 sterling silver, 5× 18K gold plating. Free US shipping on orders over $250.",
           priceRange: "$$",
           currenciesAccepted: "USD",
@@ -843,22 +843,22 @@ function Index() {
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 reveal" style={{ transitionDelay: "0.1s" }}>
             <CategoryTile
-              image="/tennischain.png"
+              image={images.tennischain}
               label="Moissanite Chains"
               shopType="necklace"
             />
             <CategoryTile
-              image="/TennisBracelet/yellowgoldmain.jpg"
+              image={images.tennisBraceletYellowGold}
               label="Moissanite Bracelets"
               shopType="bracelet"
             />
             <CategoryTile
-              image="/3%20Prong%20Moissanite%20Earrings/silverandwhitegoldsecondimage.jpg"
+              image={images.earring2}
               label="Moissanite Earrings"
               shopType="earring"
             />
             <CategoryTile
-              image="/ring.jpg"
+              image={images.ring}
               label="Moissanite Rings"
               shopType="ring"
             />

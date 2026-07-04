@@ -1107,7 +1107,7 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                                 src={img}
                                 alt=""
                                 className="w-full h-full object-cover"
-                                onError={e => { (e.target as HTMLImageElement).src = "/main.jpg"; }}
+                                onError={e => { (e.target as HTMLImageElement).src = "https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/main.jpg"; }}
                               />
                               {isSelected && (
                                 <span className="absolute top-1 right-1 bg-emerald-500 rounded-full w-4 h-4 flex items-center justify-center">
@@ -1188,7 +1188,7 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                                 src={vi.url}
                                 alt=""
                                 className="w-full h-full object-cover"
-                                onError={e => { (e.target as HTMLImageElement).src = "/main.jpg"; }}
+                                onError={e => { (e.target as HTMLImageElement).src = "https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/main.jpg"; }}
                               />
                               {isSelected && (
                                 <span className="absolute top-1 right-1 bg-blue-500 rounded-full w-4 h-4 flex items-center justify-center">
@@ -1969,9 +1969,9 @@ function AdminProducts() {
                           <Link to="/admin/products/$slug" params={{ slug: p.slug }}>
                             <div className="w-11 h-11 overflow-hidden bg-gray-50 border border-gray-100 hover:border-gray-300 transition-colors">
                               <img
-                                src={p.image_url || "/main.jpg"} alt=""
+                                src={p.image_url || "https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/main.jpg"} alt=""
                                 className="w-full h-full object-cover"
-                                onError={e => { (e.target as HTMLImageElement).src = "/main.jpg"; }}
+                                onError={e => { (e.target as HTMLImageElement).src = "https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/main.jpg"; }}
                               />
                             </div>
                           </Link>

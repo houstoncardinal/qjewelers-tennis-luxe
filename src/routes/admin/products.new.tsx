@@ -601,7 +601,7 @@ function AdminNewProduct() {
           seo_keywords: seoKeywords.join(", "),
           tags,
           base_price: Number(basePrice),
-          image_url: images[0] || "/main.jpg",
+          image_url: images[0] || "https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/main.jpg",
           is_featured: isFeatured,
           is_active: isActive,
           sort_order: Number(sortOrder) || 999,

@@ -571,7 +571,7 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
           <div className="relative z-10 p-12">
             <div className="flex items-center gap-3 mb-4">
               <img
-                src="/QURESHIJEWELERSLOGO.png"
+                src="https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/QURESHIJEWELERSLOGO.png"
                 alt="Qureshi Jewelers"
                 className="h-10 w-auto"
                 style={{ filter: "brightness(0) saturate(100%) invert(78%) sepia(38%) saturate(600%) hue-rotate(5deg) brightness(95%)" }}
@@ -661,7 +661,7 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
                   boxShadow: "0 0 50px rgba(212,175,55,0.08), inset 0 0 20px rgba(0,0,0,0.6)",
                 }}
               >
-                <img src="/QURESHIJEWELERSLOGO.png" alt="Qureshi Jewelers" className="h-9 w-auto" style={{ filter: "brightness(0) saturate(100%) invert(78%) sepia(38%) saturate(600%) hue-rotate(5deg) brightness(95%)" }} />
+                <img src="https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/QURESHIJEWELERSLOGO.png" alt="Qureshi Jewelers" className="h-9 w-auto" style={{ filter: "brightness(0) saturate(100%) invert(78%) sepia(38%) saturate(600%) hue-rotate(5deg) brightness(95%)" }} />
                 {/* Dashed orbital ring */}
                 <div className="absolute rounded-full" style={{ inset: -12, border: "1px dashed rgba(212,175,55,0.20)", animation: "vault-spin-cw 28s linear infinite" }} />
               </div>

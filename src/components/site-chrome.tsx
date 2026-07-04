@@ -111,7 +111,7 @@ export function Header() {
           {/* Logo */}
           <Link to="/" className="flex items-center shrink-0" onClick={close}>
             <img
-              src="/QURESHIJEWELERSLOGO.png"
+              src="https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/QURESHIJEWELERSLOGO.png"
               alt="Qureshi Jewelers"
               className="h-10 sm:h-12 md:h-14 lg:h-16 w-auto"
             />
@@ -226,7 +226,7 @@ export function Header() {
           {/* ── Top bar: logo + close ── */}
           <div className="flex items-center justify-between px-5 h-16 border-b border-border shrink-0">
             <Link to="/" onClick={close} className="flex items-center">
-              <img src="/QURESHIJEWELERSLOGO.png" alt="Qureshi Jewelers" className="h-9 w-auto" />
+              <img src="https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/QURESHIJEWELERSLOGO.png" alt="Qureshi Jewelers" className="h-9 w-auto" />
             </Link>
             <button
               onClick={close}
@@ -298,7 +298,7 @@ export function Header() {
           {/* ── Footer strip ── */}
           <div className="shrink-0 border-t border-border bg-cream/50 px-5 py-4">
             <div className="flex items-center gap-3">
-              <img src="/QURESHIJEWELERSLOGO.png" alt="Qureshi Jewelers" className="h-6 w-auto opacity-40 shrink-0" />
+              <img src="https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/QURESHIJEWELERSLOGO.png" alt="Qureshi Jewelers" className="h-6 w-auto opacity-40 shrink-0" />
               <p className="text-[0.42rem] uppercase tracking-[0.20em] text-muted-foreground/45 leading-relaxed">
                 GRA Certified · VVS1 Moissanite · S925 Sterling Silver
               </p>
@@ -365,7 +365,7 @@ export function Footer() {
           {/* Brand col */}
           <div className="lg:col-span-2 space-y-6">
             <Link to="/" className="inline-block">
-              <img src="/QURESHIJEWELERSLOGO.png" alt="Qureshi Jewelers" className="h-16 sm:h-20 w-auto" />
+              <img src="https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/QURESHIJEWELERSLOGO.png" alt="Qureshi Jewelers" className="h-16 sm:h-20 w-auto" />
             </Link>
 
             <p className="text-[0.82rem] leading-[1.85] max-w-xs text-muted-foreground">

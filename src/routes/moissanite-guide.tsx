@@ -38,11 +38,11 @@ export const Route = createFileRoute("/moissanite-guide")({
       { property: "og:title", content: "Moissanite vs Diamond Guide — VVS Clarity & GRA Certification" },
       { property: "og:description", content: "Is moissanite better than diamond? VVS clarity, D color, GRA certification explained by America's premier moissanite jewelry specialists." },
       { property: "og:url", content: GUIDE_URL },
-      { property: "og:image", content: `${SITE_URL}/QURESHIJEWELERSLOGO.png` },
+      { property: "og:image", content: "https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/QURESHIJEWELERSLOGO.png" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Moissanite vs Diamond — Complete Quality Guide | Qureshi Jewelers" },
       { name: "twitter:description", content: "Is moissanite better than diamond? VVS clarity, D color, and why moissanite produces more brilliance and fire than a diamond of the same size." },
-      { name: "twitter:image", content: `${SITE_URL}/QURESHIJEWELERSLOGO.png` },
+      { name: "twitter:image", content: "https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/QURESHIJEWELERSLOGO.png" },
     ],
     links: [{ rel: "canonical", href: GUIDE_URL }],
     scripts: [
@@ -60,8 +60,8 @@ export const Route = createFileRoute("/moissanite-guide")({
           dateModified: "2025-01-01",
           image: {
             "@type": "ImageObject",
-            url: `${SITE_URL}/QURESHIJEWELERSLOGO.png`,
-            contentUrl: `${SITE_URL}/QURESHIJEWELERSLOGO.png`,
+            url: "https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/QURESHIJEWELERSLOGO.png",
+            contentUrl: "https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/QURESHIJEWELERSLOGO.png",
             name: "Qureshi Jewelers Moissanite Guide",
           },
           author: {
@@ -225,7 +225,7 @@ function MoissaniteGuide() {
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
           <div className="aspect-[4/5] overflow-hidden bg-[oklch(0.97_0.004_75)] relative">
             <img
-              src="/tennischain.png"
+              src="https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/tennischain.png"
               alt="VVS1 D Color Moissanite Tennis Chain — Qureshi Jewelers"
               className="w-full h-full object-cover"
               loading="eager"
@@ -354,7 +354,7 @@ function MoissaniteGuide() {
           <div className="border border-border overflow-hidden group">
             <div className="aspect-[4/3] overflow-hidden bg-[oklch(0.97_0.004_75)]">
               <img
-                src="/tennischain.png"
+                src="https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/tennischain.png"
                 alt="Claw prong setting — VVS moissanite tennis chain"
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                 loading="lazy"
@@ -396,7 +396,7 @@ function MoissaniteGuide() {
           <div className="border border-border overflow-hidden group">
             <div className="aspect-[4/3] overflow-hidden bg-[oklch(0.97_0.004_75)]">
               <img
-                src="/ring.jpg"
+                src="https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/ring.jpg"
                 alt="Solitaire setting — VVS moissanite engagement ring"
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                 loading="lazy"

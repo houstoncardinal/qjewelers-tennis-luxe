@@ -12,11 +12,11 @@ export const Route = createFileRoute("/about")({
       { property: "og:title", content: "Our Craft — Qureshi Jewelers" },
       { property: "og:description", content: "VVS1 D-color moissanite set in solid S925 sterling silver. Five layers of precious metal plating. GRA certified. Luxury at every price point." },
       { property: "og:url", content: PAGE_URL },
-      { property: "og:image", content: `${SITE_URL}/tennischain.png` },
+      { property: "og:image", content: "https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/tennischain.png" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Our Craft — Fine Moissanite Jewelry | Qureshi Jewelers" },
       { name: "twitter:description", content: "VVS1 D-color moissanite in solid S925 sterling silver with 5× precious metal plating. GRA certified. The Qureshi standard." },
-      { name: "twitter:image", content: `${SITE_URL}/tennischain.png` },
+      { name: "twitter:image", content: "https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/tennischain.png" },
     ],
     links: [{ rel: "canonical", href: PAGE_URL }],
     scripts: [
@@ -129,7 +129,7 @@ function About() {
           </div>
           <div className="lg:pl-10 aspect-[4/5] lg:aspect-auto lg:h-[600px] overflow-hidden">
             <img
-              src="/tennischain.png"
+              src={img.tennischain}
               alt="VVS1 Moissanite Tennis Chain — Qureshi Jewelers"
               className="h-full w-full object-cover"
             />

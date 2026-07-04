@@ -1,9 +1,11 @@
-// Public folder image registry
-const BASE = "";
+// Supabase CDN — all public/ folder images are mirrored here for reliable
+// delivery on every environment (local dev, Netlify preview, production).
+// To add new images: drop them in public/ and re-run scripts/sync-public-to-supabase.mjs
+const BASE = "https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets";
 
 export const images = {
   hero:      `${BASE}/herobg.jpg`,
-  heroVideo: "",
+  heroVideo: `${BASE}/herobg.mp4`,
   main:     `${BASE}/main.jpg`,
 
   // Original product shots
@@ -12,10 +14,14 @@ export const images = {
   product4: `${BASE}/imgi_443_H22f9cbcf06d64199be40339dc5d15d9a3.jpg`,
   product5: `${BASE}/imgi_475_H4a3fc54b264b4670a0dd05906ebf5845b.jpg`,
 
+  ring:      `${BASE}/ring.jpg`,
+  tennischain: `${BASE}/tennischain.png`,
+  logo:      `${BASE}/QURESHIJEWELERSLOGO.png`,
+
   // Graphics / infographics
   graphic1: `${BASE}/imgi_447_H7ac01ff2d8f342238f4929467f96bd152.png`,
   graphic2: `${BASE}/imgi_451_H2112b7bb86b4401ab543678029bc6e85W.png`,
-  graphic3: `${BASE}/imgi_459_H5a4d5c5c31884c979920fa5c048404a4O.png`,
+  graphic3: `${BASE}/imgi_443_H22f9cbcf06d64199be40339dc5d15d9a3.jpg`,
   graphic4: `${BASE}/imgi_467_Hc1321037093a4820997bd7043dab16c5Y.png`,
 
   // ── 3-Prong VVS Moissanite Stud Earrings ────────────────────────────────
@@ -44,26 +50,18 @@ export const images = {
   tennisBraceletVariations: `${BASE}/TennisBracelet/braceletvariations.jpg`,
 
   // ── Bracelet images ──────────────────────────────────────────────────────
-  // Size-specific on-wrist comparison shots (silver + gold side by side, labeled)
-  bracelet2mm:   `${BASE}/2mmbracelet.jpg`,
-  bracelet3mm:   `${BASE}/3mmbracelet.jpg`,
-  bracelet4mm:   `${BASE}/4mmbracelet.jpg`,
-  bracelet5mm:   `${BASE}/5mmbracelet.jpg`,
-  bracelet65mm:  `${BASE}/65mmbracelet.jpg`,
+  bracelet2mm:   `${BASE}/TennisBracelet/2mmbracelet.jpg`,
+  bracelet3mm:   `${BASE}/TennisBracelet/3mmbracelet.jpg`,
+  bracelet4mm:   `${BASE}/TennisBracelet/4mmbracelet.jpg`,
+  bracelet5mm:   `${BASE}/TennisBracelet/5mmbracelet.jpg`,
+  bracelet65mm:  `${BASE}/TennisBracelet/65mmbracelet.jpg`,
 
-  // Lifestyle & detail shots
-  // All five widths stacked on one wrist — silver, labeled 2mm–6mm
-  braceletsMultiple:    `${BASE}/braceletsmultiple.jpg`,
-  // Flat lay: 3 gold + 3 silver, double-locking clasps clearly visible
-  braceletsLaidOut:     `${BASE}/braceletslaidout.jpg`,
-  // "Original image under natural light" — real moissanite rainbow fire visible
-  braceletsNaturalLight:`${BASE}/edit.jpg`,
-  // GRA Moissanite Report + professional Selector II tester confirming authenticity
-  braceletsGRATested:   `${BASE}/braceletsadditional.jpg`,
-  // Extreme close-up of double-locking box clasps on yellow gold bracelets
-  braceletsClasps:      `${BASE}/clasps.jpg`,
-  // Overhead grid — alternating gold/silver, all widths
-  braceletsVariety:     `${BASE}/braceletsvariety.png`,
+  braceletsMultiple:     `${BASE}/TennisBracelet/braceletsmultiple.jpg`,
+  braceletsLaidOut:      `${BASE}/TennisBracelet/braceletslaidout.jpg`,
+  braceletsNaturalLight: `${BASE}/TennisBracelet/braceletslaidout.jpg`,
+  braceletsGRATested:    `${BASE}/TennisBracelet/braceletsadditional.jpg`,
+  braceletsClasps:       `${BASE}/TennisBracelet/clasps.jpg`,
+  braceletsVariety:      `${BASE}/TennisBracelet/braceletsvariety.png`,
 };
 
 // ─── Gallery builder ─────────────────────────────────────────────────────────
