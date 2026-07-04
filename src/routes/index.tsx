@@ -373,29 +373,38 @@ const HERO_TABS = [
 interface CategoryTileProps {
   image: string;
   label: string;
+  tagline: string;
   shopType: string;
+  className?: string;
 }
 
-function CategoryTile({ image, label, shopType }: CategoryTileProps) {
+function CategoryTile({ image, label, tagline, shopType, className = "" }: CategoryTileProps) {
   return (
     <Link
       to="/shop"
       search={{ type: shopType as any }}
-      className="group block tile-hover"
+      className={`group relative block overflow-hidden bg-neutral-900 ${className}`}
     >
-      <div className="aspect-[3/4] overflow-hidden bg-[oklch(0.97_0.004_75)] relative">
-        <img
-          src={image}
-          alt={label}
-          loading="lazy"
-          className="h-full w-full object-cover tile-img"
-        />
-        <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/10 transition-colors duration-500" />
-      </div>
-      <div className="pt-4 pb-2 text-center">
-        <p className="font-display text-[1.35rem] leading-none mb-1.5">{label}</p>
-        <p className="text-[0.52rem] uppercase tracking-[0.28em] text-muted-foreground group-hover:text-foreground transition-colors duration-300">
-          Shop →
+      <img
+        src={image}
+        alt={label}
+        loading="lazy"
+        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+      />
+      {/* Bottom gradient so text is always readable */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.30) 45%, rgba(0,0,0,0.04) 100%)" }}
+      />
+      {/* Text overlay */}
+      <div className="absolute bottom-0 left-0 right-0 px-5 pb-5 md:px-6 md:pb-6">
+        <p className="text-[0.47rem] uppercase tracking-[0.32em] mb-1.5" style={{ color: "rgba(251,191,36,0.80)" }}>{tagline}</p>
+        <p className="font-display text-white leading-tight" style={{ fontSize: "clamp(1.25rem, 2vw, 1.9rem)" }}>{label}</p>
+        <p
+          className="mt-2 text-[0.48rem] uppercase tracking-[0.26em] transition-colors duration-300"
+          style={{ color: "rgba(255,255,255,0.45)" }}
+        >
+          Shop Collection →
         </p>
       </div>
     </Link>
@@ -831,38 +840,90 @@ function Index() {
       <Ticker />
 
       {/* ════════════════════════════════════════════════════════
-          SHOP BY CATEGORY — 4 portrait tiles (Brilliant Earth style)
+          SHOP BY CATEGORY — editorial overlay grid
       ════════════════════════════════════════════════════════ */}
       <section className="border-b border-border">
-        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-14 lg:py-20">
-          <div className="text-center mb-9 reveal">
-            <Eyebrow>Collections</Eyebrow>
-            <h2 className="font-display" style={{ fontSize: "clamp(2.2rem, 4.5vw, 4rem)" }}>
-              Shop by Category
-            </h2>
+        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 pt-10 pb-3 lg:pt-14 lg:pb-4 reveal">
+          <div className="flex items-end justify-between mb-5">
+            <div>
+              <Eyebrow center={false}>Collections</Eyebrow>
+              <h2 className="font-display" style={{ fontSize: "clamp(1.9rem, 3vw, 3rem)" }}>
+                Shop by Category
+              </h2>
+            </div>
+            <Link
+              to="/shop"
+              className="hidden sm:flex items-center gap-1.5 text-[0.55rem] uppercase tracking-[0.22em] text-muted-foreground hover:text-foreground transition-colors pb-1"
+            >
+              View All <ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 reveal" style={{ transitionDelay: "0.1s" }}>
-            <CategoryTile
-              image={images.tennischain}
-              label="Moissanite Chains"
-              shopType="necklace"
-            />
+        </div>
+
+        {/* Desktop: hero-left + 3-stack-right */}
+        <div className="hidden md:grid grid-cols-[3fr_2fr] mx-auto max-w-[1360px] px-5 lg:px-10 pb-10 lg:pb-14 gap-2 reveal" style={{ height: "clamp(420px, 52vh, 640px)", transitionDelay: "0.05s" }}>
+          <CategoryTile
+            image={images.tennischain}
+            label="Moissanite Chains"
+            tagline="Tennis & Rope"
+            shopType="necklace"
+            className="h-full"
+          />
+          <div className="grid grid-rows-3 gap-2 h-full">
             <CategoryTile
               image={images.tennisBraceletYellowGold}
-              label="Moissanite Bracelets"
+              label="Bracelets"
+              tagline="Tennis Bracelets"
               shopType="bracelet"
+              className="h-full"
             />
             <CategoryTile
               image={images.earring2}
-              label="Moissanite Earrings"
+              label="Earrings"
+              tagline="Stud Earrings"
               shopType="earring"
+              className="h-full"
             />
             <CategoryTile
               image={images.ring}
-              label="Moissanite Rings"
+              label="Rings"
+              tagline="Moissanite Rings"
               shopType="ring"
+              className="h-full"
             />
           </div>
+        </div>
+
+        {/* Mobile: 2×2 compact squares */}
+        <div className="md:hidden grid grid-cols-2 gap-1.5 px-5 pb-8 reveal" style={{ transitionDelay: "0.05s" }}>
+          <CategoryTile
+            image={images.tennischain}
+            label="Chains"
+            tagline="Tennis & Rope"
+            shopType="necklace"
+            className="aspect-square"
+          />
+          <CategoryTile
+            image={images.tennisBraceletYellowGold}
+            label="Bracelets"
+            tagline="Tennis"
+            shopType="bracelet"
+            className="aspect-square"
+          />
+          <CategoryTile
+            image={images.earring2}
+            label="Earrings"
+            tagline="Stud Earrings"
+            shopType="earring"
+            className="aspect-square"
+          />
+          <CategoryTile
+            image={images.ring}
+            label="Rings"
+            tagline="Moissanite"
+            shopType="ring"
+            className="aspect-square"
+          />
         </div>
       </section>
 
