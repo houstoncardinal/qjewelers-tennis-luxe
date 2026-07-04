@@ -298,7 +298,7 @@ function Ticker({ dark = false }: { dark?: boolean }) {
 
 function ProductCard({ p }: { p: any }) {
   return (
-    <Link to="/product/$slug" params={{ slug: p.slug }} className="group block product-shadow bg-background lg:hover:shadow-xl transition-all duration-500 active:scale-[0.99]">
+    <Link to="/product/$slug" params={{ slug: p.slug }} className="group block product-shadow bg-background lg:hover:shadow-xl transition-shadow duration-500 active:scale-[0.99]">
       <div className="aspect-square sm:aspect-[4/5] lg:aspect-[3/4] overflow-hidden relative bg-[oklch(0.97_0.004_75)]">
         <img
           src={getProductThumb(p.slug, p.image_url)}
@@ -311,10 +311,10 @@ function ProductCard({ p }: { p: any }) {
           className="absolute top-0 left-0 right-0 h-[3px] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] origin-left"
           style={{ background: "var(--gradient-gold-h)" }}
         />
-        {/* Quick-look label on hover (desktop) */}
-        <div className="absolute inset-x-0 bottom-0 py-4 px-5 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-400 lg:flex hidden items-center justify-center">
-          <span className="text-white text-[0.55rem] uppercase tracking-[0.26em] font-medium">
-            View Details
+        {/* Select Options label on hover (desktop) */}
+        <div className="absolute inset-x-0 bottom-0 py-4 px-5 bg-gradient-to-t from-black/65 via-black/25 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 lg:flex hidden items-center justify-center">
+          <span className="text-white text-[0.55rem] uppercase tracking-[0.26em] font-semibold">
+            Select Options
           </span>
         </div>
       </div>
@@ -502,7 +502,7 @@ function StatTile({ icon: Icon, stat, label }: { icon: React.ElementType; stat: 
 
 // ─── Hero trust row (uses CMS content) ───────────────────────────────────────
 
-function HeroTrustRow() {
+function HeroTrustRow({ dark = false }: { dark?: boolean }) {
   const { getContent } = useCms();
   const items = [
     { icon: ShieldCheck, key: "home.trust.gra",      fallback: "GRA Certified"   },
@@ -516,15 +516,15 @@ function HeroTrustRow() {
     >
       {items.map(({ icon: Icon, key, fallback }, i) => (
         <span key={key} className="flex items-center gap-5">
-          {i > 0 && <span className="hidden sm:block h-3 w-px bg-black/15" />}
+          {i > 0 && <span className={`hidden sm:block h-3 w-px ${dark ? "bg-white/15" : "bg-black/15"}`} />}
           <span className="flex items-center gap-1.5">
-            <Icon className="h-3 w-3 text-black/45" />
+            <Icon className={`h-3 w-3 ${dark ? "text-white/40" : "text-black/45"}`} />
             <EditableText
               contentKey={key}
               label={`Hero — Trust: ${fallback}`}
               defaultValue={fallback}
               tag="span"
-              className="text-[0.44rem] uppercase tracking-[0.16em] text-black/65 font-medium"
+              className={`text-[0.44rem] uppercase tracking-[0.16em] font-medium ${dark ? "text-white/55" : "text-black/65"}`}
             />
           </span>
         </span>
@@ -596,140 +596,132 @@ function Index() {
   return (
     <>
       {/* ════════════════════════════════════════════════════════
-          HERO — cinematic full-bleed photo + product browser dock
+          HERO — dark editorial image hero + product dock
       ════════════════════════════════════════════════════════ */}
       <section
-        className="flex flex-col overflow-hidden h-[90svh] sm:h-[75svh] lg:h-[85svh]"
-        style={{ minHeight: "580px" }}
+        className="flex flex-col overflow-hidden h-[calc(100svh-4rem)] md:h-[calc(100svh-5rem)] lg:h-[calc(100svh-6rem)]"
+        style={{ minHeight: "600px", maxHeight: "1020px" }}
       >
 
-        {/* ── Photo zone: fills all remaining height ─────────── */}
-        <div className="relative flex-1 min-h-0 overflow-hidden">
-          {images.heroVideo ? (
-            <video
-              src={images.heroVideo}
-              poster={images.hero}
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="auto"
-              className="absolute inset-0 h-full w-full object-cover object-center"
-            />
-          ) : (
-            <img
-              src={images.hero}
-              alt="VVS moissanite tennis jewelry — Qureshi Jewelers"
-              loading="eager"
-              decoding="sync"
-              fetchPriority="high"
-              className="absolute inset-0 h-full w-full object-cover object-center"
-            />
-          )}
+        {/* ── Full-bleed image zone ───────────────────────────── */}
+        <div className="relative flex-1 min-h-0 overflow-hidden bg-neutral-950">
 
-          {/* Frosted base — lifts the image slightly so white text layers read cleanly */}
-          <div className="absolute inset-0 bg-white/20" />
-          {/* Mobile overlay — covers ~80% of width solidly so stacked elements never bleed
-              into the transparent image zone on narrow viewports */}
-          <div
-            className="absolute inset-0 sm:hidden"
-            style={{ background: "linear-gradient(to right, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0.96) 58%, rgba(255,255,255,0.84) 76%, rgba(255,255,255,0.46) 90%, rgba(255,255,255,0.18) 100%)" }}
+          {/* Background image */}
+          <img
+            src={images.hero}
+            alt="VVS moissanite tennis jewelry — Qureshi Jewelers"
+            loading="eager"
+            decoding="sync"
+            fetchPriority="high"
+            className="absolute inset-0 h-full w-full object-cover object-center"
           />
-          {/* Desktop overlay — left-heavy: solid through ~40%, fades out by 86% */}
+
+          {/* ── Overlay system ───────────────────────────────────
+               Mobile : uniform dark scrim — text readable anywhere
+               Desktop: directional — solid left, clear right so
+                        jewelry stays visible through the photo
+          ────────────────────────────────────────────────────── */}
+          <div className="absolute inset-0 sm:hidden" style={{ background: "rgba(0,0,0,0.64)" }} />
           <div
             className="absolute inset-0 hidden sm:block"
-            style={{ background: "linear-gradient(to right, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0.94) 40%, rgba(255,255,255,0.65) 55%, rgba(255,255,255,0.22) 70%, transparent 86%)" }}
+            style={{ background: "linear-gradient(to right, rgba(0,0,0,0.93) 0%, rgba(0,0,0,0.86) 28%, rgba(0,0,0,0.55) 50%, rgba(0,0,0,0.18) 70%, rgba(0,0,0,0.04) 100%)" }}
           />
-          {/* Bottom gradient for dock transition */}
+          {/* Top + bottom polish vignette */}
           <div
             className="absolute inset-0"
-            style={{ background: "linear-gradient(to bottom, transparent 60%, rgba(255,255,255,0.60) 100%)" }}
+            style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.28) 0%, transparent 18%, transparent 68%, rgba(0,0,0,0.32) 100%)" }}
           />
 
-          {/* Editorial content */}
-          <div className="absolute inset-0 flex items-start sm:items-center px-6 sm:px-8 lg:px-14 xl:px-20 pt-[10svh] pb-[10svh] sm:py-0">
-            <div className="w-[78vw] sm:w-auto max-w-[78vw] sm:max-w-lg">
+          {/* ── Editorial content ─────────────────────────────── */}
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full px-6 sm:px-12 lg:px-20 xl:px-28">
+              <div className="w-[90vw] sm:w-auto sm:max-w-[560px] lg:max-w-[820px]">
 
-              {/* Eyebrow / certification micro-banner */}
-              <div className="flex items-center gap-3 mb-3 sm:mb-4 animate-fade-in" style={{ animationDelay: "0.1s" }}>
-                <div className="h-px w-6 shrink-0" style={{ background: "linear-gradient(to right, oklch(0.60 0.092 68), transparent)" }} />
-                <EditableText
-                  contentKey="home.hero.badge"
-                  label="Hero — Certification Badge"
-                  defaultValue="VVS1 · D Color · GRA Certified"
-                  tag="span"
-                  className="text-[0.44rem] uppercase tracking-[0.40em] text-black/70 font-semibold"
-                />
-              </div>
-
-              {/* Headline — 2 lines guaranteed (whitespace-nowrap + safe clamp for Cormorant Garamond).
-                  Deliberately not a ch-based max-width: with a fixed 2-line marketing headline,
-                  hard-splitting + clamp() guarantees the exact break point at every viewport —
-                  a ch-width wrap point can't promise that and risks an orphaned word. */}
-              <h1 className="font-display leading-[0.90] mb-4 sm:mb-5">
-                <EditableText
-                  contentKey="home.hero.headline_line1"
-                  label="Hero — Headline Line 1"
-                  defaultValue="The World's Most"
-                  tag="span"
-                  className="block text-black animate-fade-up sm:whitespace-nowrap"
-                  style={{ fontSize: "clamp(2.1rem, 8vw, 5rem)", animationDelay: "0.26s" }}
-                />
-                <EditableText
-                  contentKey="home.hero.headline_line2"
-                  label="Hero — Headline Line 2"
-                  defaultValue="Brilliant Gemstone."
-                  tag="span"
-                  className="block text-black animate-fade-up sm:whitespace-nowrap"
-                  style={{ fontSize: "clamp(2.1rem, 8vw, 5rem)", animationDelay: "0.40s" }}
-                />
-              </h1>
-
-              {/* Description — 2 lines on mobile to keep hero compact. max-w caps line length to ~45ch. */}
-              <p
-                className="text-black/72 text-[0.79rem] leading-[1.70] max-w-[32ch] sm:max-w-[380px] mb-6 sm:mb-7 animate-fade-up line-clamp-3 sm:line-clamp-none"
-                style={{ animationDelay: "0.50s" }}
-              >
-                <EditableText
-                  contentKey="home.hero.subheadline"
-                  label="Hero — Subheadline"
-                  defaultValue="D Colorless moissanite with more fire than diamond — hand-set in 18K gold-plated sterling silver. Every piece independently GRA certified."
-                  tag="span"
-                />
-              </p>
-
-              {/* CTAs */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-5 animate-fade-up" style={{ animationDelay: "0.62s" }}>
-                <Link
-                  to="/shop"
-                  className="group relative overflow-hidden bg-black text-white px-8 sm:px-9 py-3.5 sm:py-3.5 text-[0.57rem] uppercase tracking-[0.26em] font-semibold transition-all duration-300 shadow-[0_4px_18px_rgba(0,0,0,0.14)] hover:shadow-[inset_0_0_0_1px_oklch(0.60_0.092_68),0_4px_18px_rgba(0,0,0,0.14)]"
-                >
-                  <span className="relative z-10 flex items-center gap-2">
-                    Shop Collection
-                    <ArrowRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-1" />
+                {/* Eyebrow */}
+                <div className="flex items-center gap-3 mb-3 sm:mb-4 animate-fade-in" style={{ animationDelay: "0s" }}>
+                  <span className="h-px w-8 shrink-0" style={{ background: "linear-gradient(to right, transparent, oklch(0.82 0.14 82))" }} />
+                  <span className="text-[0.52rem] sm:text-[0.55rem] uppercase tracking-[0.36em] font-semibold whitespace-nowrap" style={{ color: "oklch(0.84 0.14 82)" }}>
+                    VVS1 · D Color · GRA Certified
                   </span>
-                  <div className="absolute inset-0 translate-x-[-110%] group-hover:translate-x-[110%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                </Link>
-                {/* Editorial text link, not a ghost button — a light border on this background
-                    reads as invisible/disabled, an underline + arrow reads as intentional. */}
-                <Link
-                  to="/moissanite-guide"
-                  className="group flex items-center gap-1.5 text-black/70 text-[0.57rem] uppercase tracking-[0.26em] font-medium transition-colors duration-300 hover:text-black"
-                >
-                  <span className="border-b border-black/30 pb-0.5 transition-colors duration-300 group-hover:border-black/70">
-                    Our Stone
-                  </span>
-                  <ArrowRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-1" />
-                </Link>
-              </div>
+                  <span className="h-px w-8 shrink-0" style={{ background: "linear-gradient(to left, transparent, oklch(0.82 0.14 82))" }} />
+                </div>
 
-              {/* Trust row — hidden on mobile to keep hero height compact */}
-              <HeroTrustRow />
+                {/* Headline — 2 lines max, all white, sm:whitespace-nowrap prevents 3rd line */}
+                <h1 className="font-display leading-[0.90] mb-4 sm:mb-5" style={{ letterSpacing: "-0.01em" }}>
+                  <EditableText
+                    contentKey="home.hero.headline_line1"
+                    label="Hero — Headline Line 1"
+                    defaultValue="Crafted to Outshine"
+                    tag="span"
+                    className="block text-white animate-fade-up sm:whitespace-nowrap"
+                    style={{ fontSize: "clamp(2.8rem, 6.5vw, 5.2rem)", animationDelay: "0.14s", textShadow: "0 2px 24px rgba(0,0,0,0.60)" }}
+                  />
+                  <EditableText
+                    contentKey="home.hero.headline_line2"
+                    label="Hero — Headline Line 2"
+                    defaultValue="Every Diamond."
+                    tag="span"
+                    className="block text-white animate-fade-up sm:whitespace-nowrap"
+                    style={{ fontSize: "clamp(2.8rem, 6.5vw, 5.2rem)", animationDelay: "0.24s", textShadow: "0 2px 24px rgba(0,0,0,0.60)" }}
+                  />
+                </h1>
+
+                {/* Subheadline */}
+                <p
+                  className="text-white text-[0.88rem] sm:text-[0.94rem] leading-[1.82] mb-5 sm:mb-6 animate-fade-up"
+                  style={{ animationDelay: "0.36s", maxWidth: "52ch", textShadow: "0 1px 12px rgba(0,0,0,0.55)" }}
+                >
+                  More brilliance than any diamond — VVS clarity, GRA certified, hand-set in 5× 18K gold-plated sterling silver. Starting from $59.
+                </p>
+
+                {/* CTAs */}
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-5 sm:mb-7 animate-fade-up" style={{ animationDelay: "0.46s" }}>
+                  <Link
+                    to="/shop"
+                    className="group relative overflow-hidden inline-flex items-center justify-center gap-2.5 bg-white text-black px-8 sm:px-10 py-[13px] sm:py-[14px] text-[0.60rem] uppercase tracking-[0.22em] font-black transition-colors duration-300 hover:bg-[oklch(0.96_0.020_82)]"
+                    style={{ boxShadow: "0 6px 36px rgba(0,0,0,0.50), 0 0 0 1px rgba(255,255,255,0.10)" }}
+                  >
+                    <span className="relative z-10 flex items-center gap-2.5">
+                      Shop the Collection
+                      <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1.5" />
+                    </span>
+                    <div className="absolute inset-0 translate-x-[-110%] group-hover:translate-x-[110%] transition-transform duration-700 bg-gradient-to-r from-transparent via-black/5 to-transparent" />
+                  </Link>
+                  <Link
+                    to="/moissanite-guide"
+                    className="group inline-flex items-center justify-center gap-2.5 text-white/82 px-8 sm:px-10 py-[13px] sm:py-[14px] text-[0.60rem] uppercase tracking-[0.22em] font-semibold transition-all duration-300 hover:text-white hover:bg-white/10"
+                    style={{ border: "1px solid rgba(255,255,255,0.24)", backdropFilter: "blur(4px)" }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.50)")}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.24)")}
+                  >
+                    Our Story
+                    <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1.5" />
+                  </Link>
+                </div>
+
+                {/* Trust row */}
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2.5 animate-fade-in" style={{ animationDelay: "0.58s" }}>
+                  {[
+                    { icon: ShieldCheck, text: "GRA Certified"   },
+                    { icon: Gem,         text: "VVS1 · D Color"  },
+                    { icon: Truck,       text: "Free US Shipping" },
+                  ].map(({ icon: TrustIcon, text }, i) => (
+                    <span key={i} className="flex items-center gap-2">
+                      {i > 0 && <span className="hidden sm:block w-px h-3.5 mr-1" style={{ background: "rgba(255,255,255,0.25)" }} />}
+                      <TrustIcon className="h-3.5 w-3.5 shrink-0 text-white" />
+                      <span className="text-[0.58rem] sm:text-[0.60rem] uppercase tracking-[0.18em] font-semibold text-white whitespace-nowrap">
+                        {text}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+
+              </div>
             </div>
           </div>
         </div>
 
-        {/* ── Product browser dock ──────────────────────────── */}
+        {/* ── Product browser dock — light ─────────────────── */}
         <div
           className="flex-shrink-0 bg-background border-t border-border"
           onMouseEnter={() => setIsDockPaused(true)}
@@ -749,7 +741,7 @@ function Index() {
                 <button
                   key={t.key}
                   onClick={() => setHeroType(t.key)}
-                  className={`px-4 lg:px-5 py-3.5 text-[0.52rem] uppercase tracking-[0.14em] shrink-0 relative transition-colors duration-200 whitespace-nowrap ${
+                  className={`px-4 lg:px-5 py-2.5 text-[0.52rem] uppercase tracking-[0.14em] shrink-0 relative transition-colors duration-200 whitespace-nowrap ${
                     heroType === t.key ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -772,17 +764,17 @@ function Index() {
 
           {/* Product infinite belt */}
           <div
-            className="overflow-hidden py-4"
+            className="overflow-hidden py-3"
             style={{
-              maskImage: "linear-gradient(to right, transparent, black 5%, black 95%, transparent)",
-              WebkitMaskImage: "linear-gradient(to right, transparent, black 5%, black 95%, transparent)",
+              maskImage: "linear-gradient(to right, transparent, black 4%, black 96%, transparent)",
+              WebkitMaskImage: "linear-gradient(to right, transparent, black 4%, black 96%, transparent)",
             }}
           >
             <div
               key={heroType}
-              className="flex gap-3 lg:gap-4"
               style={{
                 display: "inline-flex",
+                gap: "12px",
                 animation: `marquee ${beltDuration}s linear infinite`,
                 animationPlayState: isDockPaused ? "paused" : "running",
                 willChange: "transform",
@@ -791,8 +783,8 @@ function Index() {
               {[0, 1].flatMap(copyIdx =>
                 isLoading
                   ? [...Array(10)].map((_, i) => (
-                      <div key={`skel-${copyIdx}-${i}`} className="shrink-0 w-[160px] animate-pulse">
-                        <div className="w-[160px] h-[192px] bg-[oklch(0.96_0.004_78)] mb-2" />
+                      <div key={`skel-${copyIdx}-${i}`} className="shrink-0 w-[130px] sm:w-[150px] animate-pulse">
+                        <div className="w-[130px] sm:w-[150px] h-[152px] sm:h-[168px] bg-[oklch(0.96_0.004_78)] mb-2" />
                         <div className="h-1.5 bg-[oklch(0.95_0.004_78)] w-4/5 mb-1.5" />
                         <div className="h-1.5 bg-[oklch(0.95_0.004_78)] w-1/2" />
                       </div>
@@ -802,11 +794,11 @@ function Index() {
                         key={`${copyIdx}-${p.id}`}
                         to="/product/$slug"
                         params={{ slug: p.slug }}
-                        className="shrink-0 group w-[160px]"
+                        className="shrink-0 group w-[130px] sm:w-[150px]"
                         tabIndex={copyIdx === 1 ? -1 : undefined}
                         aria-hidden={copyIdx === 1 ? true : undefined}
                       >
-                        <div className="w-[160px] h-[192px] overflow-hidden bg-[oklch(0.97_0.004_75)] mb-2 relative">
+                        <div className="w-[130px] sm:w-[150px] h-[152px] sm:h-[168px] overflow-hidden bg-[oklch(0.97_0.004_75)] mb-2 relative">
                           <img
                             src={getProductThumb(p.slug, p.image_url)}
                             alt={p.name}
@@ -817,6 +809,9 @@ function Index() {
                             className="absolute top-0 left-0 right-0 h-[2px] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"
                             style={{ background: "var(--gradient-gold-h)" }}
                           />
+                          <div className="absolute inset-x-0 bottom-0 py-2.5 bg-gradient-to-t from-black/65 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden lg:flex items-center justify-center">
+                            <span className="text-white text-[0.44rem] uppercase tracking-[0.22em] font-semibold">Select Options</span>
+                          </div>
                         </div>
                         <p className="text-[0.50rem] font-medium text-foreground truncate mb-0.5 leading-tight">{p.name}</p>
                         <p className="text-[0.46rem] text-muted-foreground">

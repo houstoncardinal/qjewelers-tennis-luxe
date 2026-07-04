@@ -4,7 +4,7 @@ import {
   LayoutDashboard, ShoppingBag, Package, LogOut, Store, ChevronRight,
   Menu, X, BarChart2, Users, RotateCcw, Tag, Settings, Gem,
   ArrowUpRight, Star, Mail, Lock, ShieldCheck,
-  ClipboardList, ArrowLeft, FileText, MoreHorizontal, ShoppingCart,
+  ClipboardList, ArrowLeft, FileText, MoreHorizontal, ShoppingCart, Sparkles,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -889,7 +889,8 @@ const NAV_SECTIONS = [
   {
     label: "Site",
     items: [
-      { icon: FileText, label: "Content", to: "/admin/content" },
+      { icon: FileText,  label: "Content",     to: "/admin/content" },
+      { icon: Sparkles,  label: "Creator Hub", to: "/admin/creator" },
     ],
   },
   {
@@ -1173,45 +1174,82 @@ function AdminSidebar({ onLogout, onClose }: { onLogout: () => void; onClose?: (
 
 function MobileTopBar() {
   const { theme } = useAdminTheme();
+  const s = theme.sidebar;
   const router = useRouterState();
   const path = router.location.pathname;
 
-  const allNavItems = NAV_SECTIONS.flatMap(s => s.items);
+  const allNavItems = NAV_SECTIONS.flatMap(sec => sec.items);
   const activeNav = allNavItems.find((n: any) =>
-    (n as any).exact
-      ? (path === "/admin" || path === "/admin/")
-      : path.startsWith((n as any).to)
+    n.exact ? (path === "/admin" || path === "/admin/") : path.startsWith(n.to)
   );
+  const activeSection = NAV_SECTIONS.find(sec =>
+    sec.items.some((n: any) =>
+      n.exact ? (path === "/admin" || path === "/admin/") : path.startsWith(n.to)
+    )
+  );
+  const ActiveIcon = activeNav?.icon;
 
   return (
     <header
-      className="lg:hidden fixed top-0 left-0 right-0 h-11 flex items-center px-4 z-30"
+      className="lg:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between"
       style={{
-        background: theme.mobileBar.bg,
-        borderBottom: theme.mobileBar.borderBottom,
+        height: 54,
+        paddingLeft: 16,
+        paddingRight: 16,
+        background: s.bg,
+        borderBottom: `1px solid ${s.dividerColor}`,
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
         transition: "background 0.4s ease",
       }}
     >
+      {/* Brand mark */}
       <div className="flex items-center gap-2.5">
         <div
-          className="w-7 h-7 flex items-center justify-center shrink-0"
+          className="relative flex items-center justify-center shrink-0"
           style={{
-            background: theme.sidebar.brandBg,
-            border: `1px solid ${theme.sidebar.brandBorder}`,
-            borderRadius: "7px",
+            width: 34, height: 34,
+            background: s.brandBg,
+            border: `1px solid ${s.brandBorder}`,
+            borderRadius: 9,
+            boxShadow: s.brandBoxShadow,
           }}
         >
-          <Gem className="h-3.5 w-3.5" style={{ color: theme.sidebar.brandIconColor }} />
+          <Gem className="h-[15px] w-[15px]" style={{ color: s.brandIconColor }} />
+          <span
+            className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border-2"
+            style={{ background: s.statusDotColor, borderColor: "transparent" }}
+          />
         </div>
-        <div className="w-px h-4 mx-0.5" style={{ background: theme.sidebar.dividerColor }} />
-        {activeNav ? (
-          <span className="text-[0.72rem] font-semibold tracking-tight" style={{ color: theme.sidebar.navActiveColor }}>
+        <div>
+          <p className="text-[0.66rem] font-bold leading-none tracking-tight" style={{ color: s.brandTextColor }}>
+            Qureshi Jewelers
+          </p>
+          <p className="text-[0.40rem] uppercase tracking-[0.26em] mt-0.5" style={{ color: s.brandSubColor }}>
+            {activeSection?.label ?? "Admin Console"}
+          </p>
+        </div>
+      </div>
+
+      {/* Active page chip */}
+      {activeNav && ActiveIcon && (
+        <div
+          className="flex items-center gap-1.5 px-3 py-1.5"
+          style={{
+            background: s.navActiveBg,
+            borderRadius: 8,
+            border: `1px solid ${s.dividerColor}`,
+          }}
+        >
+          <ActiveIcon className="h-3 w-3 shrink-0" style={{ color: s.navIconActive }} />
+          <span
+            className="text-[0.55rem] uppercase tracking-[0.14em] font-semibold"
+            style={{ color: s.navActiveColor }}
+          >
             {activeNav.label}
           </span>
-        ) : (
-          <span className="text-[0.65rem] font-medium" style={{ color: theme.sidebar.navInactiveColor }}>Qureshi Jewelers</span>
-        )}
-      </div>
+        </div>
+      )}
     </header>
   );
 }
@@ -1219,22 +1257,47 @@ function MobileTopBar() {
 // ─── Mobile Bottom Nav ───────────────────────────────────────────────────────
 
 const BOTTOM_NAV_PRIMARY = [
-  { icon: LayoutDashboard, label: "Home",      to: "/admin/",          exact: true },
-  { icon: ShoppingBag,     label: "Orders",    to: "/admin/orders" },
-  { icon: Package,         label: "Products",  to: "/admin/products" },
-  { icon: BarChart2,       label: "Analytics", to: "/admin/analytics" },
+  { icon: LayoutDashboard, label: "Home",     to: "/admin/",        exact: true },
+  { icon: ShoppingBag,     label: "Orders",   to: "/admin/orders" },
+  { icon: Package,         label: "Products", to: "/admin/products" },
+  { icon: Sparkles,        label: "Creator",  to: "/admin/creator" },
 ];
 
-const MORE_NAV_ITEMS = [
-  { icon: RotateCcw,    label: "Returns",         to: "/admin/returns" },
-  { icon: Users,        label: "Customers",       to: "/admin/customers" },
-  { icon: ShoppingCart, label: "Abandoned Carts", to: "/admin/abandoned-carts" },
-  { icon: Mail,         label: "Inner Circle",    to: "/admin/subscribers" },
-  { icon: Tag,          label: "Promotions",      to: "/admin/promotions" },
-  { icon: Star,         label: "Reviews",         to: "/admin/reviews" },
-  { icon: FileText,     label: "Content",         to: "/admin/content" },
-  { icon: Settings,     label: "Settings",        to: "/admin/settings" },
+// Sectioned structure for the More sheet
+const MORE_SECTIONS = [
+  {
+    label: "Store",
+    items: [
+      { icon: BarChart2,    label: "Analytics",      to: "/admin/analytics" },
+    ],
+  },
+  {
+    label: "Operations",
+    items: [
+      { icon: RotateCcw,    label: "Returns",         to: "/admin/returns" },
+      { icon: Users,        label: "Customers",       to: "/admin/customers" },
+      { icon: ShoppingCart, label: "Abandoned Carts", to: "/admin/abandoned-carts" },
+      { icon: Mail,         label: "Inner Circle",    to: "/admin/subscribers" },
+    ],
+  },
+  {
+    label: "Catalog",
+    items: [
+      { icon: Tag,          label: "Promotions",      to: "/admin/promotions" },
+      { icon: Star,         label: "Reviews",         to: "/admin/reviews" },
+    ],
+  },
+  {
+    label: "Site",
+    items: [
+      { icon: FileText,     label: "Content",         to: "/admin/content" },
+      { icon: Settings,     label: "Settings",        to: "/admin/settings" },
+    ],
+  },
 ];
+
+// Flat list for "is more active" check
+const MORE_NAV_ITEMS = MORE_SECTIONS.flatMap(s => s.items);
 
 function MobileMoreSheet({
   open, onClose, onLogout,
@@ -1249,77 +1312,138 @@ function MobileMoreSheet({
   if (!open) return null;
   return (
     <>
+      {/* Backdrop */}
       <div
         className="fixed inset-0 z-40 lg:hidden"
-        style={{ background: "rgba(0,0,0,0.60)", backdropFilter: "blur(6px)" }}
+        style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
         onClick={onClose}
       />
+
+      {/* Sheet */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-50 lg:hidden rounded-t-2xl overflow-hidden"
-        style={{ background: s.bg, border: `1px solid ${s.dividerColor}`, borderBottom: "none" }}
+        className="fixed bottom-0 left-0 right-0 z-50 lg:hidden overflow-hidden"
+        style={{
+          background: s.bg,
+          borderTop: `1px solid ${s.dividerColor}`,
+          borderRadius: "20px 20px 0 0",
+          boxShadow: "0 -16px 60px rgba(0,0,0,0.55)",
+          paddingBottom: "env(safe-area-inset-bottom, 12px)",
+        }}
       >
-        {/* Sheet handle */}
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full" style={{ background: s.dividerColor }} />
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-2.5">
+          <div className="w-9 h-1" style={{ background: s.dividerColor, borderRadius: 99 }} />
         </div>
 
-        {/* Section label */}
-        <p className="px-5 py-2 text-[0.47rem] uppercase tracking-[0.32em] font-bold" style={{ color: s.sectionLabelColor }}>
-          More
-        </p>
+        {/* Header row */}
+        <div className="flex items-center justify-between px-5 pb-3" style={{ borderBottom: `1px solid ${s.dividerColor}` }}>
+          <p className="text-[0.50rem] uppercase tracking-[0.30em] font-bold" style={{ color: s.sectionLabelColor }}>
+            Navigation
+          </p>
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center w-6 h-6"
+            style={{ color: s.navInactiveColor }}
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
 
-        {/* Grid of nav items */}
-        <div className="grid grid-cols-4 gap-1 px-3 pb-2">
-          {MORE_NAV_ITEMS.map(({ icon: Icon, label, to }) => {
-            const active = isActive(to);
-            return (
-              <Link
-                key={to}
-                to={to as any}
-                onClick={onClose}
-                className="flex flex-col items-center gap-1.5 py-3.5 px-1 rounded-xl transition-all active:scale-95"
-                style={{
-                  background: active ? s.navActiveBg : "transparent",
-                }}
+        {/* Sectioned grid */}
+        <div className="px-4 pt-3 pb-1 space-y-4 max-h-[70vh] overflow-y-auto">
+          {MORE_SECTIONS.map(({ label: sectionLabel, items }) => (
+            <div key={sectionLabel}>
+              <p
+                className="text-[0.40rem] uppercase tracking-[0.36em] font-bold mb-2 px-1"
+                style={{ color: s.sectionLabelColor }}
               >
-                <Icon
-                  className="h-5 w-5 shrink-0"
-                  style={{
-                    color: active ? s.navIconActive : s.navIconInactive,
-                    filter: active ? `drop-shadow(0 0 5px ${s.navIconActive}80)` : "none",
-                  }}
-                />
-                <span
-                  className="text-[0.52rem] uppercase tracking-[0.10em] text-center leading-tight"
-                  style={{ color: active ? s.navActiveColor : s.navInactiveColor, fontWeight: active ? 600 : 400 }}
-                >
-                  {label}
-                </span>
-              </Link>
-            );
-          })}
+                {sectionLabel}
+              </p>
+              <div className="grid grid-cols-4 gap-1.5">
+                {items.map(({ icon: Icon, label, to }) => {
+                  const active = isActive(to);
+                  return (
+                    <Link
+                      key={to}
+                      to={to as any}
+                      onClick={onClose}
+                      className="flex flex-col items-center gap-1.5 py-3 px-1 transition-all active:scale-90"
+                      style={{
+                        borderRadius: 12,
+                        background: active ? s.navActiveBg : s.navHoverBg,
+                        border: active ? `1px solid ${s.dividerColor}` : "1px solid transparent",
+                      }}
+                    >
+                      <div
+                        className="flex items-center justify-center"
+                        style={{
+                          width: 32, height: 32, borderRadius: 9,
+                          background: active ? "transparent" : "transparent",
+                        }}
+                      >
+                        <Icon
+                          className="h-[18px] w-[18px] shrink-0"
+                          style={{
+                            color: active ? s.navIconActive : s.navIconInactive,
+                            filter: active ? `drop-shadow(0 0 5px ${s.navIconActive}80)` : "none",
+                          }}
+                        />
+                      </div>
+                      <span
+                        className="text-[0.46rem] uppercase tracking-[0.08em] text-center leading-tight"
+                        style={{
+                          color: active ? s.navActiveColor : s.navInactiveColor,
+                          fontWeight: active ? 700 : 400,
+                        }}
+                      >
+                        {label}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Divider */}
-        <div className="mx-5 mb-2" style={{ height: 1, background: s.dividerColor }} />
+        <div className="mx-5 my-3" style={{ height: 1, background: s.dividerColor }} />
 
-        {/* Bottom actions */}
-        <div className="flex px-3 pb-6 gap-2">
+        {/* Store + Sign Out row */}
+        <div className="flex px-4 pb-2 gap-2.5">
           <Link
             to="/"
             onClick={onClose}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[0.62rem] uppercase tracking-[0.10em] transition-all active:scale-95"
-            style={{ background: s.navHoverBg, color: s.bottomLinkColor }}
+            className="flex-1 flex items-center justify-center gap-2 transition-all active:scale-95"
+            style={{
+              height: 46, borderRadius: 12,
+              background: s.navHoverBg,
+              border: `1px solid ${s.dividerColor}`,
+              color: s.bottomLinkColor,
+              fontSize: "0.58rem",
+              textTransform: "uppercase",
+              letterSpacing: "0.12em",
+              fontWeight: 600,
+            }}
           >
-            <Store className="h-4 w-4" />
+            <Store className="h-3.5 w-3.5 shrink-0" />
             View Store
           </Link>
           <button
             onClick={() => { onClose(); onLogout(); }}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[0.62rem] uppercase tracking-[0.10em] transition-all active:scale-95"
-            style={{ background: "rgba(239,68,68,0.10)", color: s.logoutHoverColor }}
+            className="flex-1 flex items-center justify-center gap-2 transition-all active:scale-95"
+            style={{
+              height: 46, borderRadius: 12,
+              background: "rgba(239,68,68,0.08)",
+              border: "1px solid rgba(239,68,68,0.15)",
+              color: s.logoutHoverColor,
+              fontSize: "0.58rem",
+              textTransform: "uppercase",
+              letterSpacing: "0.12em",
+              fontWeight: 600,
+            }}
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut className="h-3.5 w-3.5 shrink-0" />
             Sign Out
           </button>
         </div>
@@ -1345,81 +1469,113 @@ function MobileBottomNav({ onLogout }: { onLogout: () => void }) {
       <MobileMoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} onLogout={onLogout} />
 
       <nav
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 flex items-stretch"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-30"
         style={{
           background: s.bg,
           borderTop: `1px solid ${s.dividerColor}`,
-          boxShadow: "0 -8px 32px rgba(0,0,0,0.40)",
+          boxShadow: "0 -12px 40px rgba(0,0,0,0.50)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
         }}
       >
-        {BOTTOM_NAV_PRIMARY.map(({ icon: Icon, label, to, exact }) => {
-          const active = isActive(to, exact);
-          return (
-            <Link
-              key={to}
-              to={to as any}
-              className="flex-1 flex flex-col items-center justify-center gap-1 py-2.5 transition-all active:scale-90 relative"
-              style={{ minHeight: 56 }}
-            >
-              {active && (
+        {/* Inner flex row with generous padding */}
+        <div className="flex items-end px-1 pt-2 pb-2">
+          {BOTTOM_NAV_PRIMARY.map(({ icon: Icon, label, to, exact }: any) => {
+            const active = isActive(to, exact);
+            return (
+              <Link
+                key={to}
+                to={to as any}
+                className="flex-1 flex flex-col items-center justify-center transition-all active:scale-90"
+                style={{ minHeight: 52, gap: active ? 4 : 5 }}
+              >
+                {/* Icon container — pill when active */}
+                <div
+                  className="flex items-center justify-center transition-all"
+                  style={{
+                    width: active ? 52 : 36,
+                    height: 28,
+                    borderRadius: 14,
+                    background: active ? s.navActiveBg : "transparent",
+                    transition: "width 0.22s cubic-bezier(0.34,1.56,0.64,1), background 0.18s ease",
+                  }}
+                >
+                  <Icon
+                    className="shrink-0 transition-all"
+                    style={{
+                      width: active ? 19 : 18,
+                      height: active ? 19 : 18,
+                      color: active ? s.navIconActive : s.navIconInactive,
+                      filter: active ? `drop-shadow(0 0 5px ${s.navIconActive}80)` : "none",
+                      transition: "color 0.18s ease, filter 0.18s ease",
+                    }}
+                  />
+                </div>
+                {/* Label */}
                 <span
-                  className="absolute top-0 left-[20%] right-[20%] h-[2px] rounded-full"
-                  style={{ background: s.activeBarBg, boxShadow: s.activeBarShadow }}
-                />
-              )}
-              <Icon
-                className="h-[20px] w-[20px] shrink-0 transition-all"
+                  className="transition-all"
+                  style={{
+                    fontSize: "0.46rem",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.10em",
+                    lineHeight: 1,
+                    color: active ? s.navActiveColor : s.navInactiveColor,
+                    fontWeight: active ? 700 : 400,
+                    textShadow: active ? `0 0 10px ${s.navIconActive}60` : "none",
+                    transition: "color 0.18s ease, text-shadow 0.18s ease, font-weight 0s",
+                  }}
+                >
+                  {label}
+                </span>
+              </Link>
+            );
+          })}
+
+          {/* More tab */}
+          <button
+            onClick={() => setMoreOpen(true)}
+            className="flex-1 flex flex-col items-center justify-center transition-all active:scale-90"
+            style={{ minHeight: 52, gap: moreIsActive ? 4 : 5 }}
+          >
+            <div
+              className="flex items-center justify-center transition-all"
+              style={{
+                width: moreIsActive ? 52 : 36,
+                height: 28,
+                borderRadius: 14,
+                background: moreIsActive ? s.navActiveBg : "transparent",
+                transition: "width 0.22s cubic-bezier(0.34,1.56,0.64,1), background 0.18s ease",
+              }}
+            >
+              <MoreHorizontal
+                className="shrink-0 transition-all"
                 style={{
-                  color: active ? s.navIconActive : s.navIconInactive,
-                  filter: active ? `drop-shadow(0 0 6px ${s.navIconActive}90)` : "none",
-                  transform: active ? "scale(1.12)" : "scale(1)",
+                  width: moreIsActive ? 19 : 18,
+                  height: moreIsActive ? 19 : 18,
+                  color: moreIsActive ? s.navIconActive : s.navIconInactive,
+                  filter: moreIsActive ? `drop-shadow(0 0 5px ${s.navIconActive}80)` : "none",
+                  transition: "color 0.18s ease, filter 0.18s ease",
                 }}
               />
-              <span
-                className="text-[0.48rem] uppercase tracking-[0.10em] transition-all"
-                style={{
-                  color: active ? s.navActiveColor : s.navInactiveColor,
-                  fontWeight: active ? 700 : 400,
-                  textShadow: active ? `0 0 10px ${s.navIconActive}70` : "none",
-                }}
-              >
-                {label}
-              </span>
-            </Link>
-          );
-        })}
-
-        {/* More tab */}
-        <button
-          onClick={() => setMoreOpen(true)}
-          className="flex-1 flex flex-col items-center justify-center gap-1 py-2.5 transition-all active:scale-90 relative"
-          style={{ minHeight: 56 }}
-        >
-          {moreIsActive && (
+            </div>
             <span
-              className="absolute top-0 left-[20%] right-[20%] h-[2px] rounded-full"
-              style={{ background: s.activeBarBg, boxShadow: s.activeBarShadow }}
-            />
-          )}
-          <MoreHorizontal
-            className="h-[20px] w-[20px] shrink-0 transition-all"
-            style={{
-              color: moreIsActive ? s.navIconActive : s.navIconInactive,
-              filter: moreIsActive ? `drop-shadow(0 0 6px ${s.navIconActive}90)` : "none",
-            }}
-          />
-          <span
-            className="text-[0.48rem] uppercase tracking-[0.10em]"
-            style={{
-              color: moreIsActive ? s.navActiveColor : s.navInactiveColor,
-              fontWeight: moreIsActive ? 700 : 400,
-              textShadow: moreIsActive ? `0 0 10px ${s.navIconActive}70` : "none",
-            }}
-          >
-            More
-          </span>
-        </button>
+              className="transition-all"
+              style={{
+                fontSize: "0.46rem",
+                textTransform: "uppercase",
+                letterSpacing: "0.10em",
+                lineHeight: 1,
+                color: moreIsActive ? s.navActiveColor : s.navInactiveColor,
+                fontWeight: moreIsActive ? 700 : 400,
+                textShadow: moreIsActive ? `0 0 10px ${s.navIconActive}60` : "none",
+                transition: "color 0.18s ease, text-shadow 0.18s ease",
+              }}
+            >
+              More
+            </span>
+          </button>
+        </div>
       </nav>
     </>
   );
@@ -1490,7 +1646,7 @@ function AdminRoot() {
 
           {/* Main content */}
           <main
-            className="lg:ml-[220px] min-h-screen pt-11 pb-20 lg:pt-0 lg:pb-0 overflow-auto"
+            className="lg:ml-[220px] min-h-screen pt-[54px] pb-24 lg:pt-0 lg:pb-0 overflow-auto"
             style={{ background: "transparent", transition: "background 0.4s ease" }}
           >
             <Outlet />

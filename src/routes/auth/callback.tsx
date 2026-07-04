@@ -12,23 +12,37 @@ function AuthCallback() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Supabase JS automatically exchanges the ?code= PKCE token when the client
-    // initialises on this page. We just wait for the session event then redirect.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        navigate({ to: "/account", replace: true });
-      }
-    });
+    const finish = () => navigate({ to: "/account", replace: true });
 
-    // If a session already exists (e.g. user navigates here directly), redirect now.
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/account", replace: true });
-    });
+    // Explicitly exchange the PKCE code that Supabase put in the URL.
+    // This is more reliable than waiting for onAuthStateChange on first load.
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
 
-    // Safety fallback — redirect regardless after 6 s
-    const t = setTimeout(() => navigate({ to: "/account", replace: true }), 6000);
+    if (code) {
+      supabase.auth
+        .exchangeCodeForSession(code)
+        .then(({ error }) => {
+          if (!error) finish();
+          else {
+            // Exchange failed — try to recover via existing session
+            supabase.auth.getSession().then(({ data }) => {
+              if (data.session) finish();
+              else finish(); // redirect to /account anyway (will show sign-in)
+            });
+          }
+        });
+    } else {
+      // No code in URL — check for an already-established session
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session) finish();
+        // else fall through to the safety timeout
+      });
+    }
 
-    return () => { subscription.unsubscribe(); clearTimeout(t); };
+    // Safety fallback — if nothing works after 6 s, send to /account
+    const t = setTimeout(finish, 6000);
+    return () => clearTimeout(t);
   }, []);
 
   return (

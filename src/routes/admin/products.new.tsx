@@ -375,6 +375,8 @@ function AdminNewProduct() {
   const [galleryFolder, setGalleryFolder] = useState("all");
   const [gallerySearch, setGallerySearch] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Import-time color images (populated from sessionStorage when coming from import modal)
+  const [importColorImages, setImportColorImages] = useState<Record<string, string> | undefined>();
   // Catalog
   const [isFeatured,  setIsFeatured]  = useState(false);
   const [isActive,    setIsActive]    = useState(true);
@@ -423,6 +425,7 @@ function AdminNewProduct() {
         detectedType?: string | null; detectedColors?: string[];
         detectedSizes?: string[]; detectedLengths?: string[];
         suggestedTags?: string[]; suggestedPrice?: number | null;
+        colorImages?: Record<string, string>;
       };
       if (imp.name) setName(imp.name);
 
@@ -483,6 +486,11 @@ function AdminNewProduct() {
       // Auto-fill tags and suggested price from import intelligence.
       if (imp.suggestedTags && imp.suggestedTags.length > 0) setTags(imp.suggestedTags);
       if (imp.suggestedPrice) setBasePrice(String(imp.suggestedPrice));
+
+      // Color-variation images from import (rehosted supplier variation thumbnails)
+      if (imp.colorImages && Object.keys(imp.colorImages).length > 0) {
+        setImportColorImages(imp.colorImages);
+      }
     } catch {}
   }, []);
 
@@ -597,6 +605,7 @@ function AdminNewProduct() {
           is_featured: isFeatured,
           is_active: isActive,
           sort_order: Number(sortOrder) || 999,
+          color_images: importColorImages,
         },
       });
       const newSlug = (result as any)?.product?.slug ?? slug.trim();

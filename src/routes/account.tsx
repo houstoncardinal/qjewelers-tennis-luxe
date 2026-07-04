@@ -3,11 +3,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getOrdersByEmail } from "@/lib/admin-extended.functions";
-import { signUpUser, createPaymentPortalSession } from "@/lib/customer.functions";
+import { signUpUser, createPaymentPortalSession, updateProfile } from "@/lib/customer.functions";
 import { toast } from "sonner";
 import {
   LogOut, ShoppingBag, User, ArrowRight, Loader2,
   Eye, EyeOff, Heart, MapPin, Package, CreditCard,
+  Phone, Save, ChevronRight, Pencil, X,
 } from "lucide-react";
 import { formatUSD } from "@/lib/pricing";
 import type { Session } from "@supabase/supabase-js";
@@ -66,6 +67,8 @@ type AuthMode = "signin" | "signup" | "magic" | "reset";
 function AccountSignIn() {
   const [mode, setMode] = useState<AuthMode>("signin");
   const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -119,9 +122,7 @@ function AccountSignIn() {
     if (password !== confirmPassword) { toast.error("Passwords don't match"); return; }
     setBusy(true);
     try {
-      // Create user server-side with email pre-confirmed so no verification step is needed
-      await serverSignUp({ data: { email: clean, password } });
-      // Sign in immediately
+      await serverSignUp({ data: { email: clean, password, fullName: fullName.trim(), phone: phone.trim() } });
       const { error: signInErr } = await supabase.auth.signInWithPassword({ email: clean, password });
       if (signInErr) throw signInErr;
     } catch (err: any) {
@@ -169,7 +170,6 @@ function AccountSignIn() {
     }
   };
 
-  // Confirmation screens after form submit
   if (sent) {
     const copy: Record<AuthMode, { title: string; body: string }> = {
       magic:  { title: "Check Your Inbox",   body: `We sent a secure sign-in link to ${email}. Click it to access your account — no password needed.` },
@@ -200,7 +200,6 @@ function AccountSignIn() {
     <div className="bg-[#faf9f7] min-h-screen">
       <div className="mx-auto max-w-md px-5 sm:px-6 py-14 sm:py-20">
 
-        {/* Header */}
         <div className="text-center mb-8">
           <p className="eyebrow mb-3">Qureshi Jewelers</p>
           <h1 className="font-display text-4xl sm:text-5xl">
@@ -213,7 +212,6 @@ function AccountSignIn() {
           </p>
         </div>
 
-        {/* Google sign-in */}
         {mode !== "reset" && (
           <>
             <button
@@ -238,7 +236,6 @@ function AccountSignIn() {
           </>
         )}
 
-        {/* Mode tabs: Sign In / Create Account */}
         {(mode === "signin" || mode === "signup") && (
           <div className="flex gap-2 mb-6">
             {(["signin", "signup"] as const).map(m => (
@@ -257,7 +254,6 @@ function AccountSignIn() {
           </div>
         )}
 
-        {/* Password sign-in form */}
         {mode === "signin" && (
           <form onSubmit={handleSignIn} className="space-y-4">
             <div>
@@ -297,9 +293,18 @@ function AccountSignIn() {
           </form>
         )}
 
-        {/* Create account form */}
         {mode === "signup" && (
           <form onSubmit={handleSignUp} className="space-y-4">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[0.60rem] uppercase tracking-[0.16em] font-medium text-muted-foreground mb-1.5">Full Name</label>
+                <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Jane Smith" autoComplete="name" className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-[0.60rem] uppercase tracking-[0.16em] font-medium text-muted-foreground mb-1.5">Phone <span className="normal-case text-[#bbb]">(optional)</span></label>
+                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+1 (555) 000-0000" autoComplete="tel" className={inputCls} />
+              </div>
+            </div>
             <div>
               <label className="block text-[0.60rem] uppercase tracking-[0.16em] font-medium text-muted-foreground mb-1.5">Email</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" autoComplete="email" className={inputCls} required />
@@ -341,7 +346,6 @@ function AccountSignIn() {
           </form>
         )}
 
-        {/* Magic link form */}
         {mode === "magic" && (
           <form onSubmit={handleMagicLink} className="space-y-4 mt-2">
             <div>
@@ -358,7 +362,6 @@ function AccountSignIn() {
           </form>
         )}
 
-        {/* Password reset form */}
         {mode === "reset" && (
           <form onSubmit={handleResetPassword} className="space-y-4 mt-8">
             <div>
@@ -375,7 +378,6 @@ function AccountSignIn() {
           </form>
         )}
 
-        {/* Benefits footer */}
         {mode !== "reset" && (
           <div className="mt-10 pt-8 border-t border-[#e8e4de]">
             <p className="text-center text-[0.58rem] uppercase tracking-[0.16em] text-muted-foreground mb-4">Your account includes</p>
@@ -403,8 +405,10 @@ function AccountSignIn() {
 function AccountDashboard({ session, onSignOut }: { session: Session; onSignOut: () => void }) {
   const navigate = useNavigate();
   const email = session.user.email ?? "";
-  const displayName = (session.user.user_metadata?.full_name as string | undefined) ?? email.split("@")[0];
+  const meta = session.user.user_metadata ?? {};
+  const displayName = (meta.full_name as string | undefined) ?? email.split("@")[0];
   const [portalLoading, setPortalLoading] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const openPortal = useServerFn(createPaymentPortalSession);
 
   const handleSignOut = async () => {
@@ -431,30 +435,62 @@ function AccountDashboard({ session, onSignOut }: { session: Session; onSignOut:
   };
 
   const linkTiles = [
-    { icon: ShoppingBag, label: "Order History",   sub: "View and track all your orders",    to: "/account/orders"    as const },
-    { icon: MapPin,      label: "Saved Addresses", sub: "Manage your shipping addresses",    to: "/account/addresses" as const },
-    { icon: Heart,       label: "Wishlist",         sub: "Items you've saved for later",      to: "/account/wishlist"  as const },
-    { icon: User,        label: "Start a Return",  sub: "14-day hassle-free returns",        to: "/returns"           as const },
+    { icon: ShoppingBag, label: "Order History",    sub: "View and track all your orders",     to: "/account/orders"    as const },
+    { icon: MapPin,      label: "Saved Addresses",  sub: "Manage your shipping addresses",     to: "/account/addresses" as const },
+    { icon: Heart,       label: "Wishlist",          sub: "Items you've saved for later",       to: "/account/wishlist"  as const },
+    { icon: Package,     label: "Start a Return",   sub: "14-day hassle-free returns",         to: "/returns"           as const },
   ];
 
   return (
     <div className="bg-[#faf9f7] min-h-screen">
       <div className="mx-auto max-w-3xl px-4 sm:px-6 py-16 sm:py-20">
+
+        {/* Header */}
         <div className="flex items-start justify-between mb-10">
           <div>
             <p className="eyebrow mb-2">My Account</p>
             <h1 className="font-display text-3xl sm:text-4xl capitalize">{displayName}</h1>
             <p className="text-sm text-muted-foreground mt-1">{email}</p>
+            {meta.phone && (
+              <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                <Phone className="w-3 h-3" /> {meta.phone}
+              </p>
+            )}
           </div>
-          <button
-            onClick={handleSignOut}
-            className="flex items-center gap-1.5 text-[0.60rem] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground transition-colors mt-1"
-          >
-            <LogOut className="w-3.5 h-3.5" /> Sign Out
-          </button>
+          <div className="flex items-center gap-3 mt-1">
+            <button
+              onClick={() => setShowProfile(v => !v)}
+              className="flex items-center gap-1.5 text-[0.60rem] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" /> Edit Profile
+            </button>
+            <span className="w-px h-4 bg-[#e0dbd3]" />
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-1.5 text-[0.60rem] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" /> Sign Out
+            </button>
+          </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-4 mb-10">
+        {/* Inline profile editor */}
+        {showProfile && (
+          <ProfileEditor
+            session={session}
+            onClose={() => setShowProfile(false)}
+            onSaved={(name, phone) => {
+              // Refresh the page metadata — the simplest approach is to update local Supabase session
+              toast.success("Profile updated");
+              setShowProfile(false);
+              // Force re-read of session to pick up new metadata
+              supabase.auth.refreshSession().catch(() => {});
+            }}
+          />
+        )}
+
+        {/* Nav tiles */}
+        <div className="grid sm:grid-cols-2 gap-4 mb-6">
           {linkTiles.map(({ icon: Icon, label, sub, to }) => (
             <Link
               key={label}
@@ -462,7 +498,7 @@ function AccountDashboard({ session, onSignOut }: { session: Session; onSignOut:
               className="group flex items-center justify-between p-5 bg-white border border-[#e5e1d9] hover:border-foreground transition-colors"
             >
               <div className="flex items-center gap-3">
-                <Icon className="w-5 h-5 text-muted-foreground" />
+                <Icon className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
                 <div>
                   <p className="text-[0.65rem] uppercase tracking-[0.14em] font-medium">{label}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
@@ -472,14 +508,14 @@ function AccountDashboard({ session, onSignOut }: { session: Session; onSignOut:
             </Link>
           ))}
 
-          {/* Payment methods — opens Stripe's hosted portal, no card data ever stored here */}
+          {/* Payment methods */}
           <button
             onClick={handlePaymentPortal}
             disabled={portalLoading}
             className="group flex items-center justify-between p-5 bg-white border border-[#e5e1d9] hover:border-foreground transition-colors disabled:opacity-60 text-left"
           >
             <div className="flex items-center gap-3">
-              <CreditCard className="w-5 h-5 text-muted-foreground" />
+              <CreditCard className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
               <div>
                 <p className="text-[0.65rem] uppercase tracking-[0.14em] font-medium">Payment Methods</p>
                 <p className="text-xs text-muted-foreground mt-0.5">Manage saved cards securely via Stripe</p>
@@ -494,6 +530,99 @@ function AccountDashboard({ session, onSignOut }: { session: Session; onSignOut:
 
         <RecentOrders email={email} />
       </div>
+    </div>
+  );
+}
+
+// ─── Profile Editor ───────────────────────────────────────────────────────────
+
+function ProfileEditor({
+  session,
+  onClose,
+  onSaved,
+}: {
+  session: Session;
+  onClose: () => void;
+  onSaved: (name: string, phone: string) => void;
+}) {
+  const meta = session.user.user_metadata ?? {};
+  const [fullName, setFullName] = useState((meta.full_name as string) ?? "");
+  const [phone, setPhone] = useState((meta.phone as string) ?? "");
+  const [saving, setSaving] = useState(false);
+  const updateFn = useServerFn(updateProfile);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const s = await supabase.auth.getSession();
+      const tok = s.data.session?.access_token;
+      if (!tok) { toast.error("Please sign in again"); return; }
+      await updateFn({
+        data: { token: tok, userId: session.user.id, fullName: fullName.trim(), phone: phone.trim() },
+      });
+      onSaved(fullName.trim(), phone.trim());
+    } catch (err: any) {
+      toast.error(err?.message ?? "Could not update profile");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputCls =
+    "w-full border border-[#ddd8d0] bg-white px-4 py-3 text-sm text-foreground placeholder:text-[#bbb] focus:outline-none focus:border-foreground transition-colors";
+
+  return (
+    <div className="mb-6 p-5 bg-white border border-[#e5e1d9]">
+      <div className="flex items-center justify-between mb-5">
+        <p className="text-[0.62rem] uppercase tracking-[0.18em] font-medium">Edit Profile</p>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+      <form onSubmit={handleSave} className="space-y-4">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-[0.58rem] uppercase tracking-[0.14em] text-muted-foreground mb-1.5">Full Name</label>
+            <input
+              type="text"
+              value={fullName}
+              onChange={e => setFullName(e.target.value)}
+              placeholder="Jane Smith"
+              autoComplete="name"
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className="block text-[0.58rem] uppercase tracking-[0.14em] text-muted-foreground mb-1.5">Phone</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              placeholder="+1 (555) 000-0000"
+              autoComplete="tel"
+              className={inputCls}
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-3 pt-1">
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex items-center gap-2 bg-foreground text-background px-5 py-2.5 text-[0.62rem] uppercase tracking-[0.16em] hover:bg-foreground/90 transition-colors disabled:opacity-60"
+          >
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            {saving ? "Saving…" : "Save Changes"}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[0.60rem] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
@@ -551,7 +680,11 @@ function RecentOrders({ email }: { email: string }) {
       </div>
       <div className="space-y-2">
         {orders.map(o => (
-          <div key={o.order_number} className="flex items-center justify-between p-4 bg-white border border-[#e5e1d9]">
+          <Link
+            key={o.order_number}
+            to="/account/orders"
+            className="group flex items-center justify-between p-4 bg-white border border-[#e5e1d9] hover:border-foreground transition-colors"
+          >
             <div>
               <p className="font-mono text-xs font-semibold text-foreground">{o.order_number}</p>
               <p className="text-[0.60rem] text-muted-foreground mt-0.5">
@@ -563,8 +696,9 @@ function RecentOrders({ email }: { email: string }) {
                 {o.status}
               </span>
               <span className="text-sm font-semibold text-foreground">{formatUSD(Number(o.total))}</span>
+              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </div>

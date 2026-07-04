@@ -404,9 +404,13 @@ function Shop() {
                     height="533"
                     className="h-full w-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.04]"
                   />
-                  {/* Type label */}
+                  {/* Type label top-left */}
                   <div className="absolute top-3 left-3 bg-background/90 backdrop-blur-sm px-2.5 py-1 text-[0.45rem] uppercase tracking-[0.2em] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     {TYPE_LABELS[p.type] ?? p.type}
+                  </div>
+                  {/* Select Options bottom overlay */}
+                  <div className="absolute inset-x-0 bottom-0 py-4 bg-gradient-to-t from-black/65 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden lg:flex items-center justify-center">
+                    <span className="text-white text-[0.52rem] uppercase tracking-[0.26em] font-semibold">Select Options</span>
                   </div>
                 </div>
 

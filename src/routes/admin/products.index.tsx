@@ -340,6 +340,7 @@ interface ImportResult {
     other?:    string;
     unitPrice: number | null;
   }>;
+  variationImages?: Array<{ group: string; value: string; url: string }>;
 }
 
 const IS_SUPPLIER_URL = /alibaba\.com|aliexpress\.com|1688\.com|dhgate\.com|temu\.com|made-in-china\.com/i;
@@ -354,6 +355,7 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
   const [error,            setError]            = useState("");
   const [result,           setResult]           = useState<ImportResult | null>(null);
   const [selectedImgs,     setSelectedImgs]     = useState<string[]>([]);
+  const [selectedVarImgs,  setSelectedVarImgs]  = useState<Array<{ group: string; value: string; url: string }>>([]);
   const [markupMultiplier, setMarkupMultiplier] = useState<number>(5);
   const inputRef    = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -391,6 +393,7 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
       setLoadStep("done");
       setResult(res);
       setSelectedImgs(res.images.slice(0, 24));
+      setSelectedVarImgs(res.variationImages ?? []);
     } catch (e: any) {
       const msg: string = e?.message ?? "Failed";
       setLoadStep("idle");
@@ -455,6 +458,54 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
       }
     }
 
+    // Rehost selected variation images (separately, up to 20) and build color_images map
+    let colorImages: Record<string, string> = {};
+    if (selectedVarImgs.length > 0) {
+      const varToRehost = selectedVarImgs.slice(0, 20);
+      try {
+        const varMap = new Map<string, string>();
+        const varBatch = 5;
+        for (let i = 0; i < varToRehost.length; i += varBatch) {
+          const chunk = varToRehost.slice(i, i + varBatch);
+          const { results: varResults } = await rehostFn({ data: { token, urls: chunk.map(v => v.url) } });
+          for (let j = 0; j < chunk.length; j++) {
+            const r = varResults[j];
+            varMap.set(chunk[j].url, r?.hosted ?? chunk[j].url);
+          }
+        }
+        // Normalize variation value → our standard color key
+        const normColorKey = (value: string): string | null => {
+          const v = value.toLowerCase();
+          if (/rose.?gold/i.test(v)) return "rose_gold";
+          if (/white.?gold/i.test(v) || /platinum/i.test(v) || /rhodium/i.test(v)) return "white_gold";
+          if (/gold/i.test(v)) return "gold";
+          if (/silver/i.test(v) || /sterling/i.test(v) || /925/i.test(v)) return "silver";
+          return null;
+        };
+        for (const vi of varToRehost) {
+          const colorKey = normColorKey(vi.value);
+          if (colorKey && varMap.has(vi.url)) {
+            colorImages[colorKey] = varMap.get(vi.url)!;
+          }
+        }
+      } catch (e: any) {
+        toast.error(`Variation image re-hosting failed: ${e?.message ?? "Unknown"}. Color swatches will use original URLs.`);
+        // Fallback: use original URLs directly
+        const normColorKey = (value: string): string | null => {
+          const v = value.toLowerCase();
+          if (/rose.?gold/i.test(v)) return "rose_gold";
+          if (/white.?gold/i.test(v) || /platinum/i.test(v) || /rhodium/i.test(v)) return "white_gold";
+          if (/gold/i.test(v)) return "gold";
+          if (/silver/i.test(v) || /sterling/i.test(v) || /925/i.test(v)) return "silver";
+          return null;
+        };
+        for (const vi of varToRehost) {
+          const colorKey = normColorKey(vi.value);
+          if (colorKey && !colorImages[colorKey]) colorImages[colorKey] = vi.url;
+        }
+      }
+    }
+
     sessionStorage.setItem("qj_product_import", JSON.stringify({
       name:             result.name,
       shortDescription: result.shortDescription,
@@ -474,6 +525,7 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
       colorGrade:       result.colorGrade,
       caratWeight:      result.caratWeight,
       stoneCount:       result.stoneCount,
+      colorImages:      Object.keys(colorImages).length > 0 ? colorImages : undefined,
     }));
     window.location.href = "/admin/products/new";
   };
@@ -507,13 +559,13 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
           {/* Mode tabs */}
           <div className="flex border-b border-gray-100 shrink-0">
             <button
-              onClick={() => { setMode("url"); setError(""); setResult(null); setSelectedImgs([]); setLoadStep("idle"); }}
+              onClick={() => { setMode("url"); setError(""); setResult(null); setSelectedImgs([]); setSelectedVarImgs([]); setLoadStep("idle"); }}
               className={`flex-1 py-2.5 text-[0.60rem] uppercase tracking-[0.14em] transition-colors ${mode === "url" ? "bg-gray-900 text-white" : "text-gray-400 hover:text-gray-700"}`}
             >
               Auto-Fetch from URL
             </button>
             <button
-              onClick={() => { setMode("paste"); setError(""); setResult(null); setSelectedImgs([]); setLoadStep("idle"); }}
+              onClick={() => { setMode("paste"); setError(""); setResult(null); setSelectedImgs([]); setSelectedVarImgs([]); setLoadStep("idle"); }}
               className={`flex-1 py-2.5 text-[0.60rem] uppercase tracking-[0.14em] transition-colors ${mode === "paste" ? "bg-gray-900 text-white" : "text-gray-400 hover:text-gray-700"}`}
             >
               Paste Product Info
@@ -677,7 +729,7 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                       <p className="text-[0.62rem] text-amber-700 mt-0.5 leading-relaxed">{result.fetchWarning}</p>
                       <button
                         type="button"
-                        onClick={() => { setMode("paste"); setError(""); setResult(null); setSelectedImgs([]); setLoadStep("idle"); }}
+                        onClick={() => { setMode("paste"); setError(""); setResult(null); setSelectedImgs([]); setSelectedVarImgs([]); setLoadStep("idle"); }}
                         className="mt-2 text-[0.60rem] font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-700"
                       >
                         Switch to Paste Mode →
@@ -1087,6 +1139,71 @@ function ImportModal({ onClose, token }: { onClose: () => void; token: string })
                   <div className="bg-amber-50 border border-amber-100 px-4 py-3 flex items-center gap-2.5">
                     <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
                     <p className="text-[0.65rem] text-amber-700">No images found. Add them manually in the editor.</p>
+                  </div>
+                )}
+
+                {/* Variation Images */}
+                {result.variationImages && result.variationImages.length > 0 && (
+                  <div className="space-y-2 border border-blue-100 bg-blue-50 p-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[0.56rem] uppercase tracking-[0.14em] text-blue-700 flex items-center gap-1.5">
+                        <Layers className="h-3 w-3" />
+                        Variation Images — {selectedVarImgs.length}/{result.variationImages.length} selected
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedVarImgs(result.variationImages!)}
+                          className="text-[0.55rem] uppercase tracking-[0.1em] text-blue-400 hover:text-blue-700 transition-colors"
+                        >
+                          All
+                        </button>
+                        <span className="text-blue-200">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedVarImgs([])}
+                          className="text-[0.55rem] uppercase tracking-[0.1em] text-blue-400 hover:text-blue-700 transition-colors"
+                        >
+                          None
+                        </button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {result.variationImages.map((vi, i) => {
+                        const isSelected = selectedVarImgs.some(s => s.url === vi.url);
+                        return (
+                          <div key={i} className="relative group">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedVarImgs(prev =>
+                                isSelected ? prev.filter(x => x.url !== vi.url) : [...prev, vi]
+                              )}
+                              className={`w-full aspect-square border-2 overflow-hidden transition-all relative block ${
+                                isSelected
+                                  ? "border-blue-500 ring-1 ring-blue-300"
+                                  : "border-gray-200 opacity-50 hover:opacity-80 hover:border-blue-300"
+                              }`}
+                            >
+                              <img
+                                src={vi.url}
+                                alt=""
+                                className="w-full h-full object-cover"
+                                onError={e => { (e.target as HTMLImageElement).src = "/main.jpg"; }}
+                              />
+                              {isSelected && (
+                                <span className="absolute top-1 right-1 bg-blue-500 rounded-full w-4 h-4 flex items-center justify-center">
+                                  <Check className="h-2.5 w-2.5 text-white" />
+                                </span>
+                              )}
+                              <span className="absolute bottom-0 left-0 right-0 bg-black/65 text-white text-[0.44rem] uppercase tracking-wider text-center py-0.5 truncate px-1">
+                                {vi.value}
+                              </span>
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[0.57rem] text-blue-600 mt-1">Selected variation images → auto-mapped to color swatches on the product page</p>
                   </div>
                 )}
 

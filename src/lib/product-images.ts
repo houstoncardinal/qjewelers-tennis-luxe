@@ -3,8 +3,6 @@ const BASE = "";
 
 export const images = {
   hero:      `${BASE}/herobg.jpg`,
-  // Drop a macro gemstone loop at public/hero.mp4 and set this to `${BASE}/hero.mp4`
-  // to switch the hero to video — leave blank to keep the static photo.
   heroVideo: "",
   main:     `${BASE}/main.jpg`,
 

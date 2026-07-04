@@ -20,7 +20,6 @@ import { getAnnouncementBar } from "@/lib/products.functions";
 import { getSiteContent } from "@/lib/content.functions";
 import { checkAdminSession } from "@/lib/admin.functions";
 import { CmsProvider } from "@/lib/cms-context";
-import { CmsToolbar } from "@/components/cms/CmsToolbar";
 
 const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://qureshijewelers.com").replace(/\/$/, "");
 
@@ -286,7 +285,6 @@ function RootComponent() {
           </div>
           <Toaster position="top-center" richColors />
           <CookieConsent />
-          <CmsToolbar />
         </CartProvider>
       </CmsProvider>
     </QueryClientProvider>

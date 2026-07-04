@@ -17,12 +17,16 @@ async function verifyUser(token: string, userId: string) {
 // ─── Sign-up (server-side, bypasses email confirmation) ───────────────────────
 
 export const signUpUser = createServerFn({ method: "POST" })
-  .inputValidator((d: { email: string; password: string }) => d)
+  .inputValidator((d: { email: string; password: string; fullName?: string; phone?: string }) => d)
   .handler(async ({ data }) => {
     const { data: result, error } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
       password: data.password,
       email_confirm: true,
+      user_metadata: {
+        full_name: data.fullName ?? "",
+        phone: data.phone ?? "",
+      },
     });
     if (error) throw new Error(error.message);
     return { userId: result.user.id, email: result.user.email };
@@ -43,6 +47,19 @@ export const createPaymentPortalSession = createServerFn({ method: "POST" })
     const customerId = await getOrCreateStripeCustomer(email, name);
     const url = await createStripePortalSession(customerId, data.returnUrl);
     return { url };
+  });
+
+// ─── Profile ──────────────────────────────────────────────────────────────────
+
+export const updateProfile = createServerFn({ method: "POST" })
+  .inputValidator((d: { token: string; userId: string; fullName: string; phone: string }) => d)
+  .handler(async ({ data }) => {
+    await verifyUser(data.token, data.userId);
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
+      user_metadata: { full_name: data.fullName, phone: data.phone },
+    });
+    if (error) throw new Error(error.message);
+    return { success: true };
   });
 
 // ─── Addresses ────────────────────────────────────────────────────────────────

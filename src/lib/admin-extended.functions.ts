@@ -243,10 +243,11 @@ export const createProduct = createServerFn({ method: "POST" })
     is_featured?: boolean;
     is_active?: boolean;
     sort_order?: number;
+    color_images?: Record<string, string>;
   }) => d)
   .handler(async ({ data }) => {
     requireAdmin(data.token);
-    const { token: _t, ...fields } = data;
+    const { token: _t, color_images, ...fields } = data;
     const payload = {
       ...fields,
       image_url: fields.image_url || "/main.jpg",
@@ -262,6 +263,21 @@ export const createProduct = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw new Error(error.message);
+    // Save per-color cover images if provided at import time
+    if (color_images && Object.keys(color_images).length > 0) {
+      const inserts = Object.entries(color_images)
+        .filter(([, url]) => !!url)
+        .map(([color, url]) => ({
+          product_slug: fields.slug,
+          url,
+          alt_text: `__color_cover__:${color}`,
+          sort_order: -9000,
+          is_primary: false,
+        }));
+      if (inserts.length > 0) {
+        await (supabaseAdmin as any).from("product_images").insert(inserts);
+      }
+    }
     return { product: created };
   });
 
@@ -918,6 +934,12 @@ export interface ExtractedVariant {
   unitPrice:  number | null;          // per-unit cost at min MOQ
 }
 
+export interface VariationImage {
+  group: string; // e.g. "Color", "Metal Color"
+  value: string; // e.g. "Gold Plated", "Rose Gold"
+  url:   string; // supplier image URL
+}
+
 export function extractSupplierVariants(html: string): {
   variants:       ExtractedVariant[];
   minPrice:       number | null;
@@ -1070,6 +1092,79 @@ export function extractSupplierVariants(html: string): {
     minPrice,
     rawPricingText: pricingLines.slice(0, 25).join("\n"),
   };
+}
+
+// ─── Variation image extractor ───────────────────────────────────────────────
+// Pulls per-color / per-variation thumbnail images from supplier pages so they
+// can be mapped to our color_images field (drives the swatch image swap on PDP).
+// Handles Alibaba window.runParams, AliExpress __NEXT_DATA__, and generic JSON.
+
+export function extractVariationImages(html: string): VariationImage[] {
+  const seen = new Set<string>();
+  const out: VariationImage[] = [];
+
+  const add = (group: string, value: string, raw: string) => {
+    let url = raw.trim();
+    if (url.startsWith("//")) url = `https:${url}`;
+    if (!url.startsWith("http")) return;
+    const key = `${group}|${value}|${url}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ group, value, url });
+  };
+
+  // ── 1. window.runParams (Alibaba / AliExpress desktop) ─────────────────────
+  const rpM = html.match(/window\.runParams\s*=\s*(\{[\s\S]{500,500000}?\});\s*(?:window\.|var |let |const |\/\/|<)/);
+  if (rpM) {
+    try {
+      const rp = JSON.parse(rpM[1]);
+      const skuMod = rp?.data?.skuModule ?? rp?.skuModule;
+      for (const prop of (skuMod?.productSKUPropertyList ?? [])) {
+        const g: string = prop.skuPropertyName ?? prop.propertyName ?? "Variation";
+        for (const val of (prop.skuPropertyValues ?? [])) {
+          const img: string = val.skuPropertyImagePath ?? val.skuPropertyImageSummPath ?? "";
+          const v: string   = val.propertyValueName ?? val.skuPropertyValueName ?? "";
+          if (img && v) add(g, v, img);
+        }
+      }
+    } catch {}
+  }
+
+  // ── 2. __NEXT_DATA__ (AliExpress new / DHgate) ──────────────────────────────
+  const ndM = html.match(/window\.__NEXT_DATA__\s*=\s*(\{[\s\S]{500,800000}?\})\s*<\/script>/);
+  if (ndM) {
+    try {
+      const nd = JSON.parse(ndM[1]);
+      const prod = nd?.props?.pageProps?.data?.productInfo
+        ?? nd?.props?.pageProps?.data?.product
+        ?? nd?.props?.pageProps?.detailData;
+      for (const prop of (prod?.skuProps ?? prod?.propertyList ?? prod?.saleProps ?? [])) {
+        const g: string = prop.name ?? prop.propName ?? prop.skuPropertyName ?? "Variation";
+        for (const val of (prop.values ?? prop.valueList ?? prop.skuPropertyValues ?? [])) {
+          const img: string = val.image ?? val.imageUrl ?? val.skuPropertyImagePath ?? "";
+          const v: string   = val.name ?? val.value ?? val.skuPropertyValueName ?? "";
+          if (img && v) add(g, v, img);
+        }
+      }
+    } catch {}
+  }
+
+  // ── 3. Generic JSON patterns ─────────────────────────────────────────────────
+  for (const jsonKey of ["propertyImages", "colorImages", "variantImages", "skuImages"]) {
+    const m = html.match(new RegExp(`"${jsonKey}"\\s*:\\s*(\\[[\\s\\S]{5,10000}?\\])`, "s"));
+    if (!m) continue;
+    try {
+      const list = JSON.parse(m[1]) as any[];
+      for (const item of list) {
+        const g = String(item.group ?? item.propertyName ?? item.propName ?? "Color");
+        const v = String(item.name ?? item.value ?? item.valueName ?? "");
+        const img = String(item.imageUrl ?? item.image ?? item.url ?? item.imagePath ?? "");
+        if (img && v) add(g, v, img);
+      }
+    } catch {}
+  }
+
+  return out.slice(0, 30);
 }
 
 // Extract the supplier's wholesale unit price in USD (for markup calculation).
@@ -2110,6 +2205,17 @@ function buildBaseFromJina(title: string, content: string, images: string[], url
   };
 }
 
+function mergeImages(primary: string[], secondary: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const url of [...primary, ...secondary]) {
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    out.push(url);
+  }
+  return out.slice(0, 24);
+}
+
 export const importProductFromUrl = createServerFn({ method: "POST" })
   .inputValidator((d: { token: string; url: string }) => d)
   .handler(async ({ data }) => {
@@ -2138,7 +2244,11 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
     const richContent = firecrawlData ?? jinaData;
     if (richContent && richContent.content.length > 200) {
       const fetchStrategy = firecrawlData ? "firecrawl" : "jina_reader";
-      const base = buildBaseFromJina(richContent.title, richContent.content, richContent.images, url);
+      // Supplement Firecrawl/Jina images (often just 1 og:image) with the full
+      // gallery extracted from rawHtml so no images are left behind.
+      const htmlParsed = rawHtml ? parseProductPage(rawHtml, url) : null;
+      const mergedImages = mergeImages(richContent.images, htmlParsed?.images ?? []);
+      const base = buildBaseFromJina(richContent.title, richContent.content, mergedImages, url);
 
       // Supplement with HTML-extracted prices and variant JSON if available
       const textPrices = extractPricesFromText(richContent.content);
@@ -2159,7 +2269,8 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
         }),
         new Promise<null>(resolve => setTimeout(() => resolve(null), 22000)),
       ]);
-      return { ...mergeWithAI(base, ai, url), fetchStrategy };
+      const variationImages = extractVariationImages(rawHtml ?? "");
+      return { ...mergeWithAI(base, ai, url), fetchStrategy, variationImages };
     }
 
     // ── Stage 3b: Have raw HTML (Jina failed, direct fetch worked) ────────────────
@@ -2183,7 +2294,8 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
         }),
         new Promise<null>(resolve => setTimeout(() => resolve(null), 20000)),
       ]);
-      return { ...mergeWithAI(base, ai, url), fetchStrategy: "direct_html" };
+      const variationImages = extractVariationImages(rawHtml);
+      return { ...mergeWithAI(base, ai, url), fetchStrategy: "direct_html", variationImages };
     }
 
     // ── Stage 4: URL-metadata fallback — never throw a hard error ─────────────────
@@ -2225,6 +2337,7 @@ export const importProductFromUrl = createServerFn({ method: "POST" })
     return {
       ...mergeWithAI(base, ai, url),
       fetchStrategy: "url_metadata",
+      variationImages: [] as VariationImage[],
       fetchWarning:  `This supplier's page is protected — the copy above was generated from the URL slug only. Switch to **Paste mode** for accurate product details: open the product page in your browser, select all text, and paste it here.`,
     };
   });
@@ -2257,7 +2370,8 @@ export const importProductFromHtml = createServerFn({ method: "POST" })
       new Promise<null>(resolve => setTimeout(() => resolve(null), 20000)),
     ]);
 
-    return mergeWithAI(base, ai, data.sourceUrl ?? "");
+    const variationImages = extractVariationImages(data.html);
+    return { ...mergeWithAI(base, ai, data.sourceUrl ?? ""), variationImages };
   });
 
 // Accepts any pasted text about the product (title, description, specs — no HTML
@@ -2296,7 +2410,7 @@ export const importProductFromText = createServerFn({ method: "POST" })
       }),
       new Promise<null>(resolve => setTimeout(() => resolve(null), 18000)),
     ]);
-    return { ...mergeWithAI(base, ai, data.sourceUrl ?? ""), fetchStrategy: "pasted_text" };
+    return { ...mergeWithAI(base, ai, data.sourceUrl ?? ""), fetchStrategy: "pasted_text", variationImages: [] as VariationImage[] };
   });
 
 // ─── Image re-hosting — downloads external supplier images server-
