@@ -18,6 +18,7 @@ import { Route as ReturnsRouteImport } from './routes/returns'
 import { Route as RefundPolicyRouteImport } from './routes/refund-policy'
 import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy'
 import { Route as MoissaniteGuideRouteImport } from './routes/moissanite-guide'
+import { Route as GoogleMerchantDotxmlRouteImport } from './routes/google-merchant[.]xml'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CheckoutRouteImport } from './routes/checkout'
@@ -46,6 +47,7 @@ import { Route as AccountOrdersRouteImport } from './routes/account/orders'
 import { Route as AccountAddressesRouteImport } from './routes/account/addresses'
 import { Route as AdminProductsIndexRouteImport } from './routes/admin/products.index'
 import { Route as AdminOrdersIndexRouteImport } from './routes/admin/orders.index'
+import { Route as AdminCustomersIndexRouteImport } from './routes/admin/customers.index'
 import { Route as AdminReturnsReturnIdRouteImport } from './routes/admin/returns.$returnId'
 import { Route as AdminProductsNewRouteImport } from './routes/admin/products.new'
 import { Route as AdminProductsSlugRouteImport } from './routes/admin/products.$slug'
@@ -95,6 +97,11 @@ const PrivacyPolicyRoute = PrivacyPolicyRouteImport.update({
 const MoissaniteGuideRoute = MoissaniteGuideRouteImport.update({
   id: '/moissanite-guide',
   path: '/moissanite-guide',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GoogleMerchantDotxmlRoute = GoogleMerchantDotxmlRouteImport.update({
+  id: '/google-merchant.xml',
+  path: '/google-merchant.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FaqRoute = FaqRouteImport.update({
@@ -237,6 +244,11 @@ const AdminOrdersIndexRoute = AdminOrdersIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminOrdersRoute,
 } as any)
+const AdminCustomersIndexRoute = AdminCustomersIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminCustomersRoute,
+} as any)
 const AdminReturnsReturnIdRoute = AdminReturnsReturnIdRouteImport.update({
   id: '/$returnId',
   path: '/$returnId',
@@ -273,6 +285,7 @@ export interface FileRoutesByFullPath {
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
+  '/google-merchant.xml': typeof GoogleMerchantDotxmlRoute
   '/moissanite-guide': typeof MoissaniteGuideRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/refund-policy': typeof RefundPolicyRoute
@@ -305,6 +318,7 @@ export interface FileRoutesByFullPath {
   '/admin/products/$slug': typeof AdminProductsSlugRoute
   '/admin/products/new': typeof AdminProductsNewRoute
   '/admin/returns/$returnId': typeof AdminReturnsReturnIdRoute
+  '/admin/customers/': typeof AdminCustomersIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
   '/admin/products/': typeof AdminProductsIndexRoute
 }
@@ -316,6 +330,7 @@ export interface FileRoutesByTo {
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
+  '/google-merchant.xml': typeof GoogleMerchantDotxmlRoute
   '/moissanite-guide': typeof MoissaniteGuideRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/refund-policy': typeof RefundPolicyRoute
@@ -332,7 +347,6 @@ export interface FileRoutesByTo {
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/creator': typeof AdminCreatorRoute
-  '/admin/customers': typeof AdminCustomersRouteWithChildren
   '/admin/promotions': typeof AdminPromotionsRoute
   '/admin/returns': typeof AdminReturnsRouteWithChildren
   '/admin/reviews': typeof AdminReviewsRoute
@@ -346,6 +360,7 @@ export interface FileRoutesByTo {
   '/admin/products/$slug': typeof AdminProductsSlugRoute
   '/admin/products/new': typeof AdminProductsNewRoute
   '/admin/returns/$returnId': typeof AdminReturnsReturnIdRoute
+  '/admin/customers': typeof AdminCustomersIndexRoute
   '/admin/orders': typeof AdminOrdersIndexRoute
   '/admin/products': typeof AdminProductsIndexRoute
 }
@@ -359,6 +374,7 @@ export interface FileRoutesById {
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
+  '/google-merchant.xml': typeof GoogleMerchantDotxmlRoute
   '/moissanite-guide': typeof MoissaniteGuideRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/refund-policy': typeof RefundPolicyRoute
@@ -391,6 +407,7 @@ export interface FileRoutesById {
   '/admin/products/$slug': typeof AdminProductsSlugRoute
   '/admin/products/new': typeof AdminProductsNewRoute
   '/admin/returns/$returnId': typeof AdminReturnsReturnIdRoute
+  '/admin/customers/': typeof AdminCustomersIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
   '/admin/products/': typeof AdminProductsIndexRoute
 }
@@ -405,6 +422,7 @@ export interface FileRouteTypes {
     | '/checkout'
     | '/contact'
     | '/faq'
+    | '/google-merchant.xml'
     | '/moissanite-guide'
     | '/privacy-policy'
     | '/refund-policy'
@@ -437,6 +455,7 @@ export interface FileRouteTypes {
     | '/admin/products/$slug'
     | '/admin/products/new'
     | '/admin/returns/$returnId'
+    | '/admin/customers/'
     | '/admin/orders/'
     | '/admin/products/'
   fileRoutesByTo: FileRoutesByTo
@@ -448,6 +467,7 @@ export interface FileRouteTypes {
     | '/checkout'
     | '/contact'
     | '/faq'
+    | '/google-merchant.xml'
     | '/moissanite-guide'
     | '/privacy-policy'
     | '/refund-policy'
@@ -464,7 +484,6 @@ export interface FileRouteTypes {
     | '/admin/analytics'
     | '/admin/content'
     | '/admin/creator'
-    | '/admin/customers'
     | '/admin/promotions'
     | '/admin/returns'
     | '/admin/reviews'
@@ -478,6 +497,7 @@ export interface FileRouteTypes {
     | '/admin/products/$slug'
     | '/admin/products/new'
     | '/admin/returns/$returnId'
+    | '/admin/customers'
     | '/admin/orders'
     | '/admin/products'
   id:
@@ -490,6 +510,7 @@ export interface FileRouteTypes {
     | '/checkout'
     | '/contact'
     | '/faq'
+    | '/google-merchant.xml'
     | '/moissanite-guide'
     | '/privacy-policy'
     | '/refund-policy'
@@ -522,6 +543,7 @@ export interface FileRouteTypes {
     | '/admin/products/$slug'
     | '/admin/products/new'
     | '/admin/returns/$returnId'
+    | '/admin/customers/'
     | '/admin/orders/'
     | '/admin/products/'
   fileRoutesById: FileRoutesById
@@ -535,6 +557,7 @@ export interface RootRouteChildren {
   CheckoutRoute: typeof CheckoutRoute
   ContactRoute: typeof ContactRoute
   FaqRoute: typeof FaqRoute
+  GoogleMerchantDotxmlRoute: typeof GoogleMerchantDotxmlRoute
   MoissaniteGuideRoute: typeof MoissaniteGuideRoute
   PrivacyPolicyRoute: typeof PrivacyPolicyRoute
   RefundPolicyRoute: typeof RefundPolicyRoute
@@ -611,6 +634,13 @@ declare module '@tanstack/react-router' {
       path: '/moissanite-guide'
       fullPath: '/moissanite-guide'
       preLoaderRoute: typeof MoissaniteGuideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/google-merchant.xml': {
+      id: '/google-merchant.xml'
+      path: '/google-merchant.xml'
+      fullPath: '/google-merchant.xml'
+      preLoaderRoute: typeof GoogleMerchantDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/faq': {
@@ -809,6 +839,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminOrdersIndexRouteImport
       parentRoute: typeof AdminOrdersRoute
     }
+    '/admin/customers/': {
+      id: '/admin/customers/'
+      path: '/'
+      fullPath: '/admin/customers/'
+      preLoaderRoute: typeof AdminCustomersIndexRouteImport
+      parentRoute: typeof AdminCustomersRoute
+    }
     '/admin/returns/$returnId': {
       id: '/admin/returns/$returnId'
       path: '/$returnId'
@@ -864,10 +901,12 @@ const AccountRouteWithChildren =
 
 interface AdminCustomersRouteChildren {
   AdminCustomersCustomerIdRoute: typeof AdminCustomersCustomerIdRoute
+  AdminCustomersIndexRoute: typeof AdminCustomersIndexRoute
 }
 
 const AdminCustomersRouteChildren: AdminCustomersRouteChildren = {
   AdminCustomersCustomerIdRoute: AdminCustomersCustomerIdRoute,
+  AdminCustomersIndexRoute: AdminCustomersIndexRoute,
 }
 
 const AdminCustomersRouteWithChildren = AdminCustomersRoute._addFileChildren(
@@ -959,6 +998,7 @@ const rootRouteChildren: RootRouteChildren = {
   CheckoutRoute: CheckoutRoute,
   ContactRoute: ContactRoute,
   FaqRoute: FaqRoute,
+  GoogleMerchantDotxmlRoute: GoogleMerchantDotxmlRoute,
   MoissaniteGuideRoute: MoissaniteGuideRoute,
   PrivacyPolicyRoute: PrivacyPolicyRoute,
   RefundPolicyRoute: RefundPolicyRoute,

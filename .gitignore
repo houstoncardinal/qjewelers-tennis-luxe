@@ -25,6 +25,9 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Netlify local CLI state (production configuration lives in Netlify)
+.netlify/
+
 # Local dev image uploads — production uploads go to Supabase Storage instead
 public/uploads/
 

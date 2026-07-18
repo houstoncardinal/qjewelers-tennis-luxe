@@ -8,6 +8,7 @@ import { isStripeConfigured, createStripePaymentIntent } from "@/lib/payments/st
 import { isPaypalConfigured, createPaypalOrder } from "@/lib/payments/paypal.server";
 import { finalizeReservation } from "@/lib/payments/finalize";
 import { alertAdminOnError } from "@/lib/error-alert";
+import { countryNameToISO } from "@/lib/countries";
 
 export type ProductRow = {
   id: string;
@@ -40,7 +41,7 @@ export const getAnnouncementBar = createServerFn({ method: "GET" }).handler(asyn
       .select("key, value")
       .in("key", ["announcement_bar_enabled", "announcement_bar_text"]);
     const s: Record<string, string> = {};
-    for (const row of (data ?? [])) s[row.key] = row.value;
+    for (const row of data ?? []) s[row.key] = row.value;
     return {
       enabled: s["announcement_bar_enabled"] === "true",
       text: s["announcement_bar_text"] ?? "",
@@ -107,7 +108,7 @@ export const getProductBySlug = createServerFn({ method: "GET" })
           (colorRows ?? []).map((r: { alt_text: string; url: string }) => [
             r.alt_text.replace("__color_cover__:", ""),
             r.url,
-          ])
+          ]),
         );
         return { product: { ...product, color_images } as unknown as ProductRow };
       }
@@ -129,7 +130,15 @@ export const getProductGallery = createServerFn({ method: "GET" })
         .eq("product_slug", data.slug)
         .not("alt_text", "like", "__color_cover__%")
         .order("sort_order", { ascending: true });
-      if (!error) return { images: (imgs ?? []) as Array<{ url: string; alt_text: string; sort_order: number; is_primary: boolean }> };
+      if (!error)
+        return {
+          images: (imgs ?? []) as Array<{
+            url: string;
+            alt_text: string;
+            sort_order: number;
+            is_primary: boolean;
+          }>,
+        };
     } catch {}
     return { images: [] };
   });
@@ -146,10 +155,18 @@ export const getProductVariants = createServerFn({ method: "GET" })
         .select("id, color, size, length, price_override, stock, is_active")
         .eq("product_slug", data.slug)
         .eq("is_active", true);
-      if (!error) return { variants: (rows ?? []) as Array<{
-        id: string; color: string | null; size: string | null; length: string | null;
-        price_override: number | null; stock: number; is_active: boolean;
-      }> };
+      if (!error)
+        return {
+          variants: (rows ?? []) as Array<{
+            id: string;
+            color: string | null;
+            size: string | null;
+            length: string | null;
+            price_override: number | null;
+            stock: number;
+            is_active: boolean;
+          }>,
+        };
     } catch {}
     return { variants: [] };
   });
@@ -162,13 +179,13 @@ export const getShippingConfig = createServerFn({ method: "GET" }).handler(async
       .select("key, value")
       .in("key", ["free_shipping_threshold", "flat_shipping_rate", "tax_rate"]);
     if (rows?.length) {
-      const t  = rows.find((r: any) => r.key === "free_shipping_threshold");
-      const r  = rows.find((r: any) => r.key === "flat_shipping_rate");
+      const t = rows.find((r: any) => r.key === "free_shipping_threshold");
+      const r = rows.find((r: any) => r.key === "flat_shipping_rate");
       const tx = rows.find((r: any) => r.key === "tax_rate");
       return {
-        freeShippingThreshold: t  ? Number(t.value)  || 250 : 250,
-        flatShippingRate:      r  ? Number(r.value)  || 15  : 15,
-        taxRate:               tx ? Number(tx.value) || 0   : 0,
+        freeShippingThreshold: t ? Number(t.value) || 250 : 250,
+        flatShippingRate: r ? Number(r.value) || 15 : 15,
+        taxRate: tx ? Number(tx.value) || 0 : 0,
       };
     }
   } catch {}
@@ -200,6 +217,8 @@ const orderInputSchema = z.object({
   notes: z.string().trim().max(1000).optional().or(z.literal("")),
   items: z.array(orderItemSchema).min(1).max(50),
   promo_code: z.string().optional().or(z.literal("")),
+  // Kept optional for backwards-compatible clients, but deliberately ignored.
+  // The server derives the discount from promo_code.
   discount_amount: z.number().nonnegative().optional(),
   shipping_method: z.enum(["standard", "express", "overnight"]).default("standard"),
   payment_method: z.enum(["stripe", "paypal"]),
@@ -219,25 +238,34 @@ export const listReviews = createServerFn({ method: "GET" })
         .eq("approved", true)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return { reviews: (rows ?? []) as Array<{
-        id: string; customer_name: string; rating: number;
-        title: string | null; body: string; verified: boolean; created_at: string;
-      }> };
+      return {
+        reviews: (rows ?? []) as Array<{
+          id: string;
+          customer_name: string;
+          rating: number;
+          title: string | null;
+          body: string;
+          verified: boolean;
+          created_at: string;
+        }>,
+      };
     } catch {
       return { reviews: [] };
     }
   });
 
 export const submitReview = createServerFn({ method: "POST" })
-  .inputValidator((d: {
-    product_slug: string;
-    customer_name: string;
-    customer_email: string;
-    order_number?: string;
-    rating: number;
-    title?: string;
-    body: string;
-  }) => d)
+  .inputValidator(
+    (d: {
+      product_slug: string;
+      customer_name: string;
+      customer_email: string;
+      order_number?: string;
+      rating: number;
+      title?: string;
+      body: string;
+    }) => d,
+  )
   .handler(async ({ data }) => {
     if (!data.product_slug || !data.customer_name || !data.body || !data.rating) {
       throw new Error("Missing required fields");
@@ -256,19 +284,17 @@ export const submitReview = createServerFn({ method: "POST" })
       if (order) verified = true;
     }
 
-    const { error } = await (supabaseAdmin as any)
-      .from("reviews")
-      .insert({
-        product_slug:   data.product_slug,
-        customer_name:  data.customer_name.trim(),
-        customer_email: data.customer_email?.trim().toLowerCase() ?? "",
-        order_number:   data.order_number?.toUpperCase().trim() ?? null,
-        rating:         data.rating,
-        title:          data.title?.trim() ?? null,
-        body:           data.body.trim(),
-        verified,
-        approved:       false,
-      });
+    const { error } = await (supabaseAdmin as any).from("reviews").insert({
+      product_slug: data.product_slug,
+      customer_name: data.customer_name.trim(),
+      customer_email: data.customer_email?.trim().toLowerCase() ?? "",
+      order_number: data.order_number?.toUpperCase().trim() ?? null,
+      rating: data.rating,
+      title: data.title?.trim() ?? null,
+      body: data.body.trim(),
+      verified,
+      approved: false,
+    });
     if (error) throw new Error(error.message);
     return { success: true };
   });
@@ -292,15 +318,25 @@ export const initiateCheckout = createServerFn({ method: "POST" })
     checkRateLimit("checkout", { windowMs: 10 * 60 * 1000, max: 8 });
 
     if (data.payment_method === "stripe" && !isStripeConfigured()) {
-      throw new Error("Card payments are not available yet — please try PayPal or check back soon.");
+      throw new Error(
+        "Card payments are not available yet — please try PayPal or check back soon.",
+      );
     }
     if (data.payment_method === "paypal" && !isPaypalConfigured()) {
       throw new Error("PayPal is not available yet — please try a card or check back soon.");
     }
 
     const priced = await validateAndPriceOrder(data.items, {
-      discountAmount: data.discount_amount,
+      promoCode: data.promo_code,
       shippingMethod: data.shipping_method,
+      shippingAddress: {
+        line1: data.shipping_address_line1,
+        line2: data.shipping_address_line2 || undefined,
+        city: data.shipping_city,
+        state: data.shipping_state,
+        postal_code: data.shipping_zip,
+        country: data.shipping_country,
+      },
     });
 
     const db = supabaseAdmin as any;
@@ -308,10 +344,10 @@ export const initiateCheckout = createServerFn({ method: "POST" })
     const reserved: string[] = [];
 
     try {
-      for (const item of data.items) {
+      for (const [index, item] of data.items.entries()) {
         const { error: resErr } = await db.rpc("reserve_stock", {
           p_slug: item.slug,
-          p_variant_id: null,
+          p_variant_id: priced.reservationVariantIds[index],
           p_qty: item.quantity,
           p_token: reservationToken,
           p_ttl_seconds: 900,
@@ -343,6 +379,7 @@ export const initiateCheckout = createServerFn({ method: "POST" })
       tax: priced.tax,
       total: priced.total,
       shipping_method: priced.shippingMethod,
+      stripe_tax_calculation_id: priced.taxCalculationId || null,
     };
 
     const { error: pendingErr } = await db.from("pending_orders").insert({
@@ -354,29 +391,66 @@ export const initiateCheckout = createServerFn({ method: "POST" })
     });
     if (pendingErr) {
       await db.rpc("release_reservation", { p_token: reservationToken }).catch(() => {});
-      alertAdminOnError(`initiateCheckout pending_orders insert (token ${reservationToken})`, pendingErr);
+      alertAdminOnError(
+        `initiateCheckout pending_orders insert (token ${reservationToken})`,
+        pendingErr,
+      );
       throw new Error(pendingErr.message);
     }
 
-    if (data.payment_method === "stripe") {
-      const { clientSecret, paymentIntentId } = await createStripePaymentIntent({
-        amountCents: Math.round(priced.total * 100),
-        currency: "usd",
-        metadata: { reservation_token: reservationToken },
-        customerEmail: data.customer_email,
-        customerName: data.customer_name,
-      });
-      await db.from("pending_orders").update({ stripe_payment_intent_id: paymentIntentId }).eq("reservation_token", reservationToken);
-      return { provider: "stripe" as const, clientSecret, reservationToken, total: priced.total };
-    }
+    try {
+      if (data.payment_method === "stripe") {
+        const { clientSecret, paymentIntentId } = await createStripePaymentIntent({
+          amountCents: Math.round(priced.total * 100),
+          currency: "usd",
+          metadata: { reservation_token: reservationToken },
+          customerEmail: data.customer_email,
+          customerName: data.customer_name,
+          shipping: {
+            name: data.customer_name,
+            ...(data.customer_phone ? { phone: data.customer_phone } : {}),
+            address: {
+              line1: data.shipping_address_line1,
+              ...(data.shipping_address_line2 ? { line2: data.shipping_address_line2 } : {}),
+              city: data.shipping_city,
+              state: data.shipping_state,
+              postal_code: data.shipping_zip,
+              country: countryNameToISO(data.shipping_country) ?? undefined,
+            },
+          },
+        });
+        const { error: updateErr } = await db
+          .from("pending_orders")
+          .update({ stripe_payment_intent_id: paymentIntentId })
+          .eq("reservation_token", reservationToken);
+        if (updateErr) throw updateErr;
+        return { provider: "stripe" as const, clientSecret, reservationToken, total: priced.total };
+      }
 
-    const paypalOrder = await createPaypalOrder({
-      amount: priced.total.toFixed(2),
-      currency: "USD",
-      referenceId: reservationToken,
-    });
-    await db.from("pending_orders").update({ paypal_order_id: paypalOrder.id }).eq("reservation_token", reservationToken);
-    return { provider: "paypal" as const, paypalOrderId: paypalOrder.id, reservationToken, total: priced.total };
+      const paypalOrder = await createPaypalOrder({
+        amount: priced.total.toFixed(2),
+        currency: "USD",
+        referenceId: reservationToken,
+      });
+      const { error: updateErr } = await db
+        .from("pending_orders")
+        .update({ paypal_order_id: paypalOrder.id })
+        .eq("reservation_token", reservationToken);
+      if (updateErr) throw updateErr;
+      return {
+        provider: "paypal" as const,
+        paypalOrderId: paypalOrder.id,
+        reservationToken,
+        total: priced.total,
+      };
+    } catch (error) {
+      await db.rpc("release_reservation", { p_token: reservationToken }).catch(() => {});
+      await db
+        .from("pending_orders")
+        .update({ status: "failed" })
+        .eq("reservation_token", reservationToken);
+      throw error;
+    }
   });
 
 // Step 2: called by the client right after the provider confirms payment,

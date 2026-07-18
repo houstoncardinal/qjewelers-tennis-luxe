@@ -674,15 +674,19 @@ function Index() {
         {/* ── Full-bleed image zone ───────────────────────────── */}
         <div className="relative flex-1 min-h-0 overflow-hidden bg-neutral-950">
 
-          {/* Background image */}
-          <img
-            src={images.hero}
-            alt="VVS moissanite tennis jewelry — Qureshi Jewelers"
-            loading="eager"
-            decoding="sync"
-            fetchPriority="high"
+          {/* Background video — poster shows instantly while the video loads/decodes */}
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            poster={images.hero}
+            aria-label="VVS moissanite tennis jewelry — Qureshi Jewelers"
             className="absolute inset-0 h-full w-full object-cover object-center"
-          />
+          >
+            <source src={images.heroVideo} type="video/mp4" />
+          </video>
 
           {/* ── Overlay system ───────────────────────────────────
                Mobile : uniform dark scrim — text readable anywhere

@@ -90,7 +90,7 @@ const FAQ_CATEGORIES = [
     items: [
       {
         q: "What payment methods do you accept?",
-        a: "We accept all major credit cards (Visa, Mastercard, Amex, Discover), Apple Pay, Google Pay, and Shop Pay. Buy now, pay later options are coming soon.",
+        a: "We accept major credit and debit cards through Stripe. Apple Pay and Google Pay appear automatically on supported devices when enabled in the Stripe Dashboard. PayPal is also available when enabled at checkout.",
       },
       {
         q: "Is my payment information secure?",

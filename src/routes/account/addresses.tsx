@@ -7,6 +7,8 @@ import type { CustomerAddress } from "@/lib/customer.functions";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, Pencil, Trash2, Check, Loader2, MapPin } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
+import { COUNTRIES } from "@/lib/countries";
+import { US_STATES } from "@/lib/us-states";
 
 export const Route = createFileRoute("/account/addresses")({
   head: () => ({
@@ -172,16 +174,25 @@ function AccountAddresses() {
                 <input value={editing.city} onChange={e => setEditing(p => p && { ...p, city: e.target.value })} className={inputCls} placeholder="New York" required />
               </div>
               <div>
-                <label className="block text-[0.58rem] uppercase tracking-[0.14em] text-muted-foreground mb-1.5">State *</label>
-                <input value={editing.state} onChange={e => setEditing(p => p && { ...p, state: e.target.value })} className={inputCls} placeholder="NY" required />
+                <label className="block text-[0.58rem] uppercase tracking-[0.14em] text-muted-foreground mb-1.5">State / Province *</label>
+                {editing.country === "United States" ? (
+                  <select value={editing.state} onChange={e => setEditing(p => p && { ...p, state: e.target.value })} className={inputCls} required>
+                    <option value="">Select a state</option>
+                    {US_STATES.map(s => <option key={s.code} value={s.code}>{s.name}</option>)}
+                  </select>
+                ) : (
+                  <input value={editing.state} onChange={e => setEditing(p => p && { ...p, state: e.target.value })} className={inputCls} placeholder="State / Province / Region" required />
+                )}
               </div>
               <div>
-                <label className="block text-[0.58rem] uppercase tracking-[0.14em] text-muted-foreground mb-1.5">ZIP Code *</label>
+                <label className="block text-[0.58rem] uppercase tracking-[0.14em] text-muted-foreground mb-1.5">ZIP / Postal Code *</label>
                 <input value={editing.zip} onChange={e => setEditing(p => p && { ...p, zip: e.target.value })} className={inputCls} placeholder="10001" required />
               </div>
               <div>
                 <label className="block text-[0.58rem] uppercase tracking-[0.14em] text-muted-foreground mb-1.5">Country *</label>
-                <input value={editing.country} onChange={e => setEditing(p => p && { ...p, country: e.target.value })} className={inputCls} placeholder="United States" required />
+                <select value={editing.country} onChange={e => setEditing(p => p && { ...p, country: e.target.value, state: "" })} className={inputCls} required>
+                  {COUNTRIES.map(c => <option key={c.iso2} value={c.name}>{c.name}</option>)}
+                </select>
               </div>
               <div>
                 <label className="block text-[0.58rem] uppercase tracking-[0.14em] text-muted-foreground mb-1.5">Phone</label>

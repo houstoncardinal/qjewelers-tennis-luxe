@@ -5,13 +5,14 @@ import { useState, useEffect } from "react";
 import {
   Save, Truck, Store, Mail, Tag, Info, CheckCircle,
   Instagram, Phone, Globe, Megaphone, Percent, RotateCcw, Palette, Check,
-  ShieldCheck, UserPlus, Users,
+  ShieldCheck, UserPlus, Users, Trash2, ShoppingBag, CreditCard, ExternalLink, Copy,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { getStoreSettings, updateStoreSetting } from "@/lib/admin-extended.functions";
 import {
   enrollTotp, confirmTotpEnrollment, disableTotp,
-  listAdminUsers, createAdminUser,
+  listAdminUsers, createAdminUser, deleteAdminUser, getLaunchReadiness,
 } from "@/lib/admin.functions";
 import { useAdminToken, useAdminTheme } from "@/lib/admin-context";
 import { THEMES, type AdminTheme } from "@/lib/admin-themes";
@@ -408,14 +409,16 @@ function TwoFactorCard({ token }: { token: string }) {
 
 function StaffCard({ token }: { token: string }) {
   const queryClient = useQueryClient();
-  const listFn = useServerFn(listAdminUsers);
+  const listFn   = useServerFn(listAdminUsers);
   const createFn = useServerFn(createAdminUser);
+  const deleteFn = useServerFn(deleteAdminUser);
 
   const [showForm, setShowForm] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"admin" | "staff">("staff");
-  const [busy, setBusy] = useState(false);
+  const [role,     setRole]     = useState<"admin" | "staff">("staff");
+  const [busy,     setBusy]     = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const { data } = useQuery({
     queryKey: ["admin-users", token],
@@ -440,17 +443,41 @@ function StaffCard({ token }: { token: string }) {
     }
   };
 
+  const handleDelete = async (userId: string, uname: string) => {
+    if (!confirm(`Delete staff account "${uname}"? This cannot be undone.`)) return;
+    setDeleting(userId);
+    try {
+      await deleteFn({ data: { token, userId } });
+      toast.success("Staff account deleted");
+      await queryClient.invalidateQueries({ queryKey: ["admin-users", token] });
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to delete account");
+    } finally {
+      setDeleting(null);
+    }
+  };
+
   return (
     <SettingsCard icon={Users} title="Staff Accounts">
       <div className="py-5 space-y-4">
         <div className="space-y-2">
           {users.map((u: any) => (
-            <div key={u.id} className="flex items-center justify-between text-sm py-1.5">
+            <div key={u.id} className="flex items-center justify-between text-sm py-1.5 group">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="font-medium text-gray-700 truncate">{u.username}</span>
                 <span className="text-[0.58rem] uppercase tracking-[0.1em] text-gray-400 border border-gray-200 px-1.5 py-0.5 rounded">{u.role}</span>
               </div>
-              <span className="text-[0.62rem] text-gray-400 shrink-0">{u.totp_enabled ? "2FA on" : "2FA off"}</span>
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-[0.62rem] text-gray-400">{u.totp_enabled ? "2FA on" : "2FA off"}</span>
+                <button
+                  onClick={() => handleDelete(u.id, u.username)}
+                  disabled={deleting === u.id}
+                  title="Delete account"
+                  className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-all disabled:opacity-40"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
           ))}
           {users.length === 0 && <p className="text-[0.70rem] text-gray-400">No staff accounts yet.</p>}
@@ -490,6 +517,206 @@ function StaffCard({ token }: { token: string }) {
           >
             <UserPlus className="h-3 w-3" /> Add Staff Account
           </button>
+        )}
+      </div>
+    </SettingsCard>
+  );
+}
+
+// ─── Launch Integrations ──────────────────────────────────────────────────────
+
+function copyText(value: string, label: string) {
+  navigator.clipboard.writeText(value);
+  toast.success(`${label} copied`);
+}
+
+function StatusPill({ good, label }: { good: boolean; label: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[0.58rem] uppercase tracking-[0.12em] font-medium border ${
+      good ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"
+    }`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${good ? "bg-emerald-500" : "bg-amber-500"}`} />
+      {label}
+    </span>
+  );
+}
+
+function LaunchIntegrationsCard({ token }: { token: string }) {
+  const readinessFn = useServerFn(getLaunchReadiness);
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["admin-launch-readiness", token],
+    queryFn: () => readinessFn({ data: { token } }),
+    staleTime: 30_000,
+  });
+
+  const merchant = data?.merchant;
+  const stripe = data?.stripe;
+  const tax = data?.tax;
+  const feedErrors = merchant?.issues?.filter((i: any) => i.severity === "error") ?? [];
+  const feedWarnings = merchant?.issues?.filter((i: any) => i.severity === "warning") ?? [];
+  const feedReady = merchant ? feedErrors.length === 0 && merchant.activeProducts > 0 : false;
+
+  return (
+    <SettingsCard icon={ShoppingBag} title="Launch Integrations">
+      <div className="py-5 space-y-5">
+        {isLoading && (
+          <div className="space-y-3">
+            <div className="h-4 w-44 bg-gray-100 animate-pulse" />
+            <div className="h-20 bg-gray-50 animate-pulse" />
+          </div>
+        )}
+
+        {error && (
+          <div className="border border-amber-200 bg-amber-50 p-4 text-[0.70rem] text-amber-800">
+            Could not load launch readiness. Make sure the latest product/settings tables are available.
+          </div>
+        )}
+
+        {data && merchant && stripe && (
+          <>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="border border-gray-100 p-4">
+                <p className="text-[0.56rem] uppercase tracking-[0.14em] text-gray-400">Merchant Feed</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">{merchant.readyProducts}/{merchant.activeProducts}</p>
+                <p className="text-[0.65rem] text-gray-400">active products ready</p>
+              </div>
+              <div className="border border-gray-100 p-4">
+                <p className="text-[0.56rem] uppercase tracking-[0.14em] text-gray-400">Stripe Mode</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900 capitalize">{stripe.secretKeyMode}</p>
+                <p className="text-[0.65rem] text-gray-400">{stripe.publishableKeyLast4 ? `pk ending ${stripe.publishableKeyLast4}` : "no publishable key"}</p>
+              </div>
+              <div className="border border-gray-100 p-4">
+                <p className="text-[0.56rem] uppercase tracking-[0.14em] text-gray-400">Checkout</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">{stripe.checkoutReady ? "Ready" : "Needs setup"}</p>
+                <p className="text-[0.65rem] text-gray-400">keys plus webhook</p>
+              </div>
+            </div>
+
+            <div className="border border-gray-100 p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-gray-800">Google Merchant Center feed</p>
+                    <StatusPill good={feedReady} label={feedReady ? "Ready" : "Needs fixes"} />
+                  </div>
+                  <p className="text-[0.65rem] text-gray-400 mt-1">Add this as a scheduled fetch in Merchant Center.</p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => copyText(merchant.feedUrl, "Feed URL")} className="inline-flex items-center gap-1.5 px-3 py-2 text-[0.62rem] uppercase tracking-[0.12em] border border-gray-200 text-gray-600 hover:bg-gray-50">
+                    <Copy className="h-3 w-3" /> Copy
+                  </button>
+                  <a href={merchant.feedUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 text-[0.62rem] uppercase tracking-[0.12em] bg-gray-900 text-white hover:bg-gray-800">
+                    <ExternalLink className="h-3 w-3" /> Open
+                  </a>
+                </div>
+              </div>
+              <code className="block bg-gray-50 border border-gray-100 px-3 py-2 text-[0.70rem] text-gray-600 break-all">{merchant.feedUrl}</code>
+              {(feedErrors.length > 0 || feedWarnings.length > 0) && (
+                <div className="space-y-2 max-h-44 overflow-auto border-t border-gray-50 pt-3">
+                  {[...feedErrors, ...feedWarnings].slice(0, 12).map((issue: any, idx: number) => (
+                    <div key={`${issue.slug}-${issue.field}-${idx}`} className="flex items-start gap-2 text-[0.68rem]">
+                      <AlertCircle className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${issue.severity === "error" ? "text-red-500" : "text-amber-500"}`} />
+                      <p className="text-gray-500">
+                        <span className="font-medium text-gray-800">{issue.name}</span> · {issue.field}: {issue.message}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="border border-gray-100 p-4 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-gray-500" />
+                    <p className="text-sm font-medium text-gray-800">Stripe company setup</p>
+                    <StatusPill good={stripe.checkoutReady} label={stripe.checkoutReady ? "Checkout live" : "Configure keys"} />
+                  </div>
+                  <p className="text-[0.65rem] text-gray-400 mt-1">Create or switch to this company in Stripe, then paste the keys into your deployment environment.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <a href={stripe.dashboardUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 text-[0.62rem] uppercase tracking-[0.12em] border border-gray-200 text-gray-600 hover:bg-gray-50">
+                    <ExternalLink className="h-3 w-3" /> Create Stripe
+                  </a>
+                  <a href={stripe.apiKeysUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 text-[0.62rem] uppercase tracking-[0.12em] bg-gray-900 text-white hover:bg-gray-800">
+                    <ExternalLink className="h-3 w-3" /> API Keys
+                  </a>
+                </div>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                {data.requiredEnv.map((key: string) => {
+                  const good =
+                    key === "STRIPE_SECRET_KEY" ? stripe.secretKeyMode !== "missing" :
+                    key === "VITE_STRIPE_PUBLISHABLE_KEY" ? stripe.publishableKeyMode !== "missing" :
+                    key === "STRIPE_WEBHOOK_SECRET" ? stripe.webhookConfigured :
+                    Boolean(data.siteUrl);
+                  return (
+                    <div key={key} className="flex items-center justify-between gap-2 border border-gray-100 px-3 py-2">
+                      <code className="text-[0.66rem] text-gray-600">{key}</code>
+                      <span className={`text-[0.55rem] uppercase tracking-[0.12em] ${good ? "text-emerald-600" : "text-amber-600"}`}>{good ? "Set" : "Needed"}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-[0.65rem] font-medium text-gray-700">Stripe webhook endpoint</p>
+                <div className="flex gap-2">
+                  <code className="flex-1 bg-gray-50 border border-gray-100 px-3 py-2 text-[0.70rem] text-gray-600 break-all">{stripe.webhookUrl}</code>
+                  <button onClick={() => copyText(stripe.webhookUrl, "Webhook URL")} className="px-3 py-2 border border-gray-200 text-gray-600 hover:bg-gray-50">
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <p className="text-[0.64rem] text-gray-400">In Stripe, send payment intent events to this URL, then save the signing secret as STRIPE_WEBHOOK_SECRET.</p>
+              </div>
+            </div>
+
+            {tax && (
+              <div className="border border-gray-100 p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Percent className="h-4 w-4 text-gray-500" />
+                      <p className="text-sm font-medium text-gray-800">Automatic sales tax (Stripe Tax)</p>
+                      <StatusPill good={tax.active} label={tax.active ? "Active" : "Not configured"} />
+                    </div>
+                    <p className="text-[0.65rem] text-gray-400 mt-1">
+                      Calculated live at checkout by destination address — Origin: Houston, TX 77083. Only collects tax in states/countries you've registered below.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <a href={tax.registrationsUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 text-[0.62rem] uppercase tracking-[0.12em] bg-gray-900 text-white hover:bg-gray-800">
+                      <ExternalLink className="h-3 w-3" /> Manage Registrations
+                    </a>
+                  </div>
+                </div>
+                {tax.registrations.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {tax.registrations.map((r: any, i: number) => (
+                      <span key={i} className="px-2 py-1 text-[0.6rem] uppercase tracking-[0.1em] bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        {r.state ? `${r.state}, ${r.country}` : r.country}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[0.64rem] text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2">
+                    No registrations yet — every order currently collects $0 tax (legally correct until you register). Add Texas once you have your TX Sales and Use Tax Permit from the Comptroller, and any other state where you cross its economic nexus threshold.
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-between items-center gap-3">
+              <a href={merchant.merchantCenterUrl} target="_blank" rel="noreferrer" className="text-[0.62rem] uppercase tracking-[0.12em] text-gray-500 hover:text-gray-900 inline-flex items-center gap-1.5">
+                <ExternalLink className="h-3 w-3" /> Merchant Center sources
+              </a>
+              <button onClick={() => refetch()} className="px-4 py-2 text-[0.62rem] uppercase tracking-[0.12em] border border-gray-200 text-gray-600 hover:bg-gray-50">
+                Recheck
+              </button>
+            </div>
+          </>
         )}
       </div>
     </SettingsCard>
@@ -618,6 +845,9 @@ function AdminSettings() {
         {/* Store Settings — narrower column */}
         <div className="max-w-3xl space-y-6">
 
+        {/* Launch Integrations — Stripe + Google Merchant setup */}
+        <LaunchIntegrationsCard token={token} />
+
         {/* Two-Factor Authentication */}
         <TwoFactorCard token={token} />
 
@@ -676,8 +906,8 @@ function AdminSettings() {
         <SettingsCard icon={Percent} title="Commerce">
           <SettingRow
             settingKey="tax_rate"
-            label="Tax Rate"
-            description="Applied to all orders at checkout. Set to 0 if you handle tax separately."
+            label="Fallback Tax Rate"
+            description="Only used if automatic Stripe Tax calculation is unavailable for an order. Normally leave at 0 — see Launch Integrations above for real, address-based tax."
             value={get("tax_rate")}
             type="number"
             suffix="%"

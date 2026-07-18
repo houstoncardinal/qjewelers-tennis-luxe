@@ -4,7 +4,7 @@
 import { supabaseAdmin } from "../../integrations/supabase/client.server";
 import { sendOrderConfirmation } from "../email";
 import { alertAdminOnError } from "../error-alert";
-import { retrievePaymentIntent, isStripeConfigured } from "./stripe.server";
+import { retrievePaymentIntent, isStripeConfigured, createTaxTransaction } from "./stripe.server";
 import { capturePaypalOrder, getPaypalOrder, isPaypalConfigured } from "./paypal.server";
 
 const db = supabaseAdmin as any;
@@ -20,7 +20,15 @@ export interface OrderPayload {
   shipping_zip: string;
   shipping_country: string;
   notes: string | null;
-  items: Array<{ name: string; color: string; size: string; length: string; closureType?: string; unitPrice: number; quantity: number }>;
+  items: Array<{
+    name: string;
+    color: string;
+    size: string;
+    length: string;
+    closureType?: string;
+    unitPrice: number;
+    quantity: number;
+  }>;
   subtotal: number;
   discount_amount: number;
   promo_code: string | null;
@@ -28,6 +36,7 @@ export interface OrderPayload {
   tax: number;
   total: number;
   shipping_method: "standard" | "express" | "overnight";
+  stripe_tax_calculation_id?: string | null;
 }
 
 export interface FinalizedOrder {
@@ -53,9 +62,17 @@ async function waitForFinalization(pendingId: string): Promise<FinalizedOrder> {
   // poll briefly rather than double-charge or double-insert the order.
   for (let i = 0; i < 10; i++) {
     await new Promise((r) => setTimeout(r, 500));
-    const { data: row } = await db.from("pending_orders").select("*").eq("id", pendingId).maybeSingle();
+    const { data: row } = await db
+      .from("pending_orders")
+      .select("*")
+      .eq("id", pendingId)
+      .maybeSingle();
     if (row?.status === "finalized" && row.order_id) {
-      const { data: order } = await db.from("orders").select("order_number, total, tax, shipping_method, customer_name").eq("id", row.order_id).single();
+      const { data: order } = await db
+        .from("orders")
+        .select("order_number, total, tax, shipping_method, customer_name")
+        .eq("id", row.order_id)
+        .single();
       if (order) return rowToFinalized(order);
     }
     if (row?.status === "failed") throw new Error("Payment was not completed for this order");
@@ -76,7 +93,11 @@ export async function finalizeReservation(reservationToken: string): Promise<Fin
   if (error || !pending) throw new Error("Order not found");
 
   if (pending.status === "finalized" && pending.order_id) {
-    const { data: order } = await db.from("orders").select("order_number, total, tax, shipping_method, customer_name").eq("id", pending.order_id).single();
+    const { data: order } = await db
+      .from("orders")
+      .select("order_number, total, tax, shipping_method, customer_name")
+      .eq("id", pending.order_id)
+      .single();
     if (order) return rowToFinalized(order);
   }
   if (pending.status === "failed" || pending.status === "expired") {
@@ -96,26 +117,42 @@ export async function finalizeReservation(reservationToken: string): Promise<Fin
 
   let verified = false;
   let paymentReference = "";
+  const payload = claimed.payload as OrderPayload;
 
-  if (claimed.payment_method === "stripe") {
-    if (!isStripeConfigured()) throw new Error("Stripe is not configured");
-    const intent = await retrievePaymentIntent(claimed.stripe_payment_intent_id);
-    verified = intent.status === "succeeded";
-    paymentReference = intent.id;
-  } else if (claimed.payment_method === "paypal") {
-    if (!isPaypalConfigured()) throw new Error("PayPal is not configured");
-    try {
-      const captured = await capturePaypalOrder(claimed.paypal_order_id);
-      verified = captured.status === "COMPLETED";
-      paymentReference = captured.captureId ?? claimed.paypal_order_id;
-    } catch {
-      // Already captured by a prior attempt — check status instead of failing.
-      const existing = await getPaypalOrder(claimed.paypal_order_id);
-      verified = existing.status === "COMPLETED";
-      paymentReference = claimed.paypal_order_id;
+  try {
+    if (claimed.payment_method === "stripe") {
+      if (!isStripeConfigured()) throw new Error("Stripe is not configured");
+      if (!claimed.stripe_payment_intent_id) throw new Error("Payment reference is missing");
+      const intent = await retrievePaymentIntent(claimed.stripe_payment_intent_id);
+      const expectedAmount = Math.round(Number(payload.total) * 100);
+      verified =
+        intent.status === "succeeded" &&
+        intent.amount_received === expectedAmount &&
+        intent.currency.toLowerCase() === "usd" &&
+        intent.metadata?.reservation_token === reservationToken;
+      paymentReference = intent.id;
+    } else if (claimed.payment_method === "paypal") {
+      if (!isPaypalConfigured()) throw new Error("PayPal is not configured");
+      if (!claimed.paypal_order_id) throw new Error("Payment reference is missing");
+      try {
+        const captured = await capturePaypalOrder(claimed.paypal_order_id);
+        verified = captured.status === "COMPLETED";
+        paymentReference = captured.captureId ?? claimed.paypal_order_id;
+      } catch {
+        // Already captured by a prior attempt — check status instead of failing.
+        const existing = await getPaypalOrder(claimed.paypal_order_id);
+        verified = existing.status === "COMPLETED";
+        paymentReference = claimed.paypal_order_id;
+      }
+    } else {
+      throw new Error(`Unknown payment method: ${claimed.payment_method}`);
     }
-  } else {
-    throw new Error(`Unknown payment method: ${claimed.payment_method}`);
+  } catch (error) {
+    // Provider/network errors are retryable. Returning the claim to pending
+    // prevents one transient API failure from leaving a paid order permanently
+    // stuck in "processing".
+    await db.from("pending_orders").update({ status: "pending" }).eq("id", claimed.id);
+    throw error;
   }
 
   if (!verified) {
@@ -124,9 +161,7 @@ export async function finalizeReservation(reservationToken: string): Promise<Fin
     throw new Error("Payment was not completed");
   }
 
-  const payload = claimed.payload as OrderPayload;
-
-  const { data: order, error: insertErr } = await db
+  let { data: order, error: insertErr } = await db
     .from("orders")
     .insert({
       customer_name: payload.customer_name,
@@ -154,14 +189,42 @@ export async function finalizeReservation(reservationToken: string): Promise<Fin
     .select("id, order_number, total, tax, shipping_method, customer_name")
     .single();
   if (insertErr) {
-    // Payment already succeeded but the order row failed to insert — this
-    // needs human attention immediately, not a customer-facing retry.
-    alertAdminOnError(`finalizeReservation order insert (token ${reservationToken})`, insertErr);
-    throw new Error(insertErr.message);
+    // A previous attempt may have inserted the order and then failed before it
+    // linked pending_orders. The unique payment reference makes that recovery
+    // safe and prevents duplicate paid orders.
+    const { data: existing } = await db
+      .from("orders")
+      .select("id, order_number, total, tax, shipping_method, customer_name")
+      .eq("payment_method", claimed.payment_method)
+      .eq("payment_reference", paymentReference)
+      .maybeSingle();
+    if (existing) {
+      order = existing;
+      insertErr = null;
+    } else {
+      await db.from("pending_orders").update({ status: "pending" }).eq("id", claimed.id);
+      alertAdminOnError(`finalizeReservation order insert (token ${reservationToken})`, insertErr);
+      throw new Error(insertErr.message);
+    }
   }
 
   await db.rpc("commit_reservation", { p_token: reservationToken });
-  await db.from("pending_orders").update({ status: "finalized", order_id: order.id }).eq("id", claimed.id);
+  await db
+    .from("pending_orders")
+    .update({ status: "finalized", order_id: order.id })
+    .eq("id", claimed.id);
+
+  if (payload.promo_code) {
+    await db
+      .rpc("increment_promo_usage", { p_code: payload.promo_code })
+      .catch((error: unknown) => {
+        console.warn("[Promo] usage increment failed:", error);
+      });
+  }
+
+  if (payload.stripe_tax_calculation_id) {
+    createTaxTransaction(payload.stripe_tax_calculation_id, order.order_number).catch(() => {});
+  }
 
   const addressParts = [
     payload.shipping_address_line1,
@@ -189,7 +252,9 @@ export async function finalizeReservation(reservationToken: string): Promise<Fin
 
 // Looks up the reservation token for a given provider payment id — used by
 // webhooks, which only know the Stripe PaymentIntent id or PayPal order id.
-export async function findReservationTokenByStripeIntent(paymentIntentId: string): Promise<string | null> {
+export async function findReservationTokenByStripeIntent(
+  paymentIntentId: string,
+): Promise<string | null> {
   const { data } = await db
     .from("pending_orders")
     .select("reservation_token")
@@ -198,7 +263,20 @@ export async function findReservationTokenByStripeIntent(paymentIntentId: string
   return data?.reservation_token ?? null;
 }
 
-export async function findReservationTokenByPaypalOrder(paypalOrderId: string): Promise<string | null> {
+export async function failReservationByStripeIntent(paymentIntentId: string): Promise<void> {
+  const { data: pending } = await db
+    .from("pending_orders")
+    .select("id, reservation_token, status")
+    .eq("stripe_payment_intent_id", paymentIntentId)
+    .maybeSingle();
+  if (!pending || pending.status === "finalized") return;
+  await db.rpc("release_reservation", { p_token: pending.reservation_token });
+  await db.from("pending_orders").update({ status: "failed" }).eq("id", pending.id);
+}
+
+export async function findReservationTokenByPaypalOrder(
+  paypalOrderId: string,
+): Promise<string | null> {
   const { data } = await db
     .from("pending_orders")
     .select("reservation_token")

@@ -144,3 +144,177 @@ Return ONLY valid JSON. No markdown. No preamble. Structure:
 
     return { content };
   });
+
+// ─── AI Image Generation ──────────────────────────────────────────────────────
+
+const IMAGE_STYLE_PROMPTS: Record<string, string> = {
+  studio_white:  "pure white seamless paper backdrop, professional jewelry photography studio, two large softbox lights creating crisp even illumination, razor-sharp focus, commercial product photography",
+  velvet_black:  "plush black velvet jewelry display surface, dramatic chiaroscuro lighting with a single warm key light, deep rich shadows, ultra-luxury jewelry boutique editorial photography",
+  marble_white:  "white Carrara marble surface with subtle natural grey veining, soft diffused natural window light raking from the left, architectural editorial fine jewelry photography",
+  velvet_navy:   "deep midnight navy velvet display surface, warm accent spot lighting from above, luxury jewelry showcase photography reminiscent of high-end boutiques",
+  rose_gold_bg:  "rose gold metallic gradient background surface transitioning from deep copper to soft blush, warm cinematic rim lighting, high-fashion luxury jewelry campaign photography",
+  lifestyle_worn:"elegantly worn jewelry on a sophisticated woman, lifestyle photography, natural golden hour sunlight, 85mm portrait lens at f/1.4 creating painterly bokeh, aspirational editorial",
+  flatlay_linen: "overhead flat lay on natural undyed Belgian linen fabric, delicate dried white flowers as accents, overhead even natural light, editorial lifestyle photography",
+  marble_grey:   "cool charcoal grey slate stone surface, architectural directional lighting, editorial luxury product photography with dramatic shadows",
+  bokeh_warm:    "warm golden bokeh background with soft circular light orbs, luxury fine jewelry photography, 105mm macro lens, dreamy romantic atmosphere",
+  outdoor_garden:"lush botanical garden setting, dappled golden sunlight filtering through green leaves, lifestyle luxury photography, natural organic aspirational mood",
+  dark_wood:     "aged polished dark walnut wood surface with natural grain, warm tungsten studio lighting, artisan atelier product photography",
+  champagne_silk:"champagne satin fabric draped as background, soft studio lighting, high-fashion jewelry editorial photography",
+};
+
+const IMAGE_ANGLE_PROMPTS: Record<string, string> = {
+  front:    "direct front-facing centered view, symmetric composition",
+  angle_45: "elegant three-quarter 45-degree perspective",
+  closeup:  "extreme close-up macro photography revealing every stone facet with crystalline clarity, highlighting the fire and brilliance of each moissanite",
+  overhead: "aerial overhead bird's eye view, perfectly centered flat composition",
+  draped:   "naturally draped and arranged in a flowing organic composition showing the full chain or piece",
+};
+
+export interface GeneratedImageResult {
+  imageUrl: string;
+  style: string;
+  angle: string;
+  prompt: string;
+}
+
+// Vision analysis system prompt — used by GPT-4o to study product images
+// before building the generation prompt. The goal is surgical accuracy:
+// capture every observable detail so the generated image is a faithful
+// re-creation of the exact piece, not a generic jewelry photograph.
+const VISION_SYSTEM_PROMPT = `You are a master jewelry photographer and certified gemologist with 30 years of experience documenting fine jewelry for auction houses, luxury brands, and editorial campaigns. Your eye misses nothing.
+
+When shown images of a jewelry piece, you produce an exhaustive technical description capturing:
+
+METAL & FINISH
+- Metal color (yellow gold / rose gold / white gold / silver / rhodium)
+- Surface finish (high-polish mirror / brushed matte / hammered / satin)
+- Metal thickness and visual weight
+- Any two-tone or mixed-metal elements
+
+STONE CONFIGURATION
+- Stone type (moissanite / diamond / gemstone)
+- Setting style (prong / bezel / pavé / channel / invisible / tension / micro-pavé)
+- Stone arrangement (single row / double row / cluster / graduated / alternating)
+- Approximate stone count or density per inch
+- Stone shape (round brilliant / princess / oval / emerald / baguette / trillion)
+- Stone size relative to the setting (proportion to metal)
+- Visible faceting and fire characteristics
+
+PIECE ANATOMY
+- Overall silhouette and form (straight / tapered / curved / geometric)
+- Link or chain style (if applicable: cable / box / Figaro / tennis / rope / snake)
+- Clasp and closure mechanism (lobster / box / toggle / magnetic / invisible)
+- Length, width, and visual weight proportions
+- Any pendants, charms, or focal elements
+- Texture transitions or design breaks along the piece
+
+DESIGN CHARACTER
+- Design language (classic / art deco / contemporary / organic / architectural)
+- Symmetry and repetition pattern
+- Negative space usage
+- Overall aesthetic feel in one precise sentence
+
+Output: A single dense paragraph (180–240 words) of pure technical description. No marketing language. No adjectives like "beautiful" or "stunning". Only observable, measurable, replicable facts that a master craftsman or photographer could use to recreate the exact piece.`;
+
+export const generateProductImage = createServerFn({ method: "POST" })
+  .inputValidator((d: {
+    token: string;
+    productName: string;
+    productType?: string;
+    productImageUrls?: string[];
+    style: string;
+    angle: string;
+    customPrompt?: string;
+    count?: number;
+  }) => d)
+  .handler(async ({ data }) => {
+    requireAdmin(data.token);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const styleDesc = IMAGE_STYLE_PROMPTS[data.style] ?? data.style;
+    const angleDesc = IMAGE_ANGLE_PROMPTS[data.angle] ?? data.angle;
+
+    let prompt: string;
+
+    if (data.customPrompt) {
+      prompt = data.customPrompt;
+    } else {
+      // Step 1: Use GPT-4o vision to analyze the actual product images
+      // and extract a precise anatomical description of the piece.
+      let anatomyDescription = "";
+      const imageUrls = (data.productImageUrls ?? []).filter(Boolean).slice(0, 6);
+
+      if (imageUrls.length > 0) {
+        const visionMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+          { role: "system", content: VISION_SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Study every image of this jewelry piece carefully. Product name: "${data.productName}"${data.productType ? ` (${data.productType})` : ""}. Analyze all provided angles and produce your complete technical description.`,
+              },
+              ...imageUrls.map(url => ({
+                type: "image_url" as const,
+                image_url: { url, detail: "high" as const },
+              })),
+            ],
+          },
+        ];
+
+        const visionRes = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: visionMessages,
+          max_tokens: 500,
+          temperature: 0.2,
+        });
+        anatomyDescription = visionRes.choices[0]?.message?.content?.trim() ?? "";
+      }
+
+      // Step 2: Build the generation prompt from the anatomy + style + angle.
+      // The anatomy description is the load-bearing part — style and angle
+      // are compositional instructions layered on top.
+      const baseDescription = anatomyDescription
+        ? `The exact jewelry piece to photograph: ${anatomyDescription}`
+        : `A fine jewelry piece: ${data.productName}${data.productType ? `, a ${data.productType}` : ""}, crafted in sterling silver with precious metal plating and brilliant-cut VVS moissanite stones.`;
+
+      prompt = `Photorealistic luxury jewelry product photograph. ${baseDescription}
+
+Setting & environment: ${styleDesc}.
+Composition: ${angleDesc}.
+
+Photographic requirements: The piece must be rendered with absolute fidelity to its actual design — every stone, every prong, every link, every surface finish exactly as it appears in real life. The stones show exceptional fire, brilliance, and scintillation under the studio lighting. Shot on a Hasselblad medium format camera with a 120mm macro lens. Tack-sharp focus across the entire piece. Professional color grading. The image is indistinguishable from a photograph taken in a world-class jewelry photography studio.
+
+No text, watermarks, props, hands, or additional jewelry. Only the piece itself and its environment.`;
+    }
+
+    const n = Math.min(data.count ?? 1, 4);
+    const responses = await Promise.all(
+      Array.from({ length: n }, () =>
+        openai.images.generate({
+          model: "gpt-image-1",
+          prompt,
+          n: 1,
+          size: "1024x1024",
+          quality: "high",
+        })
+      )
+    );
+
+    const results: GeneratedImageResult[] = [];
+    for (const res of responses) {
+      const b64 = res.data?.[0]?.b64_json;
+      if (!b64) continue;
+      const buf  = Buffer.from(b64, "base64");
+      const path = `ai-gen/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
+      const { error } = await (supabaseAdmin as any).storage
+        .from("product-images")
+        .upload(path, buf, { contentType: "image/png", upsert: false });
+      if (error) throw new Error(`Storage upload failed: ${error.message}`);
+      const { data: pub } = (supabaseAdmin as any).storage
+        .from("product-images").getPublicUrl(path);
+      results.push({ imageUrl: pub.publicUrl, style: data.style, angle: data.angle, prompt });
+    }
+
+    return { images: results };
+  });

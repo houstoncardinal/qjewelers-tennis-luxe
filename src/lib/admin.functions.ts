@@ -6,10 +6,12 @@ import QRCode from "qrcode";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sendShippingNotification } from "@/lib/email";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getMerchantFeedReadiness } from "@/lib/merchant-feed";
+import { getTaxStatus } from "@/lib/payments/stripe.server";
 
 const db = supabaseAdmin as any; // admin_users / audit_logs not in generated types
 
-const ADMIN_PIN = process.env.ADMIN_PIN ?? "011491";
+const ADMIN_PIN = process.env.ADMIN_PIN ?? "";
 const SESSION_SECRET = process.env.ADMIN_SESSION_SECRET ?? "";
 const SESSION_COOKIE = "qj_admin_session";
 const PENDING_2FA_COOKIE = "qj_admin_pending_2fa";
@@ -115,6 +117,7 @@ export const adminAuth = createServerFn({ method: "POST" })
     // Fail loudly on missing config rather than letting signValue() throw
     // later and have the login UI mislabel it as a wrong-PIN error.
     if (!SESSION_SECRET) throw new Error("Server misconfigured: ADMIN_SESSION_SECRET is not set");
+    if (!ADMIN_PIN) throw new Error("Server misconfigured: ADMIN_PIN is not set");
 
     if (!data.pin || data.pin !== ADMIN_PIN) {
       throw new Error("Unauthorized");
@@ -278,6 +281,20 @@ export const createAdminUser = createServerFn({ method: "POST" })
     return { user: created };
   });
 
+export const deleteAdminUser = createServerFn({ method: "POST" })
+  .inputValidator((d: { token: string; userId: string }) => d)
+  .handler(async ({ data }) => {
+    requireAdmin(data.token);
+    const actingId = getCurrentAdminId();
+    const { data: acting } = await db.from("admin_users").select("role").eq("id", actingId).single();
+    if (acting?.role !== "admin") throw new Error("Only admins can delete staff accounts");
+    if (data.userId === actingId) throw new Error("You cannot delete your own account");
+    const { error } = await db.from("admin_users").delete().eq("id", data.userId);
+    if (error) throw new Error(error.message);
+    await writeAuditLog({ adminUserId: actingId, action: "admin_user_deleted", targetType: "admin_users", targetId: data.userId, details: {} });
+    return { success: true };
+  });
+
 export const getAuditLog = createServerFn({ method: "GET" })
   .inputValidator((d: { token: string; limit?: number }) => d)
   .handler(async ({ data }) => {
@@ -289,6 +306,48 @@ export const getAuditLog = createServerFn({ method: "GET" })
       .limit(data.limit ?? 100);
     if (error) throw new Error(error.message);
     return { logs: logs ?? [] };
+  });
+
+// ─── Launch Integrations ─────────────────────────────────────────────────────
+
+export const getLaunchReadiness = createServerFn({ method: "GET" })
+  .inputValidator((d: { token: string }) => d)
+  .handler(async ({ data }) => {
+    requireAdmin(data.token);
+    const siteUrl = (process.env.VITE_SITE_URL ?? "https://qureshijewelers.com").replace(/\/$/, "");
+    const merchant = await getMerchantFeedReadiness();
+    const stripeSecret = process.env.STRIPE_SECRET_KEY ?? "";
+    const stripePublishable = process.env.VITE_STRIPE_PUBLISHABLE_KEY ?? "";
+    const tax = await getTaxStatus();
+
+    return {
+      siteUrl,
+      merchant,
+      tax: {
+        active: tax.active,
+        registrations: tax.registrations,
+        settingsUrl: "https://dashboard.stripe.com/settings/tax",
+        registrationsUrl: "https://dashboard.stripe.com/tax/registrations",
+      },
+      stripe: {
+        configured: Boolean(stripeSecret && stripePublishable),
+        secretKeyMode: stripeSecret.startsWith("sk_live_") ? "live" : stripeSecret.startsWith("sk_test_") ? "test" : "missing",
+        publishableKeyMode: stripePublishable.startsWith("pk_live_") ? "live" : stripePublishable.startsWith("pk_test_") ? "test" : "missing",
+        webhookConfigured: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
+        publishableKeyLast4: stripePublishable ? stripePublishable.slice(-4) : "",
+        checkoutReady: Boolean(stripeSecret && stripePublishable && process.env.STRIPE_WEBHOOK_SECRET),
+        webhookUrl: `${siteUrl}/.netlify/functions/stripe-webhook`,
+        dashboardUrl: "https://dashboard.stripe.com/register",
+        apiKeysUrl: "https://dashboard.stripe.com/apikeys",
+        webhooksUrl: "https://dashboard.stripe.com/webhooks",
+      },
+      requiredEnv: [
+        "STRIPE_SECRET_KEY",
+        "VITE_STRIPE_PUBLISHABLE_KEY",
+        "STRIPE_WEBHOOK_SECRET",
+        "VITE_SITE_URL",
+      ],
+    };
   });
 
 // ─── Dashboard Stats ──────────────────────────────────────────────────────────

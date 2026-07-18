@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { Plus, Trash2, ToggleLeft, ToggleRight, Tag, X } from "lucide-react";
+import { Plus, Trash2, ToggleLeft, ToggleRight, Tag, X, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import {
   listPromoCodes, createPromoCode, updatePromoCode, deletePromoCode,
@@ -20,39 +20,79 @@ const EMPTY_FORM = {
   expires_at: "", active: true,
 };
 
-function CreatePromoModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const token = useAdminToken();
-  const [form, setForm] = useState(EMPTY_FORM);
+// Shared form modal used for both create and edit
+function PromoModal({
+  initial,
+  onClose,
+  onSaved,
+}: {
+  initial?: any; // existing promo for edit mode; undefined = create mode
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const token    = useAdminToken();
+  const isEdit   = !!initial;
+  const [form, setForm] = useState({
+    code:             initial?.code             ?? "",
+    name:             initial?.name             ?? "",
+    discount_type:    initial?.discount_type    ?? "percentage" as "percentage" | "fixed",
+    discount_value:   initial?.discount_value   ?? 10,
+    min_order_amount: initial?.min_order_amount ?? 0,
+    max_uses:         initial?.max_uses         != null ? String(initial.max_uses) : "" as string | number,
+    expires_at:       initial?.expires_at
+      ? new Date(initial.expires_at).toISOString().slice(0, 16)
+      : "",
+    active: initial?.active ?? true,
+  });
   const [saving, setSaving] = useState(false);
-  const createFn = useServerFn(createPromoCode);
 
-  const set = (k: keyof typeof EMPTY_FORM) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const createFn = useServerFn(createPromoCode);
+  const updateFn = useServerFn(updatePromoCode);
+
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const val = e.target.type === "checkbox" ? (e.target as HTMLInputElement).checked : e.target.value;
     setForm(f => ({ ...f, [k]: val }));
   };
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.code.trim()) { toast.error("Code is required"); return; }
+    if (!isEdit && !form.code.trim()) { toast.error("Code is required"); return; }
     setSaving(true);
     try {
-      await createFn({
-        data: {
-          token,
-          code: form.code.toUpperCase().trim(),
-          name: form.name.trim() || form.code.toUpperCase().trim(),
-          discount_type: form.discount_type,
-          discount_value: Number(form.discount_value),
-          min_order_amount: Number(form.min_order_amount),
-          max_uses: form.max_uses !== "" ? Number(form.max_uses) : null,
-          expires_at: form.expires_at || null,
-          active: form.active,
-        },
-      });
-      toast.success("Promo code created");
-      onCreated();
+      if (isEdit) {
+        await updateFn({
+          data: {
+            token,
+            id: initial.id,
+            name:             form.name.trim() || undefined,
+            discount_type:    form.discount_type,
+            discount_value:   Number(form.discount_value),
+            min_order_amount: Number(form.min_order_amount),
+            max_uses:         form.max_uses !== "" ? Number(form.max_uses) : null,
+            expires_at:       form.expires_at || null,
+            active:           form.active,
+          },
+        });
+        toast.success("Promo code updated");
+      } else {
+        await createFn({
+          data: {
+            token,
+            code:             form.code.toUpperCase().trim(),
+            name:             form.name.trim() || form.code.toUpperCase().trim(),
+            discount_type:    form.discount_type,
+            discount_value:   Number(form.discount_value),
+            min_order_amount: Number(form.min_order_amount),
+            max_uses:         form.max_uses !== "" ? Number(form.max_uses) : null,
+            expires_at:       form.expires_at || null,
+            active:           form.active,
+          },
+        });
+        toast.success("Promo code created");
+      }
+      onSaved();
     } catch (err: any) {
-      toast.error(err?.message ?? "Failed to create code");
+      toast.error(err?.message ?? "Failed to save code");
     } finally {
       setSaving(false);
     }
@@ -64,9 +104,9 @@ function CreatePromoModal({ onClose, onCreated }: { onClose: () => void; onCreat
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white w-full max-w-lg shadow-xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <p className="text-sm font-semibold text-gray-900">New Promo Code</p>
+      <div className="relative bg-white w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+          <p className="text-sm font-semibold text-gray-900">{isEdit ? `Edit · ${initial.code}` : "New Promo Code"}</p>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 transition-colors">
             <X className="h-4 w-4" />
           </button>
@@ -74,14 +114,12 @@ function CreatePromoModal({ onClose, onCreated }: { onClose: () => void; onCreat
         <form onSubmit={save} className="px-6 py-5 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className={labelCls}>Code *</label>
-              <input
-                value={form.code}
-                onChange={set("code")}
-                placeholder="SUMMER20"
-                className={`${inputCls} uppercase font-mono`}
-                required
-              />
+              <label className={labelCls}>Code {!isEdit && "*"}</label>
+              {isEdit
+                ? <p className="font-mono text-sm font-bold text-gray-900 bg-gray-50 border border-gray-200 px-3 py-2.5">{initial.code}</p>
+                : <input value={form.code} onChange={set("code")} placeholder="SUMMER20"
+                    className={`${inputCls} uppercase font-mono`} required />
+              }
             </div>
             <div>
               <label className={labelCls}>Display Name</label>
@@ -99,34 +137,21 @@ function CreatePromoModal({ onClose, onCreated }: { onClose: () => void; onCreat
             </div>
             <div>
               <label className={labelCls}>Discount Value</label>
-              <input
-                type="number"
-                min={0}
+              <input type="number" min={0}
                 step={form.discount_type === "percentage" ? 1 : 0.01}
                 max={form.discount_type === "percentage" ? 100 : undefined}
-                value={form.discount_value}
-                onChange={set("discount_value")}
-                className={inputCls}
-              />
+                value={form.discount_value} onChange={set("discount_value")} className={inputCls} />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelCls}>Min Order ($)</label>
-              <input
-                type="number" min={0} step={0.01}
-                value={form.min_order_amount} onChange={set("min_order_amount")}
-                className={inputCls}
-              />
+              <input type="number" min={0} step={0.01} value={form.min_order_amount} onChange={set("min_order_amount")} className={inputCls} />
             </div>
             <div>
               <label className={labelCls}>Max Uses (blank = unlimited)</label>
-              <input
-                type="number" min={1}
-                value={form.max_uses} onChange={set("max_uses")}
-                placeholder="Unlimited" className={inputCls}
-              />
+              <input type="number" min={1} value={form.max_uses} onChange={set("max_uses")} placeholder="Unlimited" className={inputCls} />
             </div>
           </div>
 
@@ -136,23 +161,20 @@ function CreatePromoModal({ onClose, onCreated }: { onClose: () => void; onCreat
           </div>
 
           <div className="flex items-center gap-3">
-            <input
-              type="checkbox" id="active" checked={form.active}
+            <input type="checkbox" id="promo-active" checked={!!form.active}
               onChange={e => setForm(f => ({ ...f, active: e.target.checked }))}
-              className="accent-gray-900"
-            />
-            <label htmlFor="active" className="text-sm text-gray-700">Active immediately</label>
+              className="accent-gray-900" />
+            <label htmlFor="promo-active" className="text-sm text-gray-700">Active</label>
           </div>
 
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 border border-gray-200 py-2.5 text-[0.65rem] uppercase tracking-[0.14em] text-gray-500 hover:border-gray-400 transition-colors">
+            <button type="button" onClick={onClose}
+              className="flex-1 border border-gray-200 py-2.5 text-[0.65rem] uppercase tracking-[0.14em] text-gray-500 hover:border-gray-400 transition-colors">
               Cancel
             </button>
-            <button
-              type="submit" disabled={saving}
-              className="flex-1 bg-gray-900 text-white py-2.5 text-[0.65rem] uppercase tracking-[0.14em] hover:bg-gray-800 transition-colors disabled:opacity-40"
-            >
-              {saving ? "Creating…" : "Create Code"}
+            <button type="submit" disabled={saving}
+              className="flex-1 bg-gray-900 text-white py-2.5 text-[0.65rem] uppercase tracking-[0.14em] hover:bg-gray-800 transition-colors disabled:opacity-40">
+              {saving ? (isEdit ? "Saving…" : "Creating…") : (isEdit ? "Save Changes" : "Create Code")}
             </button>
           </div>
         </form>
@@ -165,6 +187,7 @@ function AdminPromotions() {
   const token = useAdminToken();
   const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
+  const [editPromo,  setEditPromo]  = useState<any | null>(null);
 
   const fetchCodes = useServerFn(listPromoCodes);
   const toggleFn   = useServerFn(updatePromoCode);
@@ -204,9 +227,16 @@ function AdminPromotions() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       {showCreate && (
-        <CreatePromoModal
+        <PromoModal
           onClose={() => setShowCreate(false)}
-          onCreated={() => { setShowCreate(false); refetch(); }}
+          onSaved={() => { setShowCreate(false); refetch(); }}
+        />
+      )}
+      {editPromo && (
+        <PromoModal
+          initial={editPromo}
+          onClose={() => setEditPromo(null)}
+          onSaved={() => { setEditPromo(null); refetch(); }}
         />
       )}
 
@@ -310,6 +340,9 @@ function AdminPromotions() {
                         </td>
                         <td className="px-4 py-3.5 pr-5">
                           <div className="flex items-center gap-2">
+                            <button onClick={() => setEditPromo(c)} title="Edit" className="text-gray-300 hover:text-gray-700 transition-colors">
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
                             <button onClick={() => toggle(c.id, c.active)} title={c.active ? "Deactivate" : "Activate"} className="text-gray-400 hover:text-gray-700 transition-colors">
                               {c.active ? <ToggleRight className="text-emerald-500" style={{ width: 18, height: 18 }} /> : <ToggleLeft style={{ width: 18, height: 18 }} />}
                             </button>
@@ -343,6 +376,9 @@ function AdminPromotions() {
                           <span className={`w-1.5 h-1.5 rounded-full ${isLive ? "bg-emerald-400" : "bg-gray-400"}`} />
                           {isLive ? "Active" : "Off"}
                         </span>
+                        <button onClick={() => setEditPromo(c)} className="p-1.5 text-gray-300 hover:text-gray-700 transition-colors active:scale-90">
+                          <Pencil className="h-4 w-4" />
+                        </button>
                         <button onClick={() => toggle(c.id, c.active)} className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors active:scale-90">
                           {c.active ? <ToggleRight className="text-emerald-500" style={{ width: 20, height: 20 }} /> : <ToggleLeft style={{ width: 20, height: 20 }} />}
                         </button>

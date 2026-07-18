@@ -645,7 +645,7 @@ export const validatePromoCode = createServerFn({ method: "POST" })
 
     const discountAmount =
       promo.discount_type === "percentage"
-        ? Math.round((data.orderSubtotal * Number(promo.discount_value)) / 100)
+        ? Math.round(data.orderSubtotal * Number(promo.discount_value)) / 100
         : Math.min(Number(promo.discount_value), data.orderSubtotal);
 
     return {
