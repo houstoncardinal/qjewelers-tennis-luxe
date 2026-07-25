@@ -19,6 +19,7 @@ const NAV_ITEMS = [
   { label: "Rings",      to: "/shop", search: { type: "ring" } },
   { label: "Our Craft",  to: "/about",                     search: {} },
   { label: "Moissanite", to: "/moissanite-guide",          search: {} },
+  { label: "Blog",       to: "/blog",                      search: {} },
 ];
 
 // Mobile drawer — top serif links (destinations, not product types)
@@ -26,6 +27,7 @@ const EXPLORE_LINKS = [
   { label: "Shop All",         to: "/shop",             search: {} },
   { label: "Our Craft",        to: "/about",            search: {} },
   { label: "Moissanite Guide", to: "/moissanite-guide", search: {} },
+  { label: "Blog",             to: "/blog",             search: {} },
 ];
 
 // Mobile drawer — product-type quick grid
@@ -250,6 +252,7 @@ export function Header() {
                 { label: "Rings",             to: "/shop",             search: { type: "ring"     } },
                 { label: "Our Craft",         to: "/about",            search: {} },
                 { label: "Moissanite Guide",  to: "/moissanite-guide", search: {} },
+                { label: "Blog",              to: "/blog",             search: {} },
               ].map(({ label, to, search }) => (
                 <Link
                   key={label}
@@ -423,6 +426,7 @@ export function Footer() {
           <FooterCol heading="Learn">
             <ul className="space-y-3.5">
               <FooterLink to="/moissanite-guide">Moissanite Guide</FooterLink>
+              <FooterLink to="/blog">Blog</FooterLink>
               <FooterLink to="/size-guide">Size Guide</FooterLink>
               <FooterLink to="/faq">FAQ</FooterLink>
               <FooterLink to="/about">Our Craft</FooterLink>

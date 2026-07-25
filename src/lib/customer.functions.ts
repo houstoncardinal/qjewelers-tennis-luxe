@@ -1,35 +1,44 @@
 import { createServerFn } from "@tanstack/react-start";
+import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireAdmin } from "@/lib/admin.functions";
 import { getOrCreateStripeCustomer, createStripePortalSession, isStripeConfigured } from "@/lib/payments/stripe.server";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const db = supabaseAdmin as any;
 
 // Validates that the calling user matches the userId claim in their Supabase token.
 // Returns the verified user object, or throws Unauthorized.
-async function verifyUser(token: string, userId: string) {
+export async function verifyUser(token: string, userId: string) {
   const { data, error } = await supabaseAdmin.auth.getUser(token);
   if (error || !data.user) throw new Error("Unauthorized");
   if (data.user.id !== userId) throw new Error("Unauthorized");
   return data.user;
 }
 
-// ─── Sign-up (server-side, bypasses email confirmation) ───────────────────────
+// ─── Sign-up ──────────────────────────────────────────────────────────────────
 
 export const signUpUser = createServerFn({ method: "POST" })
   .inputValidator((d: { email: string; password: string; fullName?: string; phone?: string }) => d)
   .handler(async ({ data }) => {
-    const { data: result, error } = await supabaseAdmin.auth.admin.createUser({
-      email: data.email,
+    checkRateLimit("customer-signup", { windowMs: 60 * 60 * 1000, max: 5 });
+    const email = data.email.trim().toLowerCase();
+    if (!email || data.password.length < 10) throw new Error("Use a valid email and a password of at least 10 characters");
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+    if (!url || !key) throw new Error("Account registration is not configured");
+    const publicAuth = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { data: result, error } = await publicAuth.auth.signUp({
+      email,
       password: data.password,
-      email_confirm: true,
-      user_metadata: {
-        full_name: data.fullName ?? "",
-        phone: data.phone ?? "",
+      options: {
+        emailRedirectTo: `${(process.env.VITE_SITE_URL ?? "https://qureshijewelers.com").replace(/\/$/, "")}/auth/callback`,
+        data: { full_name: data.fullName?.trim() ?? "", phone: data.phone?.trim() ?? "" },
       },
     });
     if (error) throw new Error(error.message);
-    return { userId: result.user.id, email: result.user.email };
+    if (!result.user) throw new Error("Could not create account");
+    return { userId: result.user.id, email: result.user.email, requiresEmailConfirmation: !result.session };
   });
 
 // ─── Stripe Customer Portal ───────────────────────────────────────────────────
@@ -45,7 +54,11 @@ export const createPaymentPortalSession = createServerFn({ method: "POST" })
     if (!email) throw new Error("Account email is required");
     const name = (user.user_metadata?.full_name as string | undefined) ?? undefined;
     const customerId = await getOrCreateStripeCustomer(email, name);
-    const url = await createStripePortalSession(customerId, data.returnUrl);
+    const siteOrigin = new URL(process.env.VITE_SITE_URL ?? "https://qureshijewelers.com").origin;
+    let returnUrl: URL;
+    try { returnUrl = new URL(data.returnUrl); } catch { throw new Error("Invalid return URL"); }
+    if (returnUrl.origin !== siteOrigin) throw new Error("Invalid return URL");
+    const url = await createStripePortalSession(customerId, returnUrl.toString());
     return { url };
   });
 

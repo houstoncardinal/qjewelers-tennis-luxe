@@ -13,7 +13,8 @@ Set these under **Netlify → Site configuration → Environment variables**:
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_PUBLISHABLE_KEY`
 - `VITE_SUPABASE_PROJECT_ID`
-- `ADMIN_PIN`
+- `ADMIN_BOOTSTRAP_PASSWORD` (temporary: remove after the first successful admin login)
+- `ADMIN_PIN` (temporary six-digit `/admin` owner PIN; currently `011491`)
 - `ADMIN_SESSION_SECRET`
 - `STRIPE_SECRET_KEY`
 - `VITE_STRIPE_PUBLISHABLE_KEY`
@@ -40,6 +41,42 @@ are intentionally public; secret/service-role keys are server-only.
 4. Deploy, then verify the Stripe destination points to:
    `https://qureshijewelers.com/.netlify/functions/stripe-webhook`.
 5. Confirm webhook deliveries return HTTP 200.
+
+The `checkout-maintenance` scheduled function runs every five minutes after
+deployment. Confirm it appears under Netlify **Functions** and that scheduled
+invocations succeed; it expires stale carts and cancels open Stripe intents.
+
+## Admin access
+
+The current `/admin` screen uses the server-only six-digit `ADMIN_PIN`. Set it
+to `011491` in Netlify environment variables, keep `ADMIN_SESSION_SECRET` set,
+and redeploy. The PIN is rate limited and exchanges for a signed, expiring,
+HttpOnly admin session; it is never included in the browser bundle. Password
+and named staff authentication remain available in the backend for a later
+return to individual accounts.
+
+## Launch tests
+
+- `npm test` runs unit and security-contract tests.
+- `supabase test db` runs RLS, inventory, promo, and refund concurrency tests
+  against an isolated local Supabase stack (Docker Desktop must be running).
+- `npm run test:e2e` runs desktop/mobile non-payment checkout tests.
+- Real payment scenarios are skipped unless `RUN_PAYMENT_E2E=1` and the
+  `E2E_PRODUCT_*` variables point to a seeded isolated test catalog. Only run
+  those scenarios with matching `sk_test_` / `pk_test_` Stripe keys and the
+  test webhook secret—never with production keys.
+
+## Required credential rotation
+
+Credentials previously exposed in local output or conversation history must be
+replaced, not merely moved into `.env`:
+
+1. Rotate the Supabase service-role key and personal access token.
+2. Roll the Stripe secret key and webhook signing secret; update the endpoint.
+3. Rotate Resend, OpenAI, Firecrawl, and any PayPal credentials.
+4. Generate a new `ADMIN_SESSION_SECRET` and bootstrap password.
+5. Update Netlify environment variables, redeploy, verify every integration,
+   and only then revoke the old values.
 
 Do not upload `.env` to the repository or include it in a Netlify deploy. When
 rotating a credential, update Netlify first, redeploy, verify the integration,

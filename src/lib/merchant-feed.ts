@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { lowestCatalogPrice } from "@/lib/pricing";
 
 const DEFAULT_SITE_URL = "https://qureshijewelers.com";
 const DEFAULT_BRAND = "Qureshi Jewelers";
@@ -23,6 +24,9 @@ type FeedProduct = {
   track_inventory?: boolean | null;
   stock_quantity?: number | null;
   updated_at?: string | null;
+  variant_inventory?: boolean | null;
+  variants_in_stock?: boolean | null;
+  variants?: Array<{ price_override: number | null; size?: string | null; length?: string | null; stock?: number; is_active?: boolean }>;
 };
 
 export type MerchantFeedIssue = {
@@ -60,14 +64,32 @@ function absoluteUrl(value: string | null | undefined): string {
   return `${siteUrl()}${value.startsWith("/") ? value : `/${value}`}`;
 }
 
+// Uses the same variant-aware resolver as the storefront, cart validation,
+// and structured data — sizing/length pricing for configurable products
+// (tennis chains, bracelets, rings) is NOT the same as raw base_price, so a
+// feed built from base_price alone can advertise a price Google's crawler
+// won't find on the actual landing page (a common cause of feed suspension).
+function catalogProduct(product: FeedProduct) {
+  return {
+    slug: product.slug,
+    type: product.type ?? "",
+    base_price: Number(product.base_price ?? 0),
+    sale_price: product.sale_price,
+    sale_active: product.sale_active ?? false,
+  };
+}
+
 function price(product: FeedProduct): number {
-  if (product.sale_active && product.sale_price != null && Number(product.sale_price) > 0) {
-    return Number(product.sale_price);
-  }
-  return Number(product.base_price ?? 0);
+  return lowestCatalogPrice(catalogProduct(product), product.variants ?? []);
+}
+
+// The pre-discount price shown alongside <g:sale_price> per Google's feed spec.
+function regularPrice(product: FeedProduct): number {
+  return lowestCatalogPrice({ ...catalogProduct(product), sale_active: false }, product.variants ?? []);
 }
 
 function availability(product: FeedProduct): "in_stock" | "out_of_stock" {
+  if (product.variant_inventory) return product.variants_in_stock ? "in_stock" : "out_of_stock";
   if (product.track_inventory && product.stock_quantity != null && Number(product.stock_quantity) <= 0) {
     return "out_of_stock";
   }
@@ -126,24 +148,49 @@ export function validateMerchantProduct(product: FeedProduct): MerchantFeedIssue
   return issues;
 }
 
+const PRODUCT_SELECT =
+  "slug, name, type, color, size, length, short_description, description, seo_title, seo_description, base_price, sale_price, sale_active, image_url, is_active, track_inventory, stock_quantity, updated_at";
+
+// Attaches each product's active variants (needed to price it the same way
+// the storefront/cart/checkout do) plus the inventory-derived availability
+// flags used by validateMerchantProduct.
+async function attachVariants(products: FeedProduct[]): Promise<FeedProduct[]> {
+  if (!products.length) return [];
+  const { data: variants, error: variantError } = await (supabaseAdmin as any)
+    .from("product_variants")
+    .select("product_slug, stock, is_active, price_override, size, length")
+    .in("product_slug", products.map((product) => product.slug))
+    .eq("is_active", true);
+  if (variantError) throw new Error(variantError.message);
+  return products.map((product) => {
+    const productVariants = (variants ?? []).filter((variant: any) => variant.product_slug === product.slug);
+    return {
+      ...product,
+      variants: productVariants,
+      variant_inventory: productVariants.length > 0,
+      variants_in_stock: productVariants.some((variant: any) => Number(variant.stock) === -1 || Number(variant.stock) > 0),
+    };
+  });
+}
+
 export async function fetchMerchantProducts(): Promise<FeedProduct[]> {
   const { data, error } = await (supabaseAdmin as any)
     .from("products")
-    .select("slug, name, type, color, size, length, short_description, description, seo_title, seo_description, base_price, sale_price, sale_active, image_url, is_active, track_inventory, stock_quantity, updated_at")
+    .select(PRODUCT_SELECT)
     .eq("is_active", true)
     .order("sort_order", { ascending: true });
   if (error) throw new Error(error.message);
-  return (data ?? []) as FeedProduct[];
+  return attachVariants((data ?? []) as FeedProduct[]);
 }
 
 export async function getMerchantFeedReadiness() {
   const { data, error } = await (supabaseAdmin as any)
     .from("products")
-    .select("slug, name, type, color, size, length, short_description, description, seo_title, seo_description, base_price, sale_price, sale_active, image_url, is_active, track_inventory, stock_quantity, updated_at")
+    .select(PRODUCT_SELECT)
     .order("sort_order", { ascending: true });
   if (error) throw new Error(error.message);
 
-  const products = (data ?? []) as FeedProduct[];
+  const products = await attachVariants((data ?? []) as FeedProduct[]);
   const activeProducts = products.filter((p) => p.is_active);
   const issues = products.flatMap(validateMerchantProduct);
   const activeErrors = issues.filter((i) => i.severity === "error" && activeProducts.some((p) => p.slug === i.slug));
@@ -164,8 +211,10 @@ export function buildGoogleMerchantXml(products: FeedProduct[]): string {
     .map((product) => {
       const link = `${siteUrl()}/product/${encodeURIComponent(product.slug)}`;
       const image = absoluteUrl(product.image_url);
-      const displayPrice = `${price(product).toFixed(2)} USD`;
-      const saleTag = product.sale_active && product.sale_price != null && product.base_price != null && product.sale_price < product.base_price
+      const effectivePrice = price(product);
+      const regular = regularPrice(product);
+      const displayPrice = `${effectivePrice.toFixed(2)} USD`;
+      const saleTag = product.sale_active && effectivePrice < regular
         ? `\n      <g:sale_price>${escapeXml(displayPrice)}</g:sale_price>`
         : "";
       const optional = [
@@ -182,7 +231,7 @@ export function buildGoogleMerchantXml(products: FeedProduct[]): string {
       <g:link>${escapeXml(link)}</g:link>
       <g:image_link>${escapeXml(image)}</g:image_link>
       <g:availability>${availability(product)}</g:availability>
-      <g:price>${escapeXml(product.base_price != null ? `${Number(product.base_price).toFixed(2)} USD` : displayPrice)}</g:price>${saleTag}
+      <g:price>${escapeXml(`${regular.toFixed(2)} USD`)}</g:price>${saleTag}
       <g:brand>${escapeXml(DEFAULT_BRAND)}</g:brand>
       <g:condition>new</g:condition>
       <g:google_product_category>${escapeXml(DEFAULT_CATEGORY)}</g:google_product_category>

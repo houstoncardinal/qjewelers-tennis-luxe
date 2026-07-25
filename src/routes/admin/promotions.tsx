@@ -17,7 +17,7 @@ export const Route = createFileRoute("/admin/promotions")({
 const EMPTY_FORM = {
   code: "", name: "", discount_type: "percentage" as "percentage" | "fixed",
   discount_value: 10, min_order_amount: 0, max_uses: "" as string | number,
-  expires_at: "", active: true,
+  expires_at: "", active: true, free_shipping: false,
 };
 
 // Shared form modal used for both create and edit
@@ -43,6 +43,7 @@ function PromoModal({
       ? new Date(initial.expires_at).toISOString().slice(0, 16)
       : "",
     active: initial?.active ?? true,
+    free_shipping: initial?.free_shipping ?? false,
   });
   const [saving, setSaving] = useState(false);
 
@@ -71,6 +72,7 @@ function PromoModal({
             max_uses:         form.max_uses !== "" ? Number(form.max_uses) : null,
             expires_at:       form.expires_at || null,
             active:           form.active,
+            free_shipping:    form.free_shipping,
           },
         });
         toast.success("Promo code updated");
@@ -86,6 +88,7 @@ function PromoModal({
             max_uses:         form.max_uses !== "" ? Number(form.max_uses) : null,
             expires_at:       form.expires_at || null,
             active:           form.active,
+            free_shipping:    form.free_shipping,
           },
         });
         toast.success("Promo code created");
@@ -160,11 +163,19 @@ function PromoModal({
             <input type="datetime-local" value={form.expires_at} onChange={set("expires_at")} className={inputCls} />
           </div>
 
-          <div className="flex items-center gap-3">
-            <input type="checkbox" id="promo-active" checked={!!form.active}
-              onChange={e => setForm(f => ({ ...f, active: e.target.checked }))}
-              className="accent-gray-900" />
-            <label htmlFor="promo-active" className="text-sm text-gray-700">Active</label>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+              <input type="checkbox" id="promo-active" checked={!!form.active}
+                onChange={e => setForm(f => ({ ...f, active: e.target.checked }))}
+                className="accent-gray-900" />
+              <label htmlFor="promo-active" className="text-sm text-gray-700">Active</label>
+            </div>
+            <div className="flex items-center gap-3">
+              <input type="checkbox" id="promo-free-shipping" checked={!!form.free_shipping}
+                onChange={e => setForm(f => ({ ...f, free_shipping: e.target.checked }))}
+                className="accent-gray-900" />
+              <label htmlFor="promo-free-shipping" className="text-sm text-gray-700">Free shipping</label>
+            </div>
           </div>
 
           <div className="flex gap-3 pt-2">
@@ -324,6 +335,11 @@ function AdminPromotions() {
                         <td className="px-4 py-3.5 text-xs text-gray-600 capitalize">{c.discount_type}</td>
                         <td className="px-4 py-3.5 text-xs font-semibold text-gray-900">
                           {c.discount_type === "percentage" ? `${c.discount_value}% off` : `${formatUSD(c.discount_value)} off`}
+                          {c.free_shipping && (
+                            <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 text-[0.52rem] uppercase tracking-[0.06em] font-medium rounded-sm bg-amber-50 text-amber-700 border border-amber-200">
+                              + Free ship
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3.5 text-xs text-gray-600">{Number(c.min_order_amount) > 0 ? formatUSD(Number(c.min_order_amount)) : "—"}</td>
                         <td className="px-4 py-3.5 text-xs text-gray-600 whitespace-nowrap">
@@ -391,6 +407,11 @@ function AdminPromotions() {
                       <div>
                         <p className="text-[0.50rem] uppercase tracking-[0.14em] text-gray-400 mb-0.5">Discount</p>
                         <p className="text-xs font-semibold text-gray-800">{c.discount_type === "percentage" ? `${c.discount_value}% off` : `${formatUSD(c.discount_value)} off`}</p>
+                        {c.free_shipping && (
+                          <p className="mt-0.5 inline-flex items-center px-1.5 py-0.5 text-[0.52rem] uppercase tracking-[0.06em] font-medium rounded-sm bg-amber-50 text-amber-700 border border-amber-200">
+                            + Free ship
+                          </p>
+                        )}
                       </div>
                       <div>
                         <p className="text-[0.50rem] uppercase tracking-[0.14em] text-gray-400 mb-0.5">Uses</p>

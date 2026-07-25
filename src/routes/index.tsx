@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { ArrowRight, ShieldCheck, Gem, Award, Truck, Star, Check, Sparkles, Eye, Diamond, X, Leaf, Crown, Heart, RotateCcw } from "lucide-react";
 import { listProducts } from "@/lib/products.functions";
 import { images, getProductThumb } from "@/lib/product-images";
-import { formatUSD, getTennisBraceletPrice, getTennisChainPrice } from "@/lib/pricing";
+import { formatUSD } from "@/lib/pricing";
 import { EmailCapture } from "@/components/marketing/email-capture";
 import { EditableText, useCms } from "@/lib/cms-context";
 
@@ -304,12 +304,7 @@ const CARD_BADGES: Record<string, { label: string; dark?: boolean }> = {
 };
 
 function ProductCard({ p }: { p: any }) {
-  const price =
-    p.slug?.includes("tennis-bracelet") || p.slug?.includes("tennis_bracelet")
-      ? formatUSD(getTennisBraceletPrice("2mm", '6"'))
-      : p.slug?.includes("tennis-chain") || p.slug?.includes("tennis_chain")
-        ? formatUSD(getTennisChainPrice("3mm", '16"'))
-        : formatUSD(Number(p.base_price));
+  const price = formatUSD(Number(p.display_price ?? p.sale_price ?? p.base_price));
 
   const badge = CARD_BADGES[p.type];
 
@@ -887,9 +882,7 @@ function Index() {
                         </div>
                         <p className="text-[0.50rem] font-medium text-foreground truncate mb-0.5 leading-tight">{p.name}</p>
                         <p className="text-[0.46rem] text-muted-foreground">
-                          From {(p.slug?.includes("tennis-bracelet") || p.slug?.includes("tennis_bracelet"))
-                            ? formatUSD(getTennisBraceletPrice("2mm", '6"'))
-                            : formatUSD(Number(p.base_price))}
+                          From {formatUSD(Number(p.display_price ?? p.sale_price ?? p.base_price))}
                         </p>
                       </Link>
                     ))

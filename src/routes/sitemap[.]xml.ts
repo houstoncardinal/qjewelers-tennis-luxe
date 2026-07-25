@@ -16,6 +16,7 @@ const STATIC_PAGES: { path: string; changefreq: string; priority: string }[] = [
   { path: "/shop?type=earring", changefreq: "daily", priority: "0.85" },
   { path: "/shop?type=ring", changefreq: "daily", priority: "0.85" },
   { path: "/moissanite-guide", changefreq: "monthly", priority: "0.8" },
+  { path: "/blog", changefreq: "weekly", priority: "0.8" },
   { path: "/about", changefreq: "monthly", priority: "0.6" },
   { path: "/contact", changefreq: "monthly", priority: "0.5" },
   { path: "/faq", changefreq: "monthly", priority: "0.6" },
@@ -40,10 +41,24 @@ export const Route = createFileRoute("/sitemap.xml")({
           .select("slug, name, updated_at, image_url")
           .eq("is_active", true);
 
+        const { data: posts } = await (supabaseAdmin as any)
+          .from("blog_posts")
+          .select("slug, updated_at, cover_image_url, title")
+          .eq("status", "published");
+
         const staticEntries = STATIC_PAGES.map(
           (p) =>
             `  <url><loc>${escapeXml(`${SITE_URL}${p.path}`)}</loc><changefreq>${p.changefreq}</changefreq><priority>${p.priority}</priority></url>`
         );
+
+        const blogEntries = (posts ?? []).map((p: any) => {
+          const lastmod = p.updated_at ? `<lastmod>${new Date(p.updated_at).toISOString().slice(0, 10)}</lastmod>` : "";
+          const imageUrl = p.cover_image_url?.startsWith("http") ? p.cover_image_url : p.cover_image_url ? `${SITE_URL}${p.cover_image_url}` : "";
+          const imageTag = imageUrl
+            ? `\n    <image:image><image:loc>${escapeXml(imageUrl)}</image:loc><image:title>${escapeXml(p.title ?? "")}</image:title></image:image>`
+            : "";
+          return `  <url><loc>${escapeXml(`${SITE_URL}/blog/${p.slug}`)}</loc>${lastmod}<changefreq>monthly</changefreq><priority>0.65</priority>${imageTag}\n  </url>`;
+        });
 
         const productEntries = (products ?? []).map((p) => {
           const lastmod = p.updated_at ? `<lastmod>${new Date(p.updated_at).toISOString().slice(0, 10)}</lastmod>` : "";
@@ -59,6 +74,7 @@ export const Route = createFileRoute("/sitemap.xml")({
           `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">`,
           ...staticEntries,
           ...productEntries,
+          ...blogEntries,
           `</urlset>`,
         ].join("\n");
 

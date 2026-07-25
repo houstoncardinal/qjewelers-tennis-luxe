@@ -27,8 +27,10 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BlogIndexRouteImport } from './routes/blog/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as ProductSlugRouteImport } from './routes/product.$slug'
+import { Route as BlogSlugRouteImport } from './routes/blog/$slug'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AdminSubscribersRouteImport } from './routes/admin/subscribers'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
@@ -40,6 +42,7 @@ import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
 import { Route as AdminCustomersRouteImport } from './routes/admin/customers'
 import { Route as AdminCreatorRouteImport } from './routes/admin/creator'
 import { Route as AdminContentRouteImport } from './routes/admin/content'
+import { Route as AdminBlogRouteImport } from './routes/admin/blog'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
 import { Route as AdminAbandonedCartsRouteImport } from './routes/admin/abandoned-carts'
 import { Route as AccountWishlistRouteImport } from './routes/account/wishlist'
@@ -144,6 +147,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BlogIndexRoute = BlogIndexRouteImport.update({
+  id: '/blog/',
+  path: '/blog/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -152,6 +160,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
 const ProductSlugRoute = ProductSlugRouteImport.update({
   id: '/product/$slug',
   path: '/product/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BlogSlugRoute = BlogSlugRouteImport.update({
+  id: '/blog/$slug',
+  path: '/blog/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -207,6 +220,11 @@ const AdminCreatorRoute = AdminCreatorRouteImport.update({
 const AdminContentRoute = AdminContentRouteImport.update({
   id: '/content',
   path: '/content',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminBlogRoute = AdminBlogRouteImport.update({
+  id: '/blog',
+  path: '/blog',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
@@ -300,6 +318,7 @@ export interface FileRoutesByFullPath {
   '/account/wishlist': typeof AccountWishlistRoute
   '/admin/abandoned-carts': typeof AdminAbandonedCartsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/blog': typeof AdminBlogRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/creator': typeof AdminCreatorRoute
   '/admin/customers': typeof AdminCustomersRouteWithChildren
@@ -311,8 +330,10 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/subscribers': typeof AdminSubscribersRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/blog/$slug': typeof BlogSlugRoute
   '/product/$slug': typeof ProductSlugRoute
   '/admin/': typeof AdminIndexRoute
+  '/blog/': typeof BlogIndexRoute
   '/admin/customers/$customerId': typeof AdminCustomersCustomerIdRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/products/$slug': typeof AdminProductsSlugRoute
@@ -345,6 +366,7 @@ export interface FileRoutesByTo {
   '/account/wishlist': typeof AccountWishlistRoute
   '/admin/abandoned-carts': typeof AdminAbandonedCartsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/blog': typeof AdminBlogRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/creator': typeof AdminCreatorRoute
   '/admin/promotions': typeof AdminPromotionsRoute
@@ -353,8 +375,10 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/subscribers': typeof AdminSubscribersRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/blog/$slug': typeof BlogSlugRoute
   '/product/$slug': typeof ProductSlugRoute
   '/admin': typeof AdminIndexRoute
+  '/blog': typeof BlogIndexRoute
   '/admin/customers/$customerId': typeof AdminCustomersCustomerIdRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/products/$slug': typeof AdminProductsSlugRoute
@@ -389,6 +413,7 @@ export interface FileRoutesById {
   '/account/wishlist': typeof AccountWishlistRoute
   '/admin/abandoned-carts': typeof AdminAbandonedCartsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/blog': typeof AdminBlogRoute
   '/admin/content': typeof AdminContentRoute
   '/admin/creator': typeof AdminCreatorRoute
   '/admin/customers': typeof AdminCustomersRouteWithChildren
@@ -400,8 +425,10 @@ export interface FileRoutesById {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/subscribers': typeof AdminSubscribersRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/blog/$slug': typeof BlogSlugRoute
   '/product/$slug': typeof ProductSlugRoute
   '/admin/': typeof AdminIndexRoute
+  '/blog/': typeof BlogIndexRoute
   '/admin/customers/$customerId': typeof AdminCustomersCustomerIdRoute
   '/admin/orders/$orderId': typeof AdminOrdersOrderIdRoute
   '/admin/products/$slug': typeof AdminProductsSlugRoute
@@ -437,6 +464,7 @@ export interface FileRouteTypes {
     | '/account/wishlist'
     | '/admin/abandoned-carts'
     | '/admin/analytics'
+    | '/admin/blog'
     | '/admin/content'
     | '/admin/creator'
     | '/admin/customers'
@@ -448,8 +476,10 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/subscribers'
     | '/auth/callback'
+    | '/blog/$slug'
     | '/product/$slug'
     | '/admin/'
+    | '/blog/'
     | '/admin/customers/$customerId'
     | '/admin/orders/$orderId'
     | '/admin/products/$slug'
@@ -482,6 +512,7 @@ export interface FileRouteTypes {
     | '/account/wishlist'
     | '/admin/abandoned-carts'
     | '/admin/analytics'
+    | '/admin/blog'
     | '/admin/content'
     | '/admin/creator'
     | '/admin/promotions'
@@ -490,8 +521,10 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/subscribers'
     | '/auth/callback'
+    | '/blog/$slug'
     | '/product/$slug'
     | '/admin'
+    | '/blog'
     | '/admin/customers/$customerId'
     | '/admin/orders/$orderId'
     | '/admin/products/$slug'
@@ -525,6 +558,7 @@ export interface FileRouteTypes {
     | '/account/wishlist'
     | '/admin/abandoned-carts'
     | '/admin/analytics'
+    | '/admin/blog'
     | '/admin/content'
     | '/admin/creator'
     | '/admin/customers'
@@ -536,8 +570,10 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/subscribers'
     | '/auth/callback'
+    | '/blog/$slug'
     | '/product/$slug'
     | '/admin/'
+    | '/blog/'
     | '/admin/customers/$customerId'
     | '/admin/orders/$orderId'
     | '/admin/products/$slug'
@@ -568,7 +604,9 @@ export interface RootRouteChildren {
   TermsOfServiceRoute: typeof TermsOfServiceRoute
   TrackOrderRoute: typeof TrackOrderRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  BlogSlugRoute: typeof BlogSlugRoute
   ProductSlugRoute: typeof ProductSlugRoute
+  BlogIndexRoute: typeof BlogIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -699,6 +737,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/blog/': {
+      id: '/blog/'
+      path: '/blog'
+      fullPath: '/blog/'
+      preLoaderRoute: typeof BlogIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/': {
       id: '/admin/'
       path: '/'
@@ -711,6 +756,13 @@ declare module '@tanstack/react-router' {
       path: '/product/$slug'
       fullPath: '/product/$slug'
       preLoaderRoute: typeof ProductSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/blog/$slug': {
+      id: '/blog/$slug'
+      path: '/blog/$slug'
+      fullPath: '/blog/$slug'
+      preLoaderRoute: typeof BlogSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -788,6 +840,13 @@ declare module '@tanstack/react-router' {
       path: '/content'
       fullPath: '/admin/content'
       preLoaderRoute: typeof AdminContentRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/blog': {
+      id: '/admin/blog'
+      path: '/blog'
+      fullPath: '/admin/blog'
+      preLoaderRoute: typeof AdminBlogRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/analytics': {
@@ -958,6 +1017,7 @@ const AdminReturnsRouteWithChildren = AdminReturnsRoute._addFileChildren(
 interface AdminRouteChildren {
   AdminAbandonedCartsRoute: typeof AdminAbandonedCartsRoute
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
+  AdminBlogRoute: typeof AdminBlogRoute
   AdminContentRoute: typeof AdminContentRoute
   AdminCreatorRoute: typeof AdminCreatorRoute
   AdminCustomersRoute: typeof AdminCustomersRouteWithChildren
@@ -974,6 +1034,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAbandonedCartsRoute: AdminAbandonedCartsRoute,
   AdminAnalyticsRoute: AdminAnalyticsRoute,
+  AdminBlogRoute: AdminBlogRoute,
   AdminContentRoute: AdminContentRoute,
   AdminCreatorRoute: AdminCreatorRoute,
   AdminCustomersRoute: AdminCustomersRouteWithChildren,
@@ -1009,7 +1070,9 @@ const rootRouteChildren: RootRouteChildren = {
   TermsOfServiceRoute: TermsOfServiceRoute,
   TrackOrderRoute: TrackOrderRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  BlogSlugRoute: BlogSlugRoute,
   ProductSlugRoute: ProductSlugRoute,
+  BlogIndexRoute: BlogIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

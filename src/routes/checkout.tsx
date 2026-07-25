@@ -251,6 +251,7 @@ function Checkout() {
     discountAmount: number;
     discountType: string;
     discountValue: number;
+    freeShipping: boolean;
   }>(null);
   const [promoLoading, setPromoLoading] = useState(false);
 
@@ -267,9 +268,11 @@ function Checkout() {
         discountAmount: result.discountAmount,
         discountType: result.discountType,
         discountValue: result.discountValue,
+        freeShipping: result.freeShipping,
       });
+      const discountLabel = result.discountType === "percentage" ? `${result.discountValue}% off` : formatUSD(result.discountValue);
       toast.success(
-        `Promo applied: ${result.discountType === "percentage" ? `${result.discountValue}% off` : formatUSD(result.discountValue)} off`,
+        result.freeShipping ? `Promo applied: ${discountLabel} + free shipping` : `Promo applied: ${discountLabel} off`,
       );
     } catch (err: any) {
       toast.error(err?.message ?? "Invalid promo code");
@@ -284,7 +287,8 @@ function Checkout() {
   };
 
   const discount = promoApplied?.discountAmount ?? 0;
-  const standardPrice = subtotal - discount >= freeShippingThreshold ? 0 : flatShippingRate;
+  const standardPrice =
+    promoApplied?.freeShipping || subtotal - discount >= freeShippingThreshold ? 0 : flatShippingRate;
   const shippingCost =
     form.shipping_method === "express"
       ? 24.95
@@ -1086,7 +1090,9 @@ function Checkout() {
                   <span className="flex items-center gap-2 text-xs text-emerald-700">
                     <Tag className="h-3.5 w-3.5" />
                     <span className="font-mono font-semibold">{promoApplied.code}</span>
-                    <span>— {formatUSD(discount)} off</span>
+                    <span>
+                      — {formatUSD(discount)} off{promoApplied.freeShipping && " + free shipping"}
+                    </span>
                   </span>
                   <button
                     type="button"

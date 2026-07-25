@@ -162,9 +162,9 @@ function AccountOrders() {
     supabase.auth.getSession().then(async ({ data }) => {
       const s = data.session;
       setSession(s);
-      if (s?.user?.email) {
+      if (s?.access_token && s?.user?.id) {
         try {
-          const res = await fetchOrders({ data: { email: s.user.email } });
+          const res = await fetchOrders({ data: { token: s.access_token, userId: s.user.id } });
           setOrders(res.orders);
         } catch {}
       }

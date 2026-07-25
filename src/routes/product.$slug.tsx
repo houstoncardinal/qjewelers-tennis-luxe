@@ -2,6 +2,8 @@ import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-ro
 import { useState, useRef, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { resolveConfiguredVariant } from "@/lib/variant-resolution";
+import { FormattedDescription } from "@/lib/format-description";
 import {
   ShieldCheck,
   Truck,
@@ -33,11 +35,8 @@ import {
   images as productImages,
 } from "@/lib/product-images";
 import {
-  calculatePrice,
-  calculateEarringPrice,
-  calculateRingPrice,
-  getTennisBraceletPrice,
-  getTennisChainPrice,
+  resolveCatalogPrice,
+  lowestCatalogPrice,
   formatUSD,
   SIZES_NECKLACE,
   SIZES_EARRING,
@@ -349,22 +348,26 @@ export const Route = createFileRoute("/product/$slug")({
     // Derive one representative Product per distinct color — these are the
     // buyer-facing choices, not the combinatorial size×length×color matrix.
     const variants = (loaderData?.variants ?? []) as any[];
+    const catalogMinPrice = lowestCatalogPrice(p, variants);
     const COLOR_LABEL_MAP: Record<string, string> = {
       silver: "Sterling Silver",
       gold: "18K Yellow Gold",
       rose_gold: "18K Rose Gold",
       white_gold: "18K White Gold",
     };
-    const seenColors = new Set<string>();
-    const colorVariants = variants.filter((v) => {
-      if (!v.color || seenColors.has(v.color)) return false;
-      seenColors.add(v.color);
-      return true;
-    });
+    const colorVariants = [...new Set(variants.map((variant) => variant.color).filter(Boolean))]
+      .map((color) =>
+        variants
+          .filter((variant) => variant.color === color && Number(variant.stock ?? -1) !== 0)
+          .sort(
+            (a, b) =>
+              resolveCatalogPrice(p, { size: a.size, length: a.length, variant: a }) -
+              resolveCatalogPrice(p, { size: b.size, length: b.length, variant: b }),
+          )[0],
+      )
+      .filter(Boolean);
     const hasVariants = colorVariants.map((v) => {
-      const price = v.price_override
-        ? Number(v.price_override)
-        : Number(p.sale_active && p.sale_price ? p.sale_price : p.base_price);
+      const price = resolveCatalogPrice(p, { size: v.size, length: v.length, variant: v });
       return {
         "@type": "Product",
         name: `${p.name} — ${COLOR_LABEL_MAP[v.color] ?? v.color}`,
@@ -399,7 +402,7 @@ export const Route = createFileRoute("/product/$slug")({
         { name: "twitter:description", content: p.seo_description },
         { name: "twitter:image", content: imageUrl },
         { property: "product:price:currency", content: "USD" },
-        { property: "product:price:amount", content: String(p.base_price) },
+        { property: "product:price:amount", content: String(catalogMinPrice) },
       ],
       links: [{ rel: "canonical", href: pageUrl }],
       scripts: [
@@ -463,7 +466,7 @@ export const Route = createFileRoute("/product/$slug")({
             offers: {
               "@type": "Offer",
               priceCurrency: "USD",
-              price: Number(p.sale_active && p.sale_price ? p.sale_price : p.base_price),
+              price: catalogMinPrice,
               priceValidUntil,
               availability: p.is_active
                 ? "https://schema.org/InStock"
@@ -482,7 +485,7 @@ export const Route = createFileRoute("/product/$slug")({
                   // Free shipping over $250 (site-wide policy); flat $15 below
                   // that threshold — matches what's stated on /faq and at checkout.
                   value:
-                    Number(p.sale_active && p.sale_price ? p.sale_price : p.base_price) >= 250
+                    catalogMinPrice >= 250
                       ? "0"
                       : "15",
                   currency: "USD",
@@ -819,6 +822,11 @@ function ProductPage() {
   const isAnklet = isAnkletSlug(slug);
   const isTennis = slug.includes("tennis") || isAnklet;
   const isTennisChain = isTennis && !isBracelet && !isAnklet;
+  // A necklace that isn't a tennis chain, pendant, or any other special
+  // case — e.g. a fixed-stone necklace like the pear-cut piece. These have
+  // their own metal selector below since none of the type-specific ones
+  // (tennis/ring/pendant/earring) apply.
+  const isPlainNecklace = !isRing && !isPendant && !isEarring && !isTennis && !isBracelet;
 
   // Rings are variant-aware: when this product has real product_variants
   // rows, the color/carat selectors only ever show what's actually been
@@ -835,6 +843,11 @@ function ProductPage() {
     ringVariants.length > 0
       ? [...new Set(ringVariants.map((v) => v.size).filter((s): s is string => !!s))]
       : [...SIZES_RING];
+  const ringUsesStoneSizes = isRing && ringCarats.some((option) => /ct$/i.test(option));
+  const ringFulfillmentSizes = isRing
+    ? [...new Set(ringVariants.map((variant) => variant.length).filter((value): value is string => !!value))]
+    : [];
+  const fixedRingSize = ringFulfillmentSizes.length === 1 ? ringFulfillmentSizes[0] : null;
 
   // Anklets are variant-driven for length: the DB determines the single
   // offered length so the selector doesn't hard-code bracelet lengths.
@@ -911,16 +924,33 @@ function ProductPage() {
       const dbSize = product.size ?? "";
       return earringSizes.includes(dbSize) ? dbSize : (earringSizes[0] ?? "5mm");
     }
+    // Plain necklaces: a real configured variant is authoritative. The old
+    // slug-substring guess (defaulting to "3mm" when nothing matched) could
+    // silently pick a size with no matching variant — e.g. a fixed 1ct
+    // pendant necklace whose slug contains no size string at all — which
+    // then fell through to generic mm-based pricing instead of the real
+    // variant price.
+    if ((variants ?? []).length) {
+      const derivedSizes = [...new Set((variants ?? []).map((v) => v.size).filter((v): v is string => !!v))];
+      if (derivedSizes.length) return derivedSizes[0];
+    }
     return (["2mm", "3mm", "4mm", "5mm", "6.5mm"] as const).find((s) => slug.includes(s)) ?? "3mm";
   })();
 
   const defaultLength: string = (() => {
+    if (isRing && fixedRingSize) return fixedRingSize;
     if (isEarring || isRing || (isPendant && pendantSingleLength))
       return pendantSingleLength ?? '18"';
     if (isAnklet && ankletSingleLength) return ankletSingleLength;
     if (isTennisChain) return TENNIS_CHAIN_LENGTH_DEFAULT;
     if (isTennis) return TENNIS_BRACELET_LENGTH_DEFAULT;
     if (isBracelet) return LENGTH_BRACELET_DEFAULT;
+    // Plain necklaces: same reasoning as defaultSize above — prefer a real
+    // configured variant's length over guessing from the slug text.
+    if ((variants ?? []).length) {
+      const derivedLengths = [...new Set((variants ?? []).map((v) => v.length).filter((v): v is string => !!v))];
+      if (derivedLengths.length) return derivedLengths[0];
+    }
     return (
       (['16"', '18"', '20"', '22"', '24"'] as const).find((l) =>
         slug.includes(l.replace('"', "")),
@@ -932,11 +962,28 @@ function ProductPage() {
   // Falls back to ["gold", "white_gold"] if the field is a single legacy value.
   const tennisColors: string[] = isTennis
     ? (() => {
+        const configured = [...new Set((variants ?? []).map((v) => v.color).filter((c): c is string => !!c && !!COLOR_MAP[c]))];
+        if (configured.length) return configured;
         const parsed = (product.color ?? "gold")
           .split(",")
           .map((c: string) => c.trim())
           .filter((c: string) => !!COLOR_MAP[c]);
         return parsed.length >= 2 ? parsed : ["gold", "white_gold"];
+      })()
+    : [];
+
+  // Plain necklaces: same "real variants first, else parse product.color"
+  // pattern as tennis/pendant, so a fixed necklace with two plated finishes
+  // (e.g. yellow vs. white gold) gets a real, clickable metal selector.
+  const necklaceColors: string[] = isPlainNecklace
+    ? (() => {
+        const configured = [...new Set((variants ?? []).map((v) => v.color).filter((c): c is string => !!c && !!COLOR_MAP[c]))];
+        if (configured.length) return configured;
+        const parsed = (product.color ?? "gold")
+          .split(",")
+          .map((c: string) => c.trim())
+          .filter((c: string) => !!COLOR_MAP[c]);
+        return parsed.length ? parsed : ["gold"];
       })()
     : [];
 
@@ -955,6 +1002,7 @@ function ProductPage() {
   const [addedToBag, setAddedToBag] = useState(false);
   const [earringMetal, setEarringMetal] = useState<string>(earringColors[0] ?? "gold");
   const [tennisMetal, setTennisMetal] = useState<string>(tennisColors[0] ?? "gold");
+  const [necklaceMetal, setNecklaceMetal] = useState<string>(necklaceColors[0] ?? "gold");
   const [ringMetal, setRingMetal] = useState<string>(ringColors[0] ?? product.color);
   const [pendantMetal, setPendantMetal] = useState<string>(pendantColors[0] ?? "gold");
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -968,18 +1016,27 @@ function ProductPage() {
     : earringSizes;
 
   const sizes = isAnklet
-    ? SIZES_TENNIS_ANKLET
+    ? (ankletVariants.length ? [...new Set(ankletVariants.map((v) => v.size).filter((v): v is string => !!v))] : SIZES_TENNIS_ANKLET)
     : isTennisChain
-      ? SIZES_TENNIS_CHAIN
+      ? ((variants ?? []).length ? [...new Set((variants ?? []).map((v) => v.size).filter((v): v is string => !!v))] : SIZES_TENNIS_CHAIN)
       : isTennis
-        ? SIZES_TENNIS_BRACELET
+        ? ((variants ?? []).length ? [...new Set((variants ?? []).map((v) => v.size).filter((v): v is string => !!v))] : SIZES_TENNIS_BRACELET)
         : isEarring
           ? closureSizes
           : isRing
             ? ringCarats
             : isPendant
               ? pendantSizes
-              : SIZES_NECKLACE;
+              // Plain necklaces: prefer the product's real configured sizes
+              // (e.g. a single fixed carat weight) over the generic mm-width
+              // list, which only applies to width-based chain products.
+              : (variants ?? []).length
+                ? [...new Set((variants ?? []).map((v) => v.size).filter((v): v is string => !!v))]
+                : SIZES_NECKLACE;
+  // A plain necklace whose real variants are carat-based (a stone-size
+  // pendant necklace) rather than mm chain widths — same distinction the
+  // ring selector already makes via ringUsesStoneSizes.
+  const necklaceUsesStoneSizes = !isRing && !isPendant && !isEarring && sizes.some((option) => /ct$/i.test(option));
   const sizeDescriptions = isTennisChain
     ? TENNIS_CHAIN_SIZE_DESCRIPTIONS
     : isTennis
@@ -1031,32 +1088,49 @@ function ProductPage() {
   // A matching variant's price_override (when set) is authoritative — it's
   // an exact admin-set price, not a derived one. Falls back to the formula
   // for products without that level of per-combo pricing configured.
+  const selectedMetal = isTennis
+    ? tennisMetal
+    : isEarring
+      ? earringMetal
+      : isRing
+        ? ringMetal
+        : isPendant
+          ? pendantMetal
+          : isPlainNecklace
+            ? necklaceMetal
+            : ((variants ?? []).find((v) => v.color)?.color ?? product.color);
+  const selectedLength = isEarring || (isRing && !ringUsesStoneSizes) ? "" : length;
+  const selectedVariant = resolveConfiguredVariant(variants ?? [], {
+    color: selectedMetal,
+    size,
+    length: selectedLength,
+  });
+  const hasConfiguredVariants = (variants ?? []).length > 0;
+  const selectedVariantAvailable =
+    !hasConfiguredVariants ||
+    (!!selectedVariant &&
+      (Number(selectedVariant.stock) === -1 || Number(selectedVariant.stock) >= qty));
+
   const matchedRingVariant = isRing
     ? ringVariants.find(
-        (v) => (v.color ?? product.color) === ringMetal && (v.size ?? defaultSize) === size,
+        (v) =>
+          (v.color ?? product.color) === ringMetal &&
+          (v.size ?? defaultSize) === size &&
+          (v.length == null || v.length === selectedLength),
       )
     : undefined;
   const matchedPendantVariant = isPendant
     ? pendantVariants.find((v) => v.color === pendantMetal && v.size === size)
     : undefined;
   const matchedAnkletVariant = isAnklet
-    ? ankletVariants.find((v) => v.color === tennisMetal && v.size === size)
+    ? ankletVariants.find((v) => v.color === tennisMetal && v.size === size && (v.length == null || v.length === length))
     : undefined;
 
-  const price = isTennisChain
-    ? getTennisChainPrice(size, length)
-    : isAnklet
-      ? (matchedAnkletVariant?.price_override ?? Number(product.base_price))
-      : isTennis
-        ? getTennisBraceletPrice(size, length)
-        : isEarring
-          ? calculateEarringPrice(Number(product.base_price), size as EarringSize)
-          : isRing
-            ? (matchedRingVariant?.price_override ??
-              calculateRingPrice(Number(product.base_price), size as RingSize))
-            : isPendant
-              ? (matchedPendantVariant?.price_override ?? Number(product.base_price))
-              : calculatePrice(Number(product.base_price), size as Size, length as Length);
+  const price = resolveCatalogPrice(product, {
+    size,
+    length: selectedLength,
+    variant: selectedVariant ?? matchedRingVariant ?? matchedPendantVariant ?? matchedAnkletVariant,
+  });
 
   const activeColor = isTennis
     ? tennisMetal
@@ -1066,7 +1140,7 @@ function ProductPage() {
         ? ringMetal
         : isPendant
           ? pendantMetal
-          : product.color;
+          : selectedMetal;
   const colorInfo = COLOR_MAP[activeColor];
 
   const colorImages: Record<string, string> = (product as any).color_images ?? {};
@@ -1096,6 +1170,10 @@ function ProductPage() {
   };
 
   const handleAdd = (goToCart = false) => {
+    if (!selectedVariantAvailable) {
+      toast.error(selectedVariant ? "This option is currently out of stock" : "This option combination is unavailable");
+      return;
+    }
     const cartColor = isTennis
       ? tennisMetal
       : isEarring
@@ -1104,9 +1182,9 @@ function ProductPage() {
           ? ringMetal
           : isPendant
             ? pendantMetal
-            : product.color;
+            : selectedMetal;
     const cartLength =
-      isRing || isEarring || (isPendant && !!pendantSingleLength)
+      isEarring || (isRing && !fixedRingSize) || (isPendant && !!pendantSingleLength)
         ? (pendantSingleLength ?? "")
         : length;
     const cartClosure = hasClosureOptions
@@ -1686,6 +1764,66 @@ function ProductPage() {
                 </div>
               )}
 
+              {/* ── Plain necklace metal selector ──────────── */}
+              {isPlainNecklace && necklaceColors.length > 0 && (
+                <div className="mb-6">
+                  <div className="flex items-baseline justify-between mb-3.5">
+                    <p className="text-[0.52rem] uppercase tracking-[0.28em] font-semibold">
+                      Metal
+                    </p>
+                    <span className="text-[0.57rem] italic text-muted-foreground">
+                      {COLOR_MAP[necklaceMetal]?.label ?? necklaceMetal.replace("_", " ")}
+                    </span>
+                  </div>
+                  <div
+                    className={`grid gap-2.5 ${necklaceColors.length === 1 ? "grid-cols-1" : necklaceColors.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}
+                  >
+                    {necklaceColors.map((key, idx) => {
+                      const info = COLOR_MAP[key];
+                      const active = necklaceMetal === key;
+                      const single = necklaceColors.length === 1;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => {
+                            if (!single) {
+                              setNecklaceMetal(key);
+                              showColorImage(key, idx);
+                            }
+                          }}
+                          aria-pressed={active}
+                          className={`relative py-5 text-center border transition-all duration-150 flex flex-col items-center justify-center gap-2 ${
+                            active
+                              ? "border-foreground bg-foreground text-background"
+                              : "border-border hover:border-foreground/40 hover:bg-cream"
+                          } ${single ? "cursor-default" : ""}`}
+                        >
+                          <span
+                            className="w-[18px] h-[18px] rounded-full shrink-0 ring-1 ring-black/10 shadow-sm"
+                            style={{ backgroundColor: info?.hex ?? "#ccc" }}
+                          />
+                          <span className="text-[0.70rem] font-semibold leading-none">
+                            {info?.label ?? key.replace("_", " ")}
+                          </span>
+                          <span
+                            className={`text-[0.40rem] uppercase tracking-[0.16em] ${active ? "text-background/50" : "text-muted-foreground/50"}`}
+                          >
+                            {single ? "Only finish available" : "5× plated"}
+                          </span>
+                          {active && (
+                            <span
+                              className="absolute bottom-0 left-0 right-0 h-[2px]"
+                              style={{ background: "var(--gradient-gold-h)" }}
+                            />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* ── Metal selector (earrings) — must come before Size ── */}
               {isEarring && (
                 <div className="mb-6">
@@ -1848,10 +1986,12 @@ function ProductPage() {
                     {isEarring
                       ? "Stone Size"
                       : isRing
-                        ? "Ring Size"
+                        ? ringUsesStoneSizes ? "Stone Size" : "Ring Size"
                         : isPendant
                           ? "Stone Size"
-                          : "Width"}
+                          : necklaceUsesStoneSizes
+                            ? "Stone Size"
+                            : "Width"}
                   </p>
                   <span className="text-[0.57rem] italic text-muted-foreground">
                     {sizeDescriptions[size]}
@@ -1875,23 +2015,16 @@ function ProductPage() {
                   }`}
                 >
                   {(sizes as readonly string[]).map((s) => {
-                    const sp = isTennisChain
-                      ? getTennisChainPrice(s, length)
-                      : isTennis
-                        ? getTennisBraceletPrice(s, length)
-                        : isEarring
-                          ? calculateEarringPrice(Number(product.base_price), s as EarringSize)
-                          : isRing
-                            ? calculateRingPrice(Number(product.base_price), s as RingSize)
-                            : isPendant
-                              ? (pendantVariants.find(
-                                  (v) => v.color === pendantMetal && v.size === s,
-                                )?.price_override ?? Number(product.base_price))
-                              : calculatePrice(
-                                  Number(product.base_price),
-                                  s as Size,
-                                  length as Length,
-                                );
+                    const optionVariant = resolveConfiguredVariant(variants ?? [], {
+                      color: selectedMetal,
+                      size: s,
+                      length: isEarring || (isRing && !ringUsesStoneSizes) ? "" : length,
+                    });
+                    const sp = resolveCatalogPrice(product, {
+                      size: s,
+                      length: isEarring || (isRing && !ringUsesStoneSizes) ? "" : length,
+                      variant: optionVariant,
+                    });
                     const active = size === s;
                     return (
                       <button
@@ -1924,6 +2057,12 @@ function ProductPage() {
                     );
                   })}
                 </div>
+                {ringUsesStoneSizes && fixedRingSize && (
+                  <div className="mt-3 flex items-center justify-between border border-border bg-cream/50 px-3 py-2.5">
+                    <span className="text-[0.50rem] uppercase tracking-[0.16em] text-muted-foreground">Ring size</span>
+                    <span className="text-[0.66rem] font-semibold">{fixedRingSize.replace(/^Ring Size\s*/i, "Size ")}</span>
+                  </div>
+                )}
               </div>
 
               {/* Size-on-ear visual guide (earrings only) — proportional to real mm */}
@@ -2140,13 +2279,22 @@ function ProductPage() {
                         ? LENGTHS_TENNIS_BRACELET
                         : isBracelet
                           ? LENGTHS_BRACELET
-                          : LENGTHS_NECKLACE
+                          // Plain necklaces: prefer the product's real
+                          // configured lengths over the generic list.
+                          : (variants ?? []).length
+                            ? [...new Set((variants ?? []).map((v) => v.length).filter((v): v is string => !!v))]
+                            : LENGTHS_NECKLACE
                     ).map((l) => {
-                      const lp = isTennisChain
-                        ? getTennisChainPrice(size, l)
-                        : isTennis
-                          ? getTennisBraceletPrice(size, l)
-                          : calculatePrice(Number(product.base_price), size as Size, l as Length);
+                      const optionVariant = resolveConfiguredVariant(variants ?? [], {
+                        color: selectedMetal,
+                        size,
+                        length: l,
+                      });
+                      const lp = resolveCatalogPrice(product, {
+                        size,
+                        length: l,
+                        variant: optionVariant,
+                      });
                       const desc = isTennisChain
                         ? TENNIS_CHAIN_LENGTH_DESCRIPTIONS[l]
                         : isTennis
@@ -2273,7 +2421,8 @@ function ProductPage() {
                 </div>
                 <button
                   onClick={() => handleAdd(false)}
-                  className="flex-1 relative overflow-hidden bg-foreground text-background py-4 sm:py-4.5 text-[0.57rem] uppercase tracking-[0.30em] font-semibold hover:bg-foreground/90 active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 group shadow-[0_4px_20px_rgba(0,0,0,0.12)]"
+                  disabled={!selectedVariantAvailable}
+                  className="flex-1 relative overflow-hidden bg-foreground text-background py-4 sm:py-4.5 text-[0.57rem] uppercase tracking-[0.30em] font-semibold hover:bg-foreground/90 active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 group shadow-[0_4px_20px_rgba(0,0,0,0.12)] disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <span className="relative z-10 flex items-center gap-2">
                     {addedToBag ? (
@@ -2282,7 +2431,7 @@ function ProductPage() {
                       </>
                     ) : (
                       <>
-                        <ShoppingBag className="h-3.5 w-3.5" /> Add to Bag
+                        <ShoppingBag className="h-3.5 w-3.5" /> {selectedVariantAvailable ? "Add to Bag" : "Unavailable"}
                       </>
                     )}
                   </span>
@@ -2742,9 +2891,10 @@ function ProductPage() {
                   </div>
                 )
               ) : (
-                <p className="text-[0.80rem] leading-[1.90] text-muted-foreground">
-                  {product.description}
-                </p>
+                <FormattedDescription
+                  text={product.description}
+                  className="text-[0.80rem] leading-[1.90] text-muted-foreground whitespace-pre-wrap"
+                />
               )}
             </AccordionSection>
 
@@ -2894,6 +3044,33 @@ function ProductPage() {
               </div>
             </AccordionSection>
 
+            {/* Related reading — contextual link to the blog based on product type */}
+            <div className="border-t border-border pt-6 pb-2">
+              <p className="text-[0.5rem] uppercase tracking-[0.24em] text-muted-foreground/60 mb-3">
+                Learn More
+              </p>
+              <div className="flex flex-wrap gap-x-6 gap-y-2">
+                {(isRing
+                  ? [
+                      { to: "/blog/moissanite-engagement-ring-guide", label: "Is Moissanite Good for an Engagement Ring?" },
+                      { to: "/blog/moissanite-clarity-color-grading-guide", label: "Understanding Clarity & Color Grades" },
+                    ]
+                  : [
+                      { to: "/blog/what-is-moissanite", label: "What Is Moissanite? The Complete Guide" },
+                      { to: "/blog/moissanite-vs-diamond", label: "Moissanite vs. Diamond Compared" },
+                    ]
+                ).map((l) => (
+                  <Link
+                    key={l.to}
+                    to={l.to}
+                    className="text-[0.68rem] text-muted-foreground hover:text-gold underline underline-offset-4 decoration-border hover:decoration-gold transition-colors"
+                  >
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+
             {/* ── Product video — earrings, below all details ───── */}
             {/* Reviews */}
             <div id="reviews-section">
@@ -3005,7 +3182,8 @@ function ProductPage() {
           </div>
           <button
             onClick={() => handleAdd(false)}
-            className="flex-1 bg-foreground text-background py-3.5 text-[0.54rem] uppercase tracking-[0.24em] font-semibold flex items-center justify-center gap-2 hover:bg-foreground/90 active:scale-[0.99] transition-all"
+            disabled={!selectedVariantAvailable}
+            className="flex-1 bg-foreground text-background py-3.5 text-[0.54rem] uppercase tracking-[0.24em] font-semibold flex items-center justify-center gap-2 hover:bg-foreground/90 active:scale-[0.99] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {addedToBag ? (
               <>
@@ -3013,7 +3191,7 @@ function ProductPage() {
               </>
             ) : (
               <>
-                <ShoppingBag className="h-3.5 w-3.5" /> Add to Bag
+                <ShoppingBag className="h-3.5 w-3.5" /> {selectedVariantAvailable ? "Add to Bag" : "Unavailable"}
               </>
             )}
           </button>

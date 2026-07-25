@@ -161,6 +161,71 @@ export function calculateRingPrice(basePrice: number, stoneSize: RingSize): numb
   return Math.max(299, Math.round(basePrice * (RING_SIZE_MULTIPLIER[stoneSize] ?? 1)));
 }
 
+export interface CatalogPriceProduct {
+  slug: string;
+  type: string;
+  base_price: number;
+  sale_price?: number | null;
+  sale_active?: boolean;
+}
+
+export interface CatalogPriceVariant {
+  price_override?: number | null;
+}
+
+/**
+ * The single retail-price resolver used by product UI, cart validation, feeds,
+ * and structured data. Explicit variant prices describe the normal retail
+ * price. A product sale applies the same discount ratio to every variant so a
+ * sale cannot disappear when the customer changes size or metal.
+ */
+export function resolveCatalogPrice(
+  product: CatalogPriceProduct,
+  selection: { size?: string | null; length?: string | null; variant?: CatalogPriceVariant | null },
+): number {
+  const base = Number(product.base_price);
+  const size = selection.size ?? "";
+  const length = selection.length ?? "";
+  let regular: number;
+
+  if (selection.variant?.price_override != null) {
+    regular = Number(selection.variant.price_override);
+  } else if (isTennisBraceletSlug(product.slug)) {
+    regular = getTennisBraceletPrice(size, length);
+  } else if (product.slug.includes("tennis") && product.slug.includes("chain")) {
+    regular = getTennisChainPrice(size, length);
+  } else if (isAnkletSlug(product.slug) || product.type === "pendant") {
+    regular = base;
+  } else if (product.type === "earring") {
+    regular = calculateEarringPrice(base, size as EarringSize);
+  } else if (product.type === "ring") {
+    regular = calculateRingPrice(base, size as RingSize);
+  } else {
+    regular = calculatePrice(base, size as Size, length as Length);
+  }
+
+  const sale = Number(product.sale_price);
+  if (product.sale_active && Number.isFinite(sale) && sale > 0 && sale < base && base > 0) {
+    return Math.round(regular * (sale / base) * 100) / 100;
+  }
+  return regular;
+}
+
+export function lowestCatalogPrice(
+  product: CatalogPriceProduct,
+  variants: Array<CatalogPriceVariant & { size?: string | null; length?: string | null; is_active?: boolean; stock?: number }> = [],
+): number {
+  const purchasable = variants.filter(
+    (variant) => variant.is_active !== false && Number(variant.stock ?? -1) !== 0,
+  );
+  if (!purchasable.length) return resolveCatalogPrice(product, {});
+  return Math.min(
+    ...purchasable.map((variant) =>
+      resolveCatalogPrice(product, { size: variant.size, length: variant.length, variant }),
+    ),
+  );
+}
+
 export const RING_SIZE_DESCRIPTIONS: Record<string, string> = {
   "0.5ct": "Delicate · 5mm · Everyday elegance",
   "1ct": "Classic · 6.5mm · Most popular",

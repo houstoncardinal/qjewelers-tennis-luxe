@@ -112,6 +112,13 @@ export async function retrievePaymentIntent(id: string): Promise<Stripe.PaymentI
   return getStripe().paymentIntents.retrieve(id);
 }
 
+export async function cancelPaymentIntent(id: string): Promise<void> {
+  const intent = await getStripe().paymentIntents.retrieve(id);
+  if (["requires_payment_method", "requires_confirmation", "requires_action", "requires_capture", "processing"].includes(intent.status)) {
+    await getStripe().paymentIntents.cancel(id);
+  }
+}
+
 export interface TaxAddress {
   line1?: string;
   line2?: string;

@@ -33,6 +33,7 @@ import {
   AVAILABLE_LENGTHS,
   AVAILABLE_COLORS,
   AVAILABLE_RING_SIZES,
+  SIZES_RING,
   COLOR_LABELS,
   COLOR_HEX,
   TYPE_LABELS,
@@ -48,6 +49,7 @@ import {
   isEarringType,
 } from "@/lib/pricing";
 import { getProductThumb } from "@/lib/product-images";
+import { FormattedDescription } from "@/lib/format-description";
 
 export const Route = createFileRoute("/admin/products/$slug")({
   component: AdminProductEditor,
@@ -922,6 +924,11 @@ function VariantsManager({
     length ? length.split(",").map(l => l.trim()).filter(Boolean) : []
   );
   const [selRingSizes, setSelRingSizes] = useState<string[]>([]);
+  // Ring-only third axis. Not every ring needs it (a fixed-stone band ring
+  // doesn't), so it stays empty/optional — selecting nothing means no CT
+  // Weight dimension is generated, same as today. Stored in the `length`
+  // column for ring products, since rings never use it for chain length.
+  const [selCtWeights, setSelCtWeights] = useState<string[]>([]);
 
   // Database variants
   const [variants, setVariants] = useState<ProductVariant[]>([]);
@@ -964,9 +971,9 @@ function VariantsManager({
   const showLengthAxis = !isRing && !isPendant && !isEarring;
   const lengthOptions  = isTennis ? [...LENGTHS_TENNIS_BRACELET] : AVAILABLE_LENGTHS;
   const visibleVariantPrice = (v: ProductVariant) =>
-    isTennis && v.size && v.length
+    v.price_override ?? (isTennis && v.size && v.length
       ? getTennisBraceletPrice(v.size, v.length)
-      : (v.price_override ?? basePrice);
+      : basePrice);
 
   // Load variants from DB and sync chip selections to match actual DB state
   const loadVariants = useCallback(async () => {
@@ -982,6 +989,7 @@ function VariantsManager({
         if (dbColors.length > 0) setSelColors(dbColors);
         if (isRing) {
           if (dbSizes.length > 0) setSelRingSizes(dbSizes);
+          if (dbLengths.length > 0) setSelCtWeights(dbLengths);
         } else {
           if (dbSizes.length > 0) setSelSizes(dbSizes);
           if (dbLengths.length > 0) setSelLengths(dbLengths);
@@ -995,8 +1003,8 @@ function VariantsManager({
   }, [token, slug, isRing]);
 
   useEffect(() => {
-    if (expanded && variants.length === 0) loadVariants();
-  }, [expanded]);
+    if (expanded) void loadVariants();
+  }, [expanded, loadVariants]);
 
   // Generate preview of all combinations
   const generatePreview = useCallback(() => {
@@ -1005,21 +1013,25 @@ function VariantsManager({
     const sizes   = isRing
       ? (selRingSizes.length > 0 ? selRingSizes : [null])
       : (selSizes.length > 0 ? selSizes : [null]);
-    // Pendants and earrings never get length as a variant axis
-    const lengths = (isRing || isPendant || isEarring) ? [null] : (selLengths.length > 0 ? selLengths : [null]);
+    // Pendants and earrings never get a third axis. Rings optionally get CT
+    // Weight — leave it unselected (as most rings do) and nothing changes.
+    const lengths = isRing
+      ? (selCtWeights.length > 0 ? selCtWeights : [null])
+      : (isPendant || isEarring) ? [null] : (selLengths.length > 0 ? selLengths : [null]);
     for (const c of colors) for (const s of sizes) for (const l of lengths) combos.push({ color: c, size: s, length: l });
     return combos;
-  }, [selColors, selSizes, selLengths, selRingSizes, isRing, isPendant, isEarring]);
+  }, [selColors, selSizes, selLengths, selRingSizes, selCtWeights, isRing, isPendant, isEarring]);
 
   // Regenerate preview when selections change
   useEffect(() => {
     setPreview(generatePreview());
-  }, [selColors, selSizes, selLengths, selRingSizes]);
+  }, [selColors, selSizes, selLengths, selRingSizes, selCtWeights]);
 
   // Toggle selection
   const toggleColor = (c: string) => setSelColors(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
   const toggleSize = (s: string) => setSelSizes(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
   const toggleLength = (l: string) => setSelLengths(prev => prev.includes(l) ? prev.filter(x => x !== l) : [...prev, l]);
+  const toggleCtWeight = (c: string) => setSelCtWeights(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
 
   // Generate all variants from selection
   const generateVariants = async () => {
@@ -1032,8 +1044,9 @@ function VariantsManager({
     try {
       const res = await upsertBulkFn({ data: {
         token,
+        product_slug: slug,
+        replace_missing: true,
         variants: combos.map(v => ({
-          product_slug: slug,
           color: v.color,
           size: v.size,
           length: v.length,
@@ -1042,7 +1055,7 @@ function VariantsManager({
           is_active: true,
         })),
       }});
-      toast.success(`Generated ${res.count} variant${res.count !== 1 ? "s" : ""}`);
+      toast.success(`Synced ${res.count} variant${res.count !== 1 ? "s" : ""}${res.deactivated ? ` · ${res.deactivated} retired` : ""}`);
       await loadVariants();
       onColorChange(selColors);
       onSaved();
@@ -1073,7 +1086,7 @@ function VariantsManager({
     if (selectedIds.size === 0) return;
     setSaving(true);
     try {
-      await toggleBulkFn({ data: { token, ids: [...selectedIds], is_active: active } });
+      await toggleBulkFn({ data: { token, slug, ids: [...selectedIds], is_active: active } });
       toast.success(`${selectedIds.size} variant${selectedIds.size !== 1 ? "s" : ""} ${active ? "enabled" : "disabled"}`);
       setSelectedIds(new Set());
       await loadVariants();
@@ -1122,7 +1135,7 @@ function VariantsManager({
     if (!confirm(`Delete ${selectedIds.size} variant${selectedIds.size !== 1 ? "s" : ""}?`)) return;
     setSaving(true);
     try {
-      await deleteBulkFn({ data: { token, ids: [...selectedIds] } });
+      await deleteBulkFn({ data: { token, slug, ids: [...selectedIds] } });
       toast.success(`Deleted ${selectedIds.size} variant${selectedIds.size !== 1 ? "s" : ""}`);
       setSelectedIds(new Set());
       await loadVariants();
@@ -1147,8 +1160,8 @@ function VariantsManager({
   // Inline variant update — auto-saves on blur, shows brief confirmation
   const handleInlineUpdate = async (id: string, field: string, value: any) => {
     try {
-      await updateVariantFn({ data: { token, id, [field]: value } });
-      setVariants(prev => prev.map(v => v.id === id ? { ...v, [field]: value } : v));
+      const res = await updateVariantFn({ data: { token, slug, id, [field]: value } });
+      setVariants(prev => prev.map(v => v.id === id ? res.variant : v));
       toast.success("Saved", { duration: 1000, id: `inline-${id}-${field}` });
       onSaved();
     } catch (e: any) {
@@ -1169,7 +1182,7 @@ function VariantsManager({
         return { id: v.id, sku: parts.join("-") };
       });
       for (const u of updates) {
-        await updateVariantFn({ data: { token, id: u.id, sku: u.sku } });
+        await updateVariantFn({ data: { token, slug, id: u.id, sku: u.sku } });
       }
       toast.success(`Generated SKUs for ${updates.length} variants`);
       await loadVariants();
@@ -1209,6 +1222,7 @@ function VariantsManager({
           data: {
             token,
             id: v.id,
+            slug,
             price_override: getTennisBraceletPrice(v.size!, v.length!),
           },
         });
@@ -1274,7 +1288,7 @@ function VariantsManager({
   // Delete single variant
   const handleDeleteSingle = async (id: string) => {
     try {
-      await deleteVariantFn({ data: { token, id } });
+      await deleteVariantFn({ data: { token, slug, id } });
       toast.success("Variant deleted");
       await loadVariants();
       onSaved();
@@ -1392,6 +1406,42 @@ function VariantsManager({
                 })}
               </div>
             </div>
+          )}
+
+          {/* CT Weight — ring-only third axis, optional. Leave unselected for
+              a fixed-stone ring (e.g. a band ring with one stone size) —
+              only rings that actually come in multiple carat weights need it. */}
+          {isRing && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-[0.60rem] uppercase tracking-[0.16em] font-semibold text-gray-500 flex items-center gap-1.5">
+                <Hash className="h-3.5 w-3.5" /> CT Weight
+              </label>
+              <button onClick={() => setSelCtWeights(selCtWeights.length === SIZES_RING.length ? [] : [...SIZES_RING])}
+                className="text-[0.52rem] text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors">
+                {selCtWeights.length === SIZES_RING.length ? "Clear" : "All"}
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {SIZES_RING.map(c => {
+                const active = selCtWeights.includes(c);
+                return (
+                  <button key={c} onClick={() => toggleCtWeight(c)}
+                    className="flex flex-col items-center justify-center px-1 py-3 rounded-lg border transition-all"
+                    style={active ? { background: "#111827", border: "1px solid #111827", color: "white" }
+                      : { background: "white", border: "1px solid rgba(0,0,0,0.10)", color: "#6b7280" }}>
+                    <span className="text-[0.68rem] font-semibold leading-none">{c}</span>
+                    {active && <Check className="h-3 w-3 mt-1 text-amber-400" />}
+                  </button>
+                );
+              })}
+            </div>
+            {selCtWeights.length === 0 && (
+              <p className="mt-2 text-[0.56rem] text-gray-400 leading-relaxed">
+                Optional — leave empty for a single fixed stone size (no CT Weight dimension generated).
+              </p>
+            )}
+          </div>
           )}
 
           {/* Lengths — only for chains/bracelets; hidden for rings, pendants, earrings */}
@@ -1568,6 +1618,7 @@ function VariantsManager({
                   <th className="px-4 py-3.5 text-[0.58rem] uppercase tracking-[0.14em] text-gray-500 font-semibold">Variant</th>
                   <th className="px-4 py-3.5 text-[0.58rem] uppercase tracking-[0.14em] text-gray-500 font-semibold">SKU</th>
                   <th className="px-4 py-3.5 text-[0.58rem] uppercase tracking-[0.14em] text-gray-500 font-semibold text-right">Price Override</th>
+                  <th className="px-4 py-3.5 text-[0.58rem] uppercase tracking-[0.14em] text-gray-500 font-semibold text-right">Factory / Margin</th>
                   <th className="px-4 py-3.5 text-[0.58rem] uppercase tracking-[0.14em] text-gray-500 font-semibold text-right">Stock</th>
                   <th className="px-4 py-3.5 text-[0.58rem] uppercase tracking-[0.14em] text-gray-500 font-semibold">Status</th>
                   <th className="px-4 py-3.5 w-12"></th>
@@ -1606,7 +1657,7 @@ function VariantsManager({
                       <td className="px-4 py-4 min-w-[200px]">
                         <input type="text"
                           defaultValue={v.sku ?? ""}
-                          key={`${v.id}-sku`}
+                            key={`${v.id}-sku-${v.updated_at}`}
                           onBlur={e => handleInlineUpdate(v.id, "sku", e.target.value || null)}
                           placeholder="e.g. QJ-GOLD-3MM-18"
                           className="w-full px-3 py-2 border border-gray-200 rounded-lg text-[0.68rem] font-mono text-gray-700 focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 bg-white transition-all" />
@@ -1615,8 +1666,8 @@ function VariantsManager({
                         <div className="flex items-center justify-end gap-1">
                           <span className="text-gray-400 text-sm">$</span>
                           <input type="number" step="0.01" min="0"
-                            defaultValue={isTennis ? visibleVariantPrice(v) : (v.price_override ?? "")}
-                            key={`${v.id}-price`}
+                            defaultValue={v.price_override ?? ""}
+                            key={`${v.id}-price-${v.updated_at}`}
                             onBlur={e => {
                               const val = e.target.value.trim();
                               handleInlineUpdate(v.id, "price_override", val === "" ? null : parseFloat(val));
@@ -1626,11 +1677,21 @@ function VariantsManager({
                             className="w-28 px-3 py-2 border border-gray-200 rounded-lg text-[0.72rem] text-right font-semibold text-gray-800 focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100 bg-white transition-all" />
                         </div>
                       </td>
+                      <td className="px-4 py-4 min-w-[130px] text-right">
+                        {v.supplier_unit_cost != null ? (
+                          <div>
+                            <p className="text-[0.70rem] font-semibold text-gray-800">{formatUSD(Number(v.supplier_unit_cost))}</p>
+                            <p className={`text-[0.56rem] font-medium mt-0.5 ${Number(v.pricing_multiplier) >= 8 ? "text-emerald-600" : "text-amber-600"}`}>
+                              {Number(v.pricing_multiplier ?? (visibleVariantPrice(v) / Number(v.supplier_unit_cost))).toFixed(2)}×
+                            </p>
+                          </div>
+                        ) : <span className="text-[0.58rem] text-gray-300">—</span>}
+                      </td>
                       <td className="px-4 py-4 min-w-[120px]">
                         <div className="flex items-center justify-end gap-2">
                           <input type="number" min="-1"
                             defaultValue={v.stock}
-                            key={`${v.id}-stock`}
+                            key={`${v.id}-stock-${v.updated_at}`}
                             onBlur={e => {
                               const val = parseInt(e.target.value);
                               if (!isNaN(val)) handleInlineUpdate(v.id, "stock", val);
@@ -1744,13 +1805,7 @@ function DescriptionEditor({
       ) : (
         <div className="min-h-[280px] border border-gray-200 px-4 py-3.5 bg-white text-sm text-gray-700 leading-relaxed whitespace-pre-wrap overflow-auto">
           {value ? (
-            value.split("$$").map((block, i) => (
-              i % 2 === 1 ? (
-                <p key={i} className="mb-3">{formatInline(block)}</p>
-              ) : (
-                <span key={i}>{formatInline(block)}</span>
-              )
-            ))
+            <FormattedDescription text={value} />
           ) : (
             <span className="text-gray-300 italic">No content — write your description</span>
           )}
@@ -1758,42 +1813,6 @@ function DescriptionEditor({
       )}
     </div>
   );
-}
-
-function formatInline(text: string): React.ReactNode {
-  // Split by lines to handle bullet lists
-  const lines = text.split("\n");
-  return lines.map((line, i) => {
-    const trimmed = line.trim();
-    if (trimmed.startsWith("•")) {
-      const content = trimmed.slice(1).trim();
-      return (
-        <span key={i} className="block pl-3 -indent-2.5">
-          <span className="mr-1.5">•</span>
-          {renderInlineFormatting(content)}
-        </span>
-      );
-    }
-    return <span key={i}>{i > 0 ? "\n" : ""}{renderInlineFormatting(line)}</span>;
-  });
-}
-
-function renderInlineFormatting(text: string): React.ReactNode {
-  // Bold: **text**
-  const boldParts = text.split(/(\*\*[^*]+\*\*)/g);
-  return boldParts.map((part, i) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return <strong key={i} className="font-semibold text-gray-900">{part.slice(2, -2)}</strong>;
-    }
-    // Italic: /text/
-    const italicParts = part.split(/(\/[^/]+\/)/g);
-    return italicParts.map((p, j) => {
-      if (p.startsWith("/") && p.endsWith("/") && p.length > 2) {
-        return <em key={j} className="italic">{p.slice(1, -1)}</em>;
-      }
-      return p;
-    });
-  });
 }
 
 // ─── SEO Preview ──────────────────────────────────────────────────────────────
@@ -2581,6 +2600,12 @@ function AdminProductEditor() {
     }
   };
   const effectivePrice = saleActive && salePrice !== "" ? Number(salePrice) : Number(basePrice);
+  const supplierUnitCost = Number(product?.supplier_unit_cost ?? 0);
+  const actualPricingMultiple = supplierUnitCost > 0 ? effectivePrice / supplierUnitCost : 0;
+  const grossProfit = supplierUnitCost > 0 ? effectivePrice - supplierUnitCost : 0;
+  const grossMargin = effectivePrice > 0 && supplierUnitCost > 0
+    ? (grossProfit / effectivePrice) * 100
+    : 0;
 
   const tabs = [
     { id: "details"  as const, label: "Details",  icon: FileText },
@@ -3046,6 +3071,38 @@ function AdminProductEditor() {
                   </div>
                 </div>
               </div>
+
+              {supplierUnitCost > 0 && (
+                <div className={`${cardCls} admin-surface`}>
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <div>
+                      <p className="text-[0.58rem] uppercase tracking-[0.18em] admin-muted">Factory Cost & Margin</p>
+                      <p className="text-[0.56rem] admin-muted mt-1">Stored supplier cost compared with the effective customer price</p>
+                    </div>
+                    <span className={`text-[0.56rem] uppercase tracking-[0.12em] font-bold px-2.5 py-1 rounded-full ${actualPricingMultiple >= 3.5 ? "text-emerald-700 bg-emerald-50" : "text-red-700 bg-red-50"}`}>
+                      {actualPricingMultiple.toFixed(2)}× markup
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    {[
+                      ["Factory Cost", formatUSD(supplierUnitCost)],
+                      ["Retail Price", formatUSD(effectivePrice)],
+                      ["Gross Profit", formatUSD(grossProfit)],
+                      ["Gross Margin", `${grossMargin.toFixed(1)}%`],
+                    ].map(([label, value]) => (
+                      <div key={label} className="p-3 rounded-lg" style={{ background: "var(--at-tile-bg)", border: "1px solid var(--at-tile-border)" }}>
+                        <p className="text-[0.46rem] uppercase tracking-[0.12em] admin-muted">{label}</p>
+                        <p className="text-sm font-semibold admin-heading mt-1">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className={`mt-3 text-[0.58rem] font-medium ${actualPricingMultiple >= 3.5 ? "text-emerald-600" : "text-red-600"}`}>
+                    {actualPricingMultiple >= 3.5
+                      ? "Meets the minimum 3.5× pricing target. Figures are before payment fees, shipping, taxes, returns, and advertising."
+                      : "Below the minimum 3.5× target. Increase the retail or variant prices before selling."}
+                  </p>
+                </div>
+              )}
 
               {/* Price Summary */}
               <div className={`${cardCls} admin-surface`}>

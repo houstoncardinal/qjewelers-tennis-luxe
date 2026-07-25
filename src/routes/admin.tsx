@@ -1,16 +1,42 @@
 import { createFileRoute, Outlet, Link, useRouterState } from "@tanstack/react-router";
 import { useState, useEffect, useCallback } from "react";
 import {
-  LayoutDashboard, ShoppingBag, Package, LogOut, Store, ChevronRight,
-  Menu, X, BarChart2, Users, RotateCcw, Tag, Settings, Gem,
-  ArrowUpRight, Star, Mail, Lock, ShieldCheck,
-  ClipboardList, ArrowLeft, FileText, MoreHorizontal, ShoppingCart, Sparkles,
+  LayoutDashboard,
+  ShoppingBag,
+  Package,
+  LogOut,
+  Store,
+  ChevronRight,
+  Menu,
+  X,
+  BarChart2,
+  Users,
+  RotateCcw,
+  Tag,
+  Settings,
+  Gem,
+  ArrowUpRight,
+  Star,
+  Mail,
+  Lock,
+  ShieldCheck,
+  ClipboardList,
+  ArrowLeft,
+  FileText,
+  MoreHorizontal,
+  ShoppingCart,
+  Sparkles,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Activity,
+  Newspaper,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { AdminTokenCtx, AdminThemeCtx, useAdminTheme } from "@/lib/admin-context";
 import { THEMES, themeCSS } from "@/lib/admin-themes";
-import { adminAuth, adminLogout, checkAdminSession, verifyTotpLogin } from "@/lib/admin.functions";
+import { adminAuth, adminPinAuth, adminLogout, checkAdminSession, verifyTotpLogin } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/admin")({
   component: AdminRoot,
@@ -97,7 +123,7 @@ const VAULT_CSS = `
 function VaultDoor() {
   const DOOR = 318;
   const dialNumbers = Array.from({ length: 10 }, (_, i) => ({ deg: i * 36, num: i * 10 }));
-  const dialTicks   = Array.from({ length: 60 },  (_, i) => i * 6);
+  const dialTicks = Array.from({ length: 60 }, (_, i) => i * 6);
 
   return (
     <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
@@ -105,8 +131,10 @@ function VaultDoor() {
       <div
         className="absolute rounded-full"
         style={{
-          width: 560, height: 560,
-          background: "radial-gradient(circle, rgba(212,175,55,0.09) 0%, rgba(212,175,55,0.03) 40%, transparent 68%)",
+          width: 560,
+          height: 560,
+          background:
+            "radial-gradient(circle, rgba(212,175,55,0.09) 0%, rgba(212,175,55,0.03) 40%, transparent 68%)",
           animation: "glow-breathe 6s ease-in-out infinite",
         }}
       />
@@ -114,7 +142,10 @@ function VaultDoor() {
       <div
         className="absolute"
         style={{
-          top: 0, left: "20%", right: "20%", height: "70%",
+          top: 0,
+          left: "20%",
+          right: "20%",
+          height: "70%",
           background: "linear-gradient(to bottom, rgba(212,175,55,0.08) 0%, transparent 100%)",
           clipPath: "polygon(28% 0, 72% 0, 100% 100%, 0% 100%)",
           animation: "spotlight-sweep 9s ease-in-out infinite",
@@ -123,7 +154,6 @@ function VaultDoor() {
 
       {/* 3D door wrapper */}
       <div className="vault-door-3d relative" style={{ width: DOOR, height: DOOR }}>
-
         {/* Wall cavity / surround frame */}
         <div
           className="absolute"
@@ -138,7 +168,10 @@ function VaultDoor() {
         <div
           className="absolute"
           style={{
-            left: -28, top: -28, bottom: -28, width: 28,
+            left: -28,
+            top: -28,
+            bottom: -28,
+            width: 28,
             background: "linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,0.72))",
           }}
         />
@@ -147,7 +180,8 @@ function VaultDoor() {
         <div
           className="absolute inset-0"
           style={{
-            background: "linear-gradient(152deg, #211f1c 0%, #181512 35%, #101009 65%, #1c1a17 100%)",
+            background:
+              "linear-gradient(152deg, #211f1c 0%, #181512 35%, #101009 65%, #1c1a17 100%)",
             border: "2px solid rgba(212,175,55,0.13)",
             boxShadow: [
               "inset 0 2px 6px rgba(255,255,255,0.045)",
@@ -161,30 +195,54 @@ function VaultDoor() {
           {/* Brushed steel texture */}
           <div
             className="absolute inset-0 opacity-20"
-            style={{ background: "repeating-linear-gradient(0deg, transparent 0px, transparent 3px, rgba(255,255,255,0.006) 3px, rgba(255,255,255,0.006) 4px)" }}
+            style={{
+              background:
+                "repeating-linear-gradient(0deg, transparent 0px, transparent 3px, rgba(255,255,255,0.006) 3px, rgba(255,255,255,0.006) 4px)",
+            }}
           />
           {/* Gold inlay border 1 */}
-          <div className="absolute" style={{ inset: 13, border: "1px solid rgba(212,175,55,0.20)", boxShadow: "inset 0 0 24px rgba(0,0,0,0.5)" }} />
+          <div
+            className="absolute"
+            style={{
+              inset: 13,
+              border: "1px solid rgba(212,175,55,0.20)",
+              boxShadow: "inset 0 0 24px rgba(0,0,0,0.5)",
+            }}
+          />
           {/* Gold inlay border 2 */}
-          <div className="absolute" style={{ inset: 19, border: "1px solid rgba(212,175,55,0.07)" }} />
+          <div
+            className="absolute"
+            style={{ inset: 19, border: "1px solid rgba(212,175,55,0.07)" }}
+          />
         </div>
 
         {/* ── BOLT BARS ─────────────────────────────────── */}
         {/* Right — 3 bolts */}
-        {[0.27, 0.50, 0.73].map((frac, i) => (
+        {[0.27, 0.5, 0.73].map((frac, i) => (
           <div
             key={`r${i}`}
             className="absolute"
             style={{
-              right: -44, top: `calc(${frac * 100}% - 8px)`,
-              width: 44, height: 16,
+              right: -44,
+              top: `calc(${frac * 100}% - 8px)`,
+              width: 44,
+              height: 16,
               background: "linear-gradient(to right, #2e2b27 0%, #201e1b 60%, #161412 100%)",
-              border: "1px solid rgba(212,175,55,0.16)", borderLeft: "none",
+              border: "1px solid rgba(212,175,55,0.16)",
+              borderLeft: "none",
               borderRadius: "0 3px 3px 0",
               animation: `bolt-breathe ${3.6 + i * 0.45}s ease-in-out ${i * 0.35}s infinite`,
             }}
           >
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm" style={{ width: 16, height: 8, background: "rgba(0,0,0,0.45)", border: "1px solid rgba(212,175,55,0.10)" }} />
+            <div
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm"
+              style={{
+                width: 16,
+                height: 8,
+                background: "rgba(0,0,0,0.45)",
+                border: "1px solid rgba(212,175,55,0.10)",
+              }}
+            />
           </div>
         ))}
         {/* Left — 2 bolts */}
@@ -193,10 +251,13 @@ function VaultDoor() {
             key={`l${i}`}
             className="absolute"
             style={{
-              left: -40, top: `calc(${frac * 100}% - 8px)`,
-              width: 40, height: 16,
+              left: -40,
+              top: `calc(${frac * 100}% - 8px)`,
+              width: 40,
+              height: 16,
               background: "linear-gradient(to left, #2e2b27 0%, #201e1b 60%, #161412 100%)",
-              border: "1px solid rgba(212,175,55,0.13)", borderRight: "none",
+              border: "1px solid rgba(212,175,55,0.13)",
+              borderRight: "none",
               borderRadius: "3px 0 0 3px",
               animation: `bolt-breathe ${4.1 + i * 0.5}s ease-in-out ${i * 0.5 + 0.2}s infinite`,
             }}
@@ -208,10 +269,13 @@ function VaultDoor() {
             key={`t${i}`}
             className="absolute"
             style={{
-              top: -36, left: `calc(${frac * 100}% - 8px)`,
-              width: 16, height: 36,
+              top: -36,
+              left: `calc(${frac * 100}% - 8px)`,
+              width: 16,
+              height: 36,
               background: "linear-gradient(to top, #2e2b27, #161412)",
-              border: "1px solid rgba(212,175,55,0.12)", borderBottom: "none",
+              border: "1px solid rgba(212,175,55,0.12)",
+              borderBottom: "none",
               borderRadius: "3px 3px 0 0",
               animation: `bolt-breathe ${3.9 + i * 0.3}s ease-in-out ${i * 0.4 + 0.1}s infinite`,
             }}
@@ -223,10 +287,13 @@ function VaultDoor() {
             key={`b${i}`}
             className="absolute"
             style={{
-              bottom: -36, left: `calc(${frac * 100}% - 8px)`,
-              width: 16, height: 36,
+              bottom: -36,
+              left: `calc(${frac * 100}% - 8px)`,
+              width: 16,
+              height: 36,
               background: "linear-gradient(to bottom, #2e2b27, #161412)",
-              border: "1px solid rgba(212,175,55,0.12)", borderTop: "none",
+              border: "1px solid rgba(212,175,55,0.12)",
+              borderTop: "none",
               borderRadius: "0 0 3px 3px",
               animation: `bolt-breathe ${4.3 + i * 0.4}s ease-in-out ${i * 0.6 + 0.3}s infinite`,
             }}
@@ -235,20 +302,52 @@ function VaultDoor() {
 
         {/* ── COMBINATION DIAL ─────────────────────────── */}
         <div className="absolute inset-0 flex items-center justify-center">
-
           {/* Outer number ring — rotates slowly */}
-          <div className="absolute rounded-full" style={{ width: 252, height: 252, animation: "vault-spin-cw 200s linear infinite" }}>
+          <div
+            className="absolute rounded-full"
+            style={{ width: 252, height: 252, animation: "vault-spin-cw 200s linear infinite" }}
+          >
             {dialTicks.map((deg) => {
               const major = deg % 36 === 0;
               return (
-                <div key={deg} className="absolute" style={{ width: "100%", height: "100%", transform: `rotate(${deg}deg)` }}>
-                  <div style={{ position: "absolute", top: major ? 10 : 14, left: "50%", width: major ? 1.5 : 1, height: major ? 10 : 5, background: major ? "rgba(212,175,55,0.55)" : "rgba(212,175,55,0.18)", transform: "translateX(-50%)" }} />
+                <div
+                  key={deg}
+                  className="absolute"
+                  style={{ width: "100%", height: "100%", transform: `rotate(${deg}deg)` }}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: major ? 10 : 14,
+                      left: "50%",
+                      width: major ? 1.5 : 1,
+                      height: major ? 10 : 5,
+                      background: major ? "rgba(212,175,55,0.55)" : "rgba(212,175,55,0.18)",
+                      transform: "translateX(-50%)",
+                    }}
+                  />
                 </div>
               );
             })}
             {dialNumbers.map(({ deg, num }) => (
-              <div key={deg} className="absolute" style={{ width: "100%", height: "100%", transform: `rotate(${deg}deg)` }}>
-                <span style={{ position: "absolute", top: 23, left: "50%", transform: `translateX(-50%) rotate(-${deg}deg)`, fontSize: "0.39rem", color: "rgba(212,175,55,0.52)", fontFamily: "monospace", fontWeight: 600, letterSpacing: "0.04em" }}>
+              <div
+                key={deg}
+                className="absolute"
+                style={{ width: "100%", height: "100%", transform: `rotate(${deg}deg)` }}
+              >
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 23,
+                    left: "50%",
+                    transform: `translateX(-50%) rotate(-${deg}deg)`,
+                    fontSize: "0.39rem",
+                    color: "rgba(212,175,55,0.52)",
+                    fontFamily: "monospace",
+                    fontWeight: 600,
+                    letterSpacing: "0.04em",
+                  }}
+                >
                   {String(num).padStart(2, "0")}
                 </span>
               </div>
@@ -256,15 +355,25 @@ function VaultDoor() {
           </div>
 
           {/* Outer ring border circle */}
-          <div className="absolute rounded-full" style={{ width: 252, height: 252, border: "1.5px solid rgba(212,175,55,0.22)", boxShadow: "0 0 0 1px rgba(212,175,55,0.06), inset 0 0 24px rgba(0,0,0,0.6)" }} />
+          <div
+            className="absolute rounded-full"
+            style={{
+              width: 252,
+              height: 252,
+              border: "1.5px solid rgba(212,175,55,0.22)",
+              boxShadow: "0 0 0 1px rgba(212,175,55,0.06), inset 0 0 24px rgba(0,0,0,0.6)",
+            }}
+          />
 
           {/* Middle mechanism ring — 8 spokes + rivets, counter-rotates */}
           <div
             className="absolute rounded-full"
             style={{
-              width: 188, height: 188,
+              width: 188,
+              height: 188,
               border: "2px solid rgba(212,175,55,0.18)",
-              background: "radial-gradient(circle at 42% 38%, rgba(28,24,18,1) 0%, rgba(10,8,6,1) 100%)",
+              background:
+                "radial-gradient(circle at 42% 38%, rgba(28,24,18,1) 0%, rgba(10,8,6,1) 100%)",
               boxShadow: "inset 0 4px 18px rgba(0,0,0,0.80), 0 0 0 1.5px rgba(0,0,0,0.6)",
               animation: "vault-spin-ccw 130s linear infinite",
             }}
@@ -273,14 +382,34 @@ function VaultDoor() {
               <div
                 key={i}
                 className="absolute top-1/2 left-1/2"
-                style={{ width: 85, height: 1.5, marginTop: -0.75, background: "linear-gradient(to right, rgba(212,175,55,0.40), rgba(212,175,55,0.04))", transform: `rotate(${i * 45}deg)`, transformOrigin: "0 50%" }}
+                style={{
+                  width: 85,
+                  height: 1.5,
+                  marginTop: -0.75,
+                  background:
+                    "linear-gradient(to right, rgba(212,175,55,0.40), rgba(212,175,55,0.04))",
+                  transform: `rotate(${i * 45}deg)`,
+                  transformOrigin: "0 50%",
+                }}
               />
             ))}
             {Array.from({ length: 8 }, (_, i) => {
               const a = (i * 45 * Math.PI) / 180;
               const r = 79;
               return (
-                <div key={i} className="absolute rounded-full" style={{ width: 7, height: 7, top: `calc(50% + ${Math.sin(a) * r}px - 3.5px)`, left: `calc(50% + ${Math.cos(a) * r}px - 3.5px)`, background: "radial-gradient(circle, rgba(212,175,55,0.70) 0%, rgba(212,175,55,0.18) 100%)", boxShadow: "0 0 5px rgba(212,175,55,0.32)" }} />
+                <div
+                  key={i}
+                  className="absolute rounded-full"
+                  style={{
+                    width: 7,
+                    height: 7,
+                    top: `calc(50% + ${Math.sin(a) * r}px - 3.5px)`,
+                    left: `calc(50% + ${Math.cos(a) * r}px - 3.5px)`,
+                    background:
+                      "radial-gradient(circle, rgba(212,175,55,0.70) 0%, rgba(212,175,55,0.18) 100%)",
+                    boxShadow: "0 0 5px rgba(212,175,55,0.32)",
+                  }}
+                />
               );
             })}
           </div>
@@ -289,10 +418,18 @@ function VaultDoor() {
           <div
             className="absolute rounded-full"
             style={{
-              width: 118, height: 118,
+              width: 118,
+              height: 118,
               border: "2px solid rgba(212,175,55,0.26)",
-              background: "radial-gradient(circle at 38% 33%, rgba(38,32,22,1) 0%, rgba(14,11,7,1) 100%)",
-              boxShadow: ["inset 0 2px 10px rgba(255,255,255,0.055)", "inset 0 -4px 14px rgba(0,0,0,0.75)", "0 0 0 3.5px rgba(0,0,0,0.85)", "0 0 0 5px rgba(212,175,55,0.10)", "0 0 20px rgba(212,175,55,0.08)"].join(", "),
+              background:
+                "radial-gradient(circle at 38% 33%, rgba(38,32,22,1) 0%, rgba(14,11,7,1) 100%)",
+              boxShadow: [
+                "inset 0 2px 10px rgba(255,255,255,0.055)",
+                "inset 0 -4px 14px rgba(0,0,0,0.75)",
+                "0 0 0 3.5px rgba(0,0,0,0.85)",
+                "0 0 0 5px rgba(212,175,55,0.10)",
+                "0 0 20px rgba(212,175,55,0.08)",
+              ].join(", "),
               animation: "vault-spin-cw 70s linear infinite",
             }}
           >
@@ -301,8 +438,12 @@ function VaultDoor() {
                 key={deg}
                 className="absolute top-1/2 left-1/2"
                 style={{
-                  width: 76, height: 13, marginTop: -6.5, marginLeft: -38,
-                  background: "linear-gradient(to bottom, rgba(212,175,55,0.38) 0%, rgba(212,175,55,0.18) 55%, rgba(212,175,55,0.06) 100%)",
+                  width: 76,
+                  height: 13,
+                  marginTop: -6.5,
+                  marginLeft: -38,
+                  background:
+                    "linear-gradient(to bottom, rgba(212,175,55,0.38) 0%, rgba(212,175,55,0.18) 55%, rgba(212,175,55,0.06) 100%)",
                   border: "1px solid rgba(212,175,55,0.24)",
                   borderRadius: 3,
                   transform: `rotate(${deg}deg)`,
@@ -317,10 +458,17 @@ function VaultDoor() {
           <div
             className="absolute flex items-center justify-center rounded-full"
             style={{
-              width: 58, height: 58,
-              background: "radial-gradient(circle at 38% 32%, rgba(212,175,55,0.22) 0%, rgba(0,0,0,0.85) 72%)",
+              width: 58,
+              height: 58,
+              background:
+                "radial-gradient(circle at 38% 32%, rgba(212,175,55,0.22) 0%, rgba(0,0,0,0.85) 72%)",
               border: "2px solid rgba(212,175,55,0.44)",
-              boxShadow: ["0 0 0 3px rgba(0,0,0,0.92)", "0 0 0 4.5px rgba(212,175,55,0.14)", "0 0 22px rgba(212,175,55,0.18)", "inset 0 0 14px rgba(0,0,0,0.75)"].join(", "),
+              boxShadow: [
+                "0 0 0 3px rgba(0,0,0,0.92)",
+                "0 0 0 4.5px rgba(212,175,55,0.14)",
+                "0 0 22px rgba(212,175,55,0.18)",
+                "inset 0 0 14px rgba(0,0,0,0.75)",
+              ].join(", "),
               animation: "vault-pulse 3.5s ease-in-out infinite",
             }}
           >
@@ -329,18 +477,21 @@ function VaultDoor() {
         </div>
 
         {/* Corner reinforcement plates */}
-        {([
-          { top: 0,    left:  0, bt: "top",    bl: "left"  },
-          { top: 0,    right: 0, bt: "top",    bl: "right" },
-          { bottom: 0, left:  0, bt: "bottom", bl: "left"  },
-          { bottom: 0, right: 0, bt: "bottom", bl: "right" },
-        ] as const).map(({ bt, bl, ...pos }, i) => (
+        {(
+          [
+            { top: 0, left: 0, bt: "top", bl: "left" },
+            { top: 0, right: 0, bt: "top", bl: "right" },
+            { bottom: 0, left: 0, bt: "bottom", bl: "left" },
+            { bottom: 0, right: 0, bt: "bottom", bl: "right" },
+          ] as const
+        ).map(({ bt, bl, ...pos }, i) => (
           <div
             key={i}
             className="absolute"
             style={{
               ...pos,
-              width: 30, height: 30,
+              width: 30,
+              height: 30,
               [bt === "top" ? "borderTop" : "borderBottom"]: "2px solid rgba(212,175,55,0.30)",
               [bl === "left" ? "borderLeft" : "borderRight"]: "2px solid rgba(212,175,55,0.30)",
             }}
@@ -349,7 +500,14 @@ function VaultDoor() {
 
         {/* Engraved serial number */}
         <div className="absolute bottom-7 left-0 right-0 text-center">
-          <span style={{ fontSize: "0.36rem", letterSpacing: "0.42em", color: "rgba(212,175,55,0.18)", fontFamily: "monospace" }}>
+          <span
+            style={{
+              fontSize: "0.36rem",
+              letterSpacing: "0.42em",
+              color: "rgba(212,175,55,0.18)",
+              fontFamily: "monospace",
+            }}
+          >
             SN · QJ‑2024‑001
           </span>
         </div>
@@ -362,15 +520,24 @@ function VaultDoor() {
 function GoldRule({ label }: { label?: string }) {
   return (
     <div className="flex items-center gap-3 my-1">
-      <div className="flex-1 h-px" style={{ background: "linear-gradient(to right, transparent, rgba(212,175,55,0.32))" }} />
+      <div
+        className="flex-1 h-px"
+        style={{ background: "linear-gradient(to right, transparent, rgba(212,175,55,0.32))" }}
+      />
       {label ? (
-        <span className="text-[0.42rem] uppercase tracking-[0.38em] font-semibold" style={{ color: "rgba(212,175,55,0.48)" }}>
+        <span
+          className="text-[0.42rem] uppercase tracking-[0.38em] font-semibold"
+          style={{ color: "rgba(212,175,55,0.48)" }}
+        >
           {label}
         </span>
       ) : (
         <span style={{ color: "rgba(212,175,55,0.42)", fontSize: "0.44rem" }}>◆</span>
       )}
-      <div className="flex-1 h-px" style={{ background: "linear-gradient(to left, transparent, rgba(212,175,55,0.32))" }} />
+      <div
+        className="flex-1 h-px"
+        style={{ background: "linear-gradient(to left, transparent, rgba(212,175,55,0.32))" }}
+      />
     </div>
   );
 }
@@ -381,22 +548,54 @@ function CornerAccents({ size = 20, opacity = 0.5 }: { size?: number; opacity?: 
   const shared: React.CSSProperties = { position: "absolute", width: size, height: size };
   return (
     <>
-      <div style={{ ...shared, top: 0, left: 0, borderTop: `1.5px solid ${s}`, borderLeft: `1.5px solid ${s}` }} />
-      <div style={{ ...shared, top: 0, right: 0, borderTop: `1.5px solid ${s}`, borderRight: `1.5px solid ${s}` }} />
-      <div style={{ ...shared, bottom: 0, left: 0, borderBottom: `1.5px solid ${s}`, borderLeft: `1.5px solid ${s}` }} />
-      <div style={{ ...shared, bottom: 0, right: 0, borderBottom: `1.5px solid ${s}`, borderRight: `1.5px solid ${s}` }} />
+      <div
+        style={{
+          ...shared,
+          top: 0,
+          left: 0,
+          borderTop: `1.5px solid ${s}`,
+          borderLeft: `1.5px solid ${s}`,
+        }}
+      />
+      <div
+        style={{
+          ...shared,
+          top: 0,
+          right: 0,
+          borderTop: `1.5px solid ${s}`,
+          borderRight: `1.5px solid ${s}`,
+        }}
+      />
+      <div
+        style={{
+          ...shared,
+          bottom: 0,
+          left: 0,
+          borderBottom: `1.5px solid ${s}`,
+          borderLeft: `1.5px solid ${s}`,
+        }}
+      />
+      <div
+        style={{
+          ...shared,
+          bottom: 0,
+          right: 0,
+          borderBottom: `1.5px solid ${s}`,
+          borderRight: `1.5px solid ${s}`,
+        }}
+      />
     </>
   );
 }
 
 // ── Diamond sparks ─────────────────────────────────────────────────────────────
 const SPARKS = [
-  { top: "10%", left: "7%",  delay: "0s",   dur: "3.5s" },
+  { top: "10%", left: "7%", delay: "0s", dur: "3.5s" },
   { top: "22%", left: "92%", delay: "1.3s", dur: "4.2s" },
-  { top: "68%", left: "5%",  delay: "2.0s", dur: "3.1s" },
+  { top: "68%", left: "5%", delay: "2.0s", dur: "3.1s" },
   { top: "82%", left: "89%", delay: "0.7s", dur: "4.7s" },
   { top: "45%", left: "97%", delay: "3.2s", dur: "2.9s" },
-  { top: "55%", left: "3%",  delay: "1.8s", dur: "3.8s" },
+  { top: "55%", left: "3%", delay: "1.8s", dur: "3.8s" },
   { top: "35%", left: "95%", delay: "2.6s", dur: "3.4s" },
 ];
 
@@ -407,7 +606,15 @@ function DiamondSparks() {
         <div
           key={i}
           className="absolute pointer-events-none select-none"
-          style={{ top: s.top, left: s.left, width: 8, height: 8, fontSize: "0.50rem", color: "rgba(212,175,55,0.60)", animation: `spark-float ${s.dur} ease-in-out ${s.delay} infinite` }}
+          style={{
+            top: s.top,
+            left: s.left,
+            width: 8,
+            height: 8,
+            fontSize: "0.50rem",
+            color: "rgba(212,175,55,0.60)",
+            animation: `spark-float ${s.dur} ease-in-out ${s.delay} infinite`,
+          }}
         >
           ◆
         </div>
@@ -417,7 +624,15 @@ function DiamondSparks() {
 }
 
 // ── Security credential row ────────────────────────────────────────────────────
-function CredentialRow({ icon: Icon, label, sublabel }: { icon: React.ElementType; label: string; sublabel?: string }) {
+function CredentialRow({
+  icon: Icon,
+  label,
+  sublabel,
+}: {
+  icon: React.ElementType;
+  label: string;
+  sublabel?: string;
+}) {
   return (
     <div className="flex items-center gap-3">
       <div
@@ -427,9 +642,16 @@ function CredentialRow({ icon: Icon, label, sublabel }: { icon: React.ElementTyp
         <Icon className="h-3.5 w-3.5" style={{ color: "rgba(212,175,55,0.72)" }} />
       </div>
       <div>
-        <p className="text-[0.60rem] tracking-[0.06em]" style={{ color: "rgba(255,255,255,0.40)" }}>{label}</p>
+        <p className="text-[0.60rem] tracking-[0.06em]" style={{ color: "rgba(255,255,255,0.40)" }}>
+          {label}
+        </p>
         {sublabel && (
-          <p className="text-[0.44rem] tracking-[0.10em] mt-0.5 font-mono" style={{ color: "rgba(212,175,55,0.30)" }}>{sublabel}</p>
+          <p
+            className="text-[0.44rem] tracking-[0.10em] mt-0.5 font-mono"
+            style={{ color: "rgba(212,175,55,0.30)" }}
+          >
+            {sublabel}
+          </p>
         )}
       </div>
     </div>
@@ -457,7 +679,11 @@ function TerminalLog() {
   return (
     <div
       className="relative overflow-hidden"
-      style={{ height: 76, maskImage: "linear-gradient(to bottom, transparent 0%, black 22%, black 78%, transparent 100%)" }}
+      style={{
+        height: 76,
+        maskImage:
+          "linear-gradient(to bottom, transparent 0%, black 22%, black 78%, transparent 100%)",
+      }}
     >
       <div style={{ animation: "terminal-scroll 24s linear infinite" }}>
         {doubled.map((line, i) => (
@@ -466,7 +692,12 @@ function TerminalLog() {
             className="font-mono leading-relaxed"
             style={{
               fontSize: "0.39rem",
-              color: i % 3 === 0 ? "rgba(212,175,55,0.38)" : i % 3 === 1 ? "rgba(74,222,128,0.30)" : "rgba(255,255,255,0.20)",
+              color:
+                i % 3 === 0
+                  ? "rgba(212,175,55,0.38)"
+                  : i % 3 === 1
+                    ? "rgba(74,222,128,0.30)"
+                    : "rgba(255,255,255,0.20)",
               letterSpacing: "0.04em",
               whiteSpace: "nowrap",
             }}
@@ -481,7 +712,7 @@ function TerminalLog() {
 
 // ── Rising gold particles ──────────────────────────────────────────────────────
 const PARTICLES = [
-  { left: "15%", delay: "0s",   dur: "4.0s", size: 3 },
+  { left: "15%", delay: "0s", dur: "4.0s", size: 3 },
   { left: "32%", delay: "1.5s", dur: "3.3s", size: 2 },
   { left: "50%", delay: "0.8s", dur: "4.8s", size: 4 },
   { left: "68%", delay: "2.2s", dur: "3.7s", size: 2 },
@@ -497,7 +728,14 @@ function RisingParticles() {
         <div
           key={i}
           className="absolute bottom-0 rounded-full"
-          style={{ left: p.left, width: p.size, height: p.size, background: "rgba(212,175,55,0.55)", boxShadow: "0 0 4px rgba(212,175,55,0.4)", animation: `particle-rise ${p.dur} ease-out ${p.delay} infinite` }}
+          style={{
+            left: p.left,
+            width: p.size,
+            height: p.size,
+            background: "rgba(212,175,55,0.55)",
+            boxShadow: "0 0 4px rgba(212,175,55,0.4)",
+            animation: `particle-rise ${p.dur} ease-out ${p.delay} infinite`,
+          }}
         />
       ))}
     </div>
@@ -507,12 +745,12 @@ function RisingParticles() {
 // ─── Main Login ───────────────────────────────────────────────────────────────
 
 function AdminLogin({ onLogin }: { onLogin: () => void }) {
-  const [pin, setPin]             = useState("");
-  const [code, setCode]           = useState("");
+  const [pin, setPin] = useState("");
+  const [code, setCode] = useState("");
   const [needsTotp, setNeedsTotp] = useState(false);
-  const [error, setError]         = useState("");
-  const [loading, setLoading]     = useState(false);
-  const auth       = useServerFn(adminAuth);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const auth = useServerFn(adminAuth);
   const verifyTotp = useServerFn(verifyTotpLogin);
 
   const submit = async (e?: React.FormEvent | React.MouseEvent) => {
@@ -527,8 +765,12 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
         return;
       }
       if (!pin) return;
-      const result = await auth({ data: { pin } });
-      if (result.requiresTotp) { setNeedsTotp(true); } else { onLogin(); }
+      const result = await auth({ data: { username: "admin", password: pin } });
+      if (result.requiresTotp) {
+        setNeedsTotp(true);
+      } else {
+        onLogin();
+      }
     } catch (err: any) {
       const msg: string = err?.message ?? "";
       if (msg.includes("Too many") || msg.includes("misconfigured")) {
@@ -541,9 +783,13 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
     }
   };
 
-  const backToLogin = () => { setNeedsTotp(false); setCode(""); setError(""); };
+  const backToLogin = () => {
+    setNeedsTotp(false);
+    setCode("");
+    setError("");
+  };
 
-  const GOLD     = "rgba(212,175,55,1)";
+  const GOLD = "rgba(212,175,55,1)";
   const GOLD_MID = "rgba(212,175,55,0.60)";
   const GOLD_DIM = "rgba(212,175,55,0.22)";
 
@@ -551,21 +797,37 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
     <>
       <style>{VAULT_CSS}</style>
 
-      <div className="min-h-screen flex" style={{ background: "linear-gradient(160deg, #060408 0%, #0c0a07 55%, #090807 100%)" }}>
-
+      <div
+        className="min-h-screen flex"
+        style={{ background: "linear-gradient(160deg, #060408 0%, #0c0a07 55%, #090807 100%)" }}
+      >
         {/* ══ LEFT PANEL ══════════════════════════════════════════════════════ */}
         <div
           className="hidden lg:flex lg:w-[48%] relative overflow-hidden flex-col justify-between"
-          style={{ background: "linear-gradient(152deg, #050308 0%, #0d0b07 55%, #080708 100%)", borderRight: `1px solid ${GOLD_DIM}` }}
+          style={{
+            background: "linear-gradient(152deg, #050308 0%, #0d0b07 55%, #080708 100%)",
+            borderRight: `1px solid ${GOLD_DIM}`,
+          }}
         >
           <VaultDoor />
           <DiamondSparks />
           <RisingParticles />
 
           {/* Radial bloom */}
-          <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 75% 65% at 50% 50%, rgba(212,175,55,0.065) 0%, transparent 70%)" }} />
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                "radial-gradient(ellipse 75% 65% at 50% 50%, rgba(212,175,55,0.065) 0%, transparent 70%)",
+            }}
+          />
           {/* Floor reflection */}
-          <div className="absolute bottom-0 left-0 right-0 h-36 pointer-events-none" style={{ background: "linear-gradient(to top, rgba(212,175,55,0.04) 0%, transparent 100%)" }} />
+          <div
+            className="absolute bottom-0 left-0 right-0 h-36 pointer-events-none"
+            style={{
+              background: "linear-gradient(to top, rgba(212,175,55,0.04) 0%, transparent 100%)",
+            }}
+          />
 
           {/* Top brand */}
           <div className="relative z-10 p-12">
@@ -574,7 +836,10 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
                 src="https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/QURESHIJEWELERSLOGO.png"
                 alt="Qureshi Jewelers"
                 className="h-10 w-auto"
-                style={{ filter: "brightness(0) saturate(100%) invert(78%) sepia(38%) saturate(600%) hue-rotate(5deg) brightness(95%)" }}
+                style={{
+                  filter:
+                    "brightness(0) saturate(100%) invert(78%) sepia(38%) saturate(600%) hue-rotate(5deg) brightness(95%)",
+                }}
               />
             </div>
             <GoldRule label="Private Vault Console" />
@@ -584,26 +849,56 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
           <div className="relative z-10 p-12 pb-10">
             <p
               className="font-display text-[2.0rem] leading-[1.16] mb-4"
-              style={{ color: "rgba(255,255,255,0.88)", textShadow: "0 0 80px rgba(212,175,55,0.08)" }}
+              style={{
+                color: "rgba(255,255,255,0.88)",
+                textShadow: "0 0 80px rgba(212,175,55,0.08)",
+              }}
             >
-              Every flawless piece.<br />
-              <span style={{ background: "linear-gradient(90deg, rgba(212,175,55,0.90) 0%, rgba(212,175,55,0.55) 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+              Every flawless piece.
+              <br />
+              <span
+                style={{
+                  background:
+                    "linear-gradient(90deg, rgba(212,175,55,0.90) 0%, rgba(212,175,55,0.55) 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
                 Every operation.
-              </span><br />
+              </span>
+              <br />
               One secure vault.
             </p>
-            <p className="text-[0.60rem] leading-relaxed mb-7" style={{ color: "rgba(255,255,255,0.26)" }}>
+            <p
+              className="text-[0.60rem] leading-relaxed mb-7"
+              style={{ color: "rgba(255,255,255,0.26)" }}
+            >
               Military-grade access control protecting the world's finest moissanite collections.
             </p>
 
             <div className="space-y-2.5 mb-7">
-              <CredentialRow icon={ShieldCheck}  label="TOTP dual-factor authentication"  sublabel="HMAC-SHA1 · RFC 6238"      />
-              <CredentialRow icon={Lock}          label="AES-256 encrypted session vault"  sublabel="FIPS 140-2 validated"      />
-              <CredentialRow icon={ClipboardList} label="Immutable audit chronicle"         sublabel="Tamper-evident log"        />
+              <CredentialRow
+                icon={ShieldCheck}
+                label="TOTP dual-factor authentication"
+                sublabel="HMAC-SHA1 · RFC 6238"
+              />
+              <CredentialRow
+                icon={Lock}
+                label="AES-256 encrypted session vault"
+                sublabel="FIPS 140-2 validated"
+              />
+              <CredentialRow
+                icon={ClipboardList}
+                label="Immutable audit chronicle"
+                sublabel="Tamper-evident log"
+              />
             </div>
 
             <div className="mb-6">
-              <p className="text-[0.40rem] uppercase tracking-[0.30em] font-semibold mb-2" style={{ color: "rgba(212,175,55,0.28)" }}>
+              <p
+                className="text-[0.40rem] uppercase tracking-[0.30em] font-semibold mb-2"
+                style={{ color: "rgba(212,175,55,0.28)" }}
+              >
                 Security Log
               </p>
               <TerminalLog />
@@ -612,10 +907,25 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
             <div className="pt-5" style={{ borderTop: `1px solid ${GOLD_DIM}` }}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#4ade80", boxShadow: "0 0 8px rgba(74,222,128,0.9)", animation: "needle-pulse 2.5s ease-in-out infinite" }} />
-                  <span className="text-[0.48rem] uppercase tracking-[0.34em]" style={{ color: "rgba(212,175,55,0.42)" }}>Vault Online</span>
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{
+                      background: "#4ade80",
+                      boxShadow: "0 0 8px rgba(74,222,128,0.9)",
+                      animation: "needle-pulse 2.5s ease-in-out infinite",
+                    }}
+                  />
+                  <span
+                    className="text-[0.48rem] uppercase tracking-[0.34em]"
+                    style={{ color: "rgba(212,175,55,0.42)" }}
+                  >
+                    Vault Online
+                  </span>
                 </div>
-                <span className="text-[0.37rem] font-mono" style={{ color: "rgba(255,255,255,0.16)" }}>
+                <span
+                  className="text-[0.37rem] font-mono"
+                  style={{ color: "rgba(255,255,255,0.16)" }}
+                >
                   {new Date().toISOString().slice(0, 10)}
                 </span>
               </div>
@@ -628,54 +938,117 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
             style={{ borderLeft: `1px solid ${GOLD_DIM}` }}
           >
             {"VAULT".split("").map((c, i) => (
-              <span key={i} style={{ fontSize: "0.37rem", fontWeight: 600, color: GOLD_DIM, writingMode: "vertical-lr", letterSpacing: "0.3em" }}>{c}</span>
+              <span
+                key={i}
+                style={{
+                  fontSize: "0.37rem",
+                  fontWeight: 600,
+                  color: GOLD_DIM,
+                  writingMode: "vertical-lr",
+                  letterSpacing: "0.3em",
+                }}
+              >
+                {c}
+              </span>
             ))}
           </div>
         </div>
 
         {/* ══ RIGHT PANEL ═════════════════════════════════════════════════════ */}
         <div className="flex-1 flex items-center justify-center p-6 relative overflow-hidden">
-
           {/* Background bloom */}
-          <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 90% 65% at 55% 42%, rgba(212,175,55,0.045) 0%, transparent 70%)" }} />
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                "radial-gradient(ellipse 90% 65% at 55% 42%, rgba(212,175,55,0.045) 0%, transparent 70%)",
+            }}
+          />
 
           {/* Mobile vault rings */}
           <div className="lg:hidden absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
             {[280, 200, 130].map((d, i) => (
-              <div key={i} className="absolute rounded-full" style={{ width: d, height: d, border: "1px solid rgba(212,175,55,0.45)", animation: `${i % 2 === 0 ? "vault-spin-cw" : "vault-spin-ccw"} ${130 - i * 35}s linear infinite` }} />
+              <div
+                key={i}
+                className="absolute rounded-full"
+                style={{
+                  width: d,
+                  height: d,
+                  border: "1px solid rgba(212,175,55,0.45)",
+                  animation: `${i % 2 === 0 ? "vault-spin-cw" : "vault-spin-ccw"} ${130 - i * 35}s linear infinite`,
+                }}
+              />
             ))}
           </div>
 
           <DiamondSparks />
 
           <div className="w-full max-w-[380px] relative z-10 vault-entrance">
-
             {/* Logo medallion */}
             <div className="flex flex-col items-center mb-8">
               <div
                 className="relative flex items-center justify-center mb-5"
                 style={{
-                  width: 76, height: 76, borderRadius: "50%",
-                  background: "radial-gradient(circle at 38% 34%, rgba(212,175,55,0.16) 0%, rgba(0,0,0,0) 70%)",
+                  width: 76,
+                  height: 76,
+                  borderRadius: "50%",
+                  background:
+                    "radial-gradient(circle at 38% 34%, rgba(212,175,55,0.16) 0%, rgba(0,0,0,0) 70%)",
                   border: `1.5px solid ${GOLD_DIM}`,
                   boxShadow: "0 0 50px rgba(212,175,55,0.08), inset 0 0 20px rgba(0,0,0,0.6)",
                 }}
               >
-                <img src="https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/QURESHIJEWELERSLOGO.png" alt="Qureshi Jewelers" className="h-9 w-auto" style={{ filter: "brightness(0) saturate(100%) invert(78%) sepia(38%) saturate(600%) hue-rotate(5deg) brightness(95%)" }} />
+                <img
+                  src="https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/QURESHIJEWELERSLOGO.png"
+                  alt="Qureshi Jewelers"
+                  className="h-9 w-auto"
+                  style={{
+                    filter:
+                      "brightness(0) saturate(100%) invert(78%) sepia(38%) saturate(600%) hue-rotate(5deg) brightness(95%)",
+                  }}
+                />
                 {/* Dashed orbital ring */}
-                <div className="absolute rounded-full" style={{ inset: -12, border: "1px dashed rgba(212,175,55,0.20)", animation: "vault-spin-cw 28s linear infinite" }} />
+                <div
+                  className="absolute rounded-full"
+                  style={{
+                    inset: -12,
+                    border: "1px dashed rgba(212,175,55,0.20)",
+                    animation: "vault-spin-cw 28s linear infinite",
+                  }}
+                />
               </div>
-              <p className="text-[0.46rem] uppercase tracking-[0.50em] font-semibold" style={{ color: GOLD_MID }}>Qureshi Jewelers</p>
-              <p className="text-[0.40rem] uppercase tracking-[0.38em] mt-1" style={{ color: "rgba(255,255,255,0.20)" }}>Private Vault Console</p>
+              <p
+                className="text-[0.46rem] uppercase tracking-[0.50em] font-semibold"
+                style={{ color: GOLD_MID }}
+              >
+                Qureshi Jewelers
+              </p>
+              <p
+                className="text-[0.40rem] uppercase tracking-[0.38em] mt-1"
+                style={{ color: "rgba(255,255,255,0.20)" }}
+              >
+                Private Vault Console
+              </p>
             </div>
 
             {/* Heading */}
             <div className="text-center mb-6">
-              <h1 className="font-display text-[1.75rem] leading-tight mb-2" style={{ color: "rgba(255,255,255,0.90)", textShadow: "0 0 50px rgba(212,175,55,0.14)" }}>
+              <h1
+                className="font-display text-[1.75rem] leading-tight mb-2"
+                style={{
+                  color: "rgba(255,255,255,0.90)",
+                  textShadow: "0 0 50px rgba(212,175,55,0.14)",
+                }}
+              >
                 {needsTotp ? "Identity Verification" : "Vault Access"}
               </h1>
-              <p className="text-[0.58rem] tracking-[0.08em]" style={{ color: "rgba(255,255,255,0.28)" }}>
-                {needsTotp ? "Enter the 6-digit code from your authenticator app" : "Authorised personnel only · Enter your secure access code"}
+              <p
+                className="text-[0.58rem] tracking-[0.08em]"
+                style={{ color: "rgba(255,255,255,0.28)" }}
+              >
+                {needsTotp
+                  ? "Enter the 6-digit code from your authenticator app"
+                  : "Authorised personnel only · Enter your secure access code"}
               </p>
             </div>
 
@@ -683,7 +1056,8 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
             <div
               className="relative px-8 pt-7 pb-8 gold-shimmer-card"
               style={{
-                background: "linear-gradient(158deg, rgba(255,255,255,0.028) 0%, rgba(255,255,255,0.015) 100%)",
+                background:
+                  "linear-gradient(158deg, rgba(255,255,255,0.028) 0%, rgba(255,255,255,0.015) 100%)",
                 border: "1px solid rgba(212,175,55,0.24)",
                 boxShadow: [
                   "0 0 0 4px rgba(7,6,9,1)",
@@ -706,21 +1080,27 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
                   <div
                     className="flex items-center justify-center rounded-full"
                     style={{
-                      width: 56, height: 56,
-                      background: "radial-gradient(circle at 38% 34%, rgba(212,175,55,0.18) 0%, transparent 70%)",
+                      width: 56,
+                      height: 56,
+                      background:
+                        "radial-gradient(circle at 38% 34%, rgba(212,175,55,0.18) 0%, transparent 70%)",
                       border: "1.5px solid rgba(212,175,55,0.32)",
                       boxShadow: "0 0 28px rgba(212,175,55,0.12), inset 0 0 16px rgba(0,0,0,0.5)",
                       animation: "gold-pulse 3s ease-in-out infinite",
                     }}
                   >
-                    {needsTotp
-                      ? <ShieldCheck className="h-6 w-6" style={{ color: GOLD_MID }} />
-                      : <Lock        className="h-6 w-6" style={{ color: GOLD_MID }} />
-                    }
+                    {needsTotp ? (
+                      <ShieldCheck className="h-6 w-6" style={{ color: GOLD_MID }} />
+                    ) : (
+                      <Lock className="h-6 w-6" style={{ color: GOLD_MID }} />
+                    )}
                   </div>
                 </div>
 
-                <label className="block text-[0.44rem] uppercase tracking-[0.38em] font-semibold mb-3 text-center" style={{ color: GOLD_MID }}>
+                <label
+                  className="block text-[0.44rem] uppercase tracking-[0.38em] font-semibold mb-3 text-center"
+                  style={{ color: GOLD_MID }}
+                >
                   {needsTotp ? "Authenticator Code" : "Access Code"}
                 </label>
 
@@ -728,19 +1108,36 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
                 <div className="relative" style={{ overflow: "hidden" }}>
                   <div
                     className="absolute left-0 right-0 pointer-events-none z-10"
-                    style={{ height: 1, background: "linear-gradient(to right, transparent, rgba(212,175,55,0.45), transparent)", animation: "scan-line 3.5s linear infinite" }}
+                    style={{
+                      height: 1,
+                      background:
+                        "linear-gradient(to right, transparent, rgba(212,175,55,0.45), transparent)",
+                      animation: "scan-line 3.5s linear infinite",
+                    }}
                   />
                   {needsTotp ? (
                     <input
                       type="text"
                       inputMode="numeric"
                       value={code}
-                      onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                      onKeyDown={e => e.key === "Enter" && submit(e)}
+                      onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      onKeyDown={(e) => e.key === "Enter" && submit(e)}
                       className="w-full px-4 py-4 text-xl text-center tracking-[0.60em] font-semibold focus:outline-none text-white"
-                      style={{ background: "rgba(0,0,0,0.40)", border: "1px solid rgba(212,175,55,0.24)", boxShadow: "inset 0 3px 10px rgba(0,0,0,0.40)", caretColor: GOLD }}
-                      onFocus={e => { e.target.style.borderColor = "rgba(212,175,55,0.52)"; e.target.style.boxShadow = "inset 0 3px 10px rgba(0,0,0,0.40), 0 0 0 2px rgba(212,175,55,0.08)"; }}
-                      onBlur={e  => { e.target.style.borderColor = "rgba(212,175,55,0.24)"; e.target.style.boxShadow = "inset 0 3px 10px rgba(0,0,0,0.40)"; }}
+                      style={{
+                        background: "rgba(0,0,0,0.40)",
+                        border: "1px solid rgba(212,175,55,0.24)",
+                        boxShadow: "inset 0 3px 10px rgba(0,0,0,0.40)",
+                        caretColor: GOLD,
+                      }}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = "rgba(212,175,55,0.52)";
+                        e.target.style.boxShadow =
+                          "inset 0 3px 10px rgba(0,0,0,0.40), 0 0 0 2px rgba(212,175,55,0.08)";
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = "rgba(212,175,55,0.24)";
+                        e.target.style.boxShadow = "inset 0 3px 10px rgba(0,0,0,0.40)";
+                      }}
                       placeholder="· · · · · ·"
                       autoFocus
                       maxLength={6}
@@ -750,23 +1147,45 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
                       <input
                         type="password"
                         value={pin}
-                        onChange={e => setPin(e.target.value)}
-                        onKeyDown={e => e.key === "Enter" && submit(e)}
+                        onChange={(e) => setPin(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && submit(e)}
                         className="w-full pl-4 pr-11 py-4 text-base tracking-[0.22em] focus:outline-none text-white"
-                        style={{ background: "rgba(0,0,0,0.40)", border: "1px solid rgba(212,175,55,0.24)", boxShadow: "inset 0 3px 10px rgba(0,0,0,0.40)", caretColor: GOLD }}
-                        onFocus={e => { e.target.style.borderColor = "rgba(212,175,55,0.52)"; e.target.style.boxShadow = "inset 0 3px 10px rgba(0,0,0,0.40), 0 0 0 2px rgba(212,175,55,0.08)"; }}
-                        onBlur={e  => { e.target.style.borderColor = "rgba(212,175,55,0.24)"; e.target.style.boxShadow = "inset 0 3px 10px rgba(0,0,0,0.40)"; }}
+                        style={{
+                          background: "rgba(0,0,0,0.40)",
+                          border: "1px solid rgba(212,175,55,0.24)",
+                          boxShadow: "inset 0 3px 10px rgba(0,0,0,0.40)",
+                          caretColor: GOLD,
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = "rgba(212,175,55,0.52)";
+                          e.target.style.boxShadow =
+                            "inset 0 3px 10px rgba(0,0,0,0.40), 0 0 0 2px rgba(212,175,55,0.08)";
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = "rgba(212,175,55,0.24)";
+                          e.target.style.boxShadow = "inset 0 3px 10px rgba(0,0,0,0.40)";
+                        }}
                         placeholder="••••••••••••"
                         autoFocus
                       />
-                      <Lock className="absolute right-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none" style={{ color: GOLD_DIM }} />
+                      <Lock
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none"
+                        style={{ color: GOLD_DIM }}
+                      />
                     </>
                   )}
                 </div>
               </div>
 
               {error && (
-                <div className="flex items-start gap-2.5 px-3.5 py-3 mb-5 text-[0.60rem]" style={{ background: "rgba(239,68,68,0.065)", border: "1px solid rgba(239,68,68,0.22)", color: "rgba(252,165,165,0.90)" }}>
+                <div
+                  className="flex items-start gap-2.5 px-3.5 py-3 mb-5 text-[0.60rem]"
+                  style={{
+                    background: "rgba(239,68,68,0.065)",
+                    border: "1px solid rgba(239,68,68,0.22)",
+                    color: "rgba(252,165,165,0.90)",
+                  }}
+                >
                   <span className="w-1.5 h-1.5 rounded-full bg-red-400 mt-0.5 shrink-0" />
                   {error}
                 </div>
@@ -788,14 +1207,30 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
                   transition: "transform 0.12s, box-shadow 0.12s",
                 }}
               >
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 pointer-events-none" style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0.14), transparent 60%)", transition: "opacity 0.3s" }} />
+                <div
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 pointer-events-none"
+                  style={{
+                    background:
+                      "linear-gradient(to bottom, rgba(255,255,255,0.14), transparent 60%)",
+                    transition: "opacity 0.3s",
+                  }}
+                />
                 <span className="relative flex items-center justify-center gap-2.5">
                   {loading ? (
-                    <><span className="w-3.5 h-3.5 border-2 border-[#180f04]/25 border-t-[#180f04] rounded-full animate-spin" />Authenticating…</>
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-[#180f04]/25 border-t-[#180f04] rounded-full animate-spin" />
+                      Authenticating…
+                    </>
                   ) : needsTotp ? (
-                    <><ShieldCheck className="h-3.5 w-3.5" />Verify Identity</>
+                    <>
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      Verify Identity
+                    </>
                   ) : (
-                    <><Lock className="h-3.5 w-3.5" />Open Vault</>
+                    <>
+                      <Lock className="h-3.5 w-3.5" />
+                      Open Vault
+                    </>
                   )}
                 </span>
               </button>
@@ -805,8 +1240,8 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
                   onClick={backToLogin}
                   className="w-full flex items-center justify-center gap-1.5 mt-4 text-[0.50rem] uppercase tracking-[0.22em]"
                   style={{ color: "rgba(255,255,255,0.22)", transition: "color 0.2s" }}
-                  onMouseEnter={e => (e.currentTarget.style.color = "rgba(212,175,55,0.55)")}
-                  onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.22)")}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(212,175,55,0.55)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.22)")}
                 >
                   <ArrowLeft className="h-3 w-3" />
                   Return to vault entrance
@@ -817,12 +1252,18 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
 
               {!needsTotp && (
                 <div className="flex items-center justify-center gap-5 mt-2">
-                  {([
-                    { icon: Lock,          text: "AES-256"  },
-                    { icon: ShieldCheck,   text: "2FA Ready" },
-                    { icon: ClipboardList, text: "Audited"   },
-                  ] as const).map(({ icon: Icon, text }) => (
-                    <span key={text} className="flex items-center gap-1.5 text-[0.46rem] uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.20)" }}>
+                  {(
+                    [
+                      { icon: Lock, text: "AES-256" },
+                      { icon: ShieldCheck, text: "2FA Ready" },
+                      { icon: ClipboardList, text: "Audited" },
+                    ] as const
+                  ).map(({ icon: Icon, text }) => (
+                    <span
+                      key={text}
+                      className="flex items-center gap-1.5 text-[0.46rem] uppercase tracking-[0.12em]"
+                      style={{ color: "rgba(255,255,255,0.20)" }}
+                    >
                       <Icon className="h-2.5 w-2.5" style={{ color: GOLD_DIM }} />
                       {text}
                     </span>
@@ -838,23 +1279,231 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
                   to="/"
                   className="flex items-center gap-1.5 text-[0.50rem] uppercase tracking-[0.20em]"
                   style={{ color: "rgba(255,255,255,0.20)", transition: "color 0.2s" }}
-                  onMouseEnter={e => (e.currentTarget.style.color = "rgba(212,175,55,0.52)")}
-                  onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.20)")}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(212,175,55,0.52)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.20)")}
                 >
                   <ArrowLeft className="h-3 w-3" />
                   Storefront
                 </Link>
                 <div className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#4ade80", boxShadow: "0 0 7px rgba(74,222,128,0.9)", animation: "needle-pulse 2.5s ease-in-out infinite" }} />
-                  <span className="text-[0.42rem] uppercase tracking-[0.28em]" style={{ color: "rgba(255,255,255,0.20)" }}>Vault secured</span>
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{
+                      background: "#4ade80",
+                      boxShadow: "0 0 7px rgba(74,222,128,0.9)",
+                      animation: "needle-pulse 2.5s ease-in-out infinite",
+                    }}
+                  />
+                  <span
+                    className="text-[0.42rem] uppercase tracking-[0.28em]"
+                    style={{ color: "rgba(255,255,255,0.20)" }}
+                  >
+                    Vault secured
+                  </span>
                 </div>
               </div>
             )}
-
           </div>
         </div>
       </div>
     </>
+  );
+}
+
+function EnterpriseAdminLogin({ onLogin }: { onLogin: () => void }) {
+  const [pin, setPin] = useState("");
+  const [showPin, setShowPin] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const authenticatePin = useServerFn(adminPinAuth);
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (loading) return;
+    setLoading(true);
+    setError("");
+    try {
+      if (pin.length !== 6) return;
+      await authenticatePin({ data: { pin } });
+      onLogin();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "";
+      if (message.includes("Too many") || message.includes("misconfigured")) {
+        setError(message);
+      } else {
+        setError("That access PIN was not accepted.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <main className="min-h-[100svh] bg-white text-black lg:grid lg:grid-cols-[minmax(360px,0.82fr)_minmax(520px,1.18fr)]">
+      <section className="relative hidden overflow-hidden bg-black text-white lg:flex lg:min-h-screen lg:flex-col lg:justify-between lg:p-12 xl:p-16">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.13]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,.16) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.16) 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
+          }}
+        />
+        <div className="relative z-10 flex items-center gap-4">
+          <div className="flex h-12 w-12 items-center justify-center border border-white/25 bg-white">
+            <img
+              src="/QURESHIJEWELERSLOGO.png"
+              alt="Qureshi Jewelers"
+              className="h-7 w-auto object-contain"
+            />
+          </div>
+          <div>
+            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.24em]">
+              Qureshi Jewelers
+            </p>
+            <p className="mt-1 text-[0.58rem] uppercase tracking-[0.2em] text-white/45">
+              Administrative operations
+            </p>
+          </div>
+        </div>
+
+        <div className="relative z-10 max-w-lg py-16">
+          <p className="mb-6 text-[0.62rem] font-medium uppercase tracking-[0.28em] text-white/45">
+            Commerce command center
+          </p>
+          <h1 className="font-display text-5xl leading-[0.98] xl:text-6xl">
+            Manage every detail.
+            <br />
+            Protect every order.
+          </h1>
+          <p className="mt-7 max-w-md text-sm leading-7 text-white/55">
+            A private workspace for catalog, customer, order, fulfillment, and storefront
+            operations.
+          </p>
+
+          <div className="mt-12 grid gap-px border border-white/15 bg-white/15">
+            {[
+              { icon: ShieldCheck, label: "Signed server sessions", value: "HttpOnly · Expiring" },
+              { icon: KeyRound, label: "Identity verification", value: "Two-step ready" },
+              { icon: Activity, label: "Administrative activity", value: "Audit recorded" },
+            ].map(({ icon: Icon, label, value }) => (
+              <div key={label} className="flex items-center gap-4 bg-black px-5 py-4">
+                <Icon className="h-4 w-4 text-white/65" strokeWidth={1.6} />
+                <span className="text-xs text-white/75">{label}</span>
+                <span className="ml-auto font-mono text-[0.58rem] uppercase tracking-[0.12em] text-white/35">
+                  {value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="relative z-10 flex items-center justify-between border-t border-white/15 pt-6">
+          <span className="flex items-center gap-2 text-[0.58rem] uppercase tracking-[0.18em] text-white/45">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Systems operational
+          </span>
+          <span className="font-mono text-[0.58rem] text-white/30">
+            {new Date().toISOString().slice(0, 10)}
+          </span>
+        </div>
+      </section>
+
+      <section className="flex min-h-[100svh] flex-col bg-[#f7f7f5]">
+        <header className="flex h-20 items-center justify-between border-b border-black/10 bg-white px-5 sm:px-8 lg:px-12">
+          <Link to="/" className="flex items-center gap-3" aria-label="Return to storefront">
+            <div className="flex h-9 w-9 items-center justify-center border border-black/15 lg:hidden">
+              <img src="/QURESHIJEWELERSLOGO.png" alt="" className="h-5 w-auto" />
+            </div>
+            <span className="text-[0.62rem] font-medium uppercase tracking-[0.2em] text-black/55">
+              Return to storefront
+            </span>
+          </Link>
+          <span className="flex items-center gap-2 text-[0.58rem] uppercase tracking-[0.18em] text-black/40">
+            <Lock className="h-3 w-3" /> Secure access
+          </span>
+        </header>
+
+        <div className="flex flex-1 items-center justify-center px-5 py-10 sm:px-8 lg:px-12">
+          <div className="w-full max-w-[460px]">
+            <div className="mb-8">
+              <div className="mb-6 flex h-12 w-12 items-center justify-center bg-black text-white">
+                <Lock className="h-5 w-5" strokeWidth={1.7} />
+              </div>
+              <p className="text-[0.62rem] font-semibold uppercase tracking-[0.24em] text-black/40">
+                Authorized personnel only
+              </p>
+              <h2 className="mt-3 font-display text-4xl leading-tight sm:text-5xl">
+                Sign in to Admin
+              </h2>
+              <p className="mt-4 max-w-md text-sm leading-6 text-black/50">
+                Enter your six-digit administrative access PIN to continue.
+              </p>
+            </div>
+
+            <form
+              onSubmit={submit}
+              className="border border-black/15 bg-white p-5 shadow-[0_20px_60px_rgba(0,0,0,0.08)] sm:p-8"
+            >
+              <label
+                htmlFor="admin-pin"
+                className="mb-2.5 block text-[0.62rem] font-semibold uppercase tracking-[0.18em]"
+              >
+                Access PIN
+              </label>
+
+                <div className="relative">
+                    <input id="admin-pin" type={showPin ? "text" : "password"} inputMode="numeric" autoComplete="one-time-code"
+                      value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="••••••"
+                      maxLength={6} autoFocus aria-invalid={!!error}
+                      className="h-14 w-full border border-black/20 bg-white pl-4 pr-14 text-center font-mono text-xl tracking-[0.45em] outline-none transition placeholder:text-black/25 focus:border-black focus:ring-2 focus:ring-black/10" />
+                    <button type="button" onClick={() => setShowPin((value) => !value)}
+                      className="absolute inset-y-0 right-0 flex w-14 items-center justify-center text-black/40 transition hover:text-black"
+                      aria-label={showPin ? "Hide PIN" : "Show PIN"}>
+                      {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                </div>
+
+              {error && (
+                <div
+                  role="alert"
+                  aria-live="polite"
+                  className="mt-4 border border-red-200 bg-red-50 px-4 py-3 text-xs leading-5 text-red-700"
+                >
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading || pin.length !== 6}
+                className="mt-5 flex h-14 w-full items-center justify-center gap-2.5 bg-black px-5 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-black/85 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {loading ? (
+                  <>
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                    Verifying access
+                  </>
+                ) : (
+                  <>
+                    Continue <ArrowUpRight className="h-4 w-4" />
+                  </>
+                )}
+              </button>
+
+              <div className="mt-7 flex items-start gap-3 border-t border-black/10 pt-5 text-[0.68rem] leading-5 text-black/42">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+                Access attempts are rate limited. Successful sessions use a signed, expiring,
+                HttpOnly cookie.
+              </div>
+            </form>
+
+            <p className="mt-7 text-center text-[0.6rem] uppercase tracking-[0.16em] text-black/35">
+              Qureshi Jewelers · Internal systems
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }
 
@@ -865,39 +1514,38 @@ const NAV_SECTIONS = [
     label: "Store",
     items: [
       { icon: LayoutDashboard, label: "Dashboard", to: "/admin/", exact: true },
-      { icon: BarChart2,       label: "Analytics",  to: "/admin/analytics" },
+      { icon: BarChart2, label: "Analytics", to: "/admin/analytics" },
     ],
   },
   {
     label: "Operations",
     items: [
-      { icon: ShoppingBag,  label: "Orders",           to: "/admin/orders" },
-      { icon: RotateCcw,    label: "Returns",          to: "/admin/returns" },
-      { icon: Users,        label: "Customers",        to: "/admin/customers" },
-      { icon: ShoppingCart, label: "Abandoned Carts",  to: "/admin/abandoned-carts" },
-      { icon: Mail,         label: "Inner Circle",     to: "/admin/subscribers" },
+      { icon: ShoppingBag, label: "Orders", to: "/admin/orders" },
+      { icon: RotateCcw, label: "Returns", to: "/admin/returns" },
+      { icon: Users, label: "Customers", to: "/admin/customers" },
+      { icon: ShoppingCart, label: "Abandoned Carts", to: "/admin/abandoned-carts" },
+      { icon: Mail, label: "Inner Circle", to: "/admin/subscribers" },
     ],
   },
   {
     label: "Catalog",
     items: [
-      { icon: Package, label: "Products",   to: "/admin/products" },
-      { icon: Tag,     label: "Promotions", to: "/admin/promotions" },
-      { icon: Star,    label: "Reviews",    to: "/admin/reviews" },
+      { icon: Package, label: "Products", to: "/admin/products" },
+      { icon: Tag, label: "Promotions", to: "/admin/promotions" },
+      { icon: Star, label: "Reviews", to: "/admin/reviews" },
     ],
   },
   {
     label: "Site",
     items: [
-      { icon: FileText,  label: "Content",     to: "/admin/content" },
-      { icon: Sparkles,  label: "Creator Hub", to: "/admin/creator" },
+      { icon: FileText, label: "Content", to: "/admin/content" },
+      { icon: Newspaper, label: "Blog", to: "/admin/blog" },
+      { icon: Sparkles, label: "Creator Hub", to: "/admin/creator" },
     ],
   },
   {
     label: "Config",
-    items: [
-      { icon: Settings, label: "Settings", to: "/admin/settings" },
-    ],
+    items: [{ icon: Settings, label: "Settings", to: "/admin/settings" }],
   },
 ];
 
@@ -951,7 +1599,9 @@ function NavItem({
           transform: hov ? "scale(1.22)" : "scale(1)",
           filter: isActive
             ? `drop-shadow(0 0 5px ${s.navIconActive}90)`
-            : hov ? "drop-shadow(0 0 4px rgba(255,255,255,0.28))" : `drop-shadow(0 0 3px ${s.navIconInactive}50)`,
+            : hov
+              ? "drop-shadow(0 0 4px rgba(255,255,255,0.28))"
+              : `drop-shadow(0 0 3px ${s.navIconInactive}50)`,
           transition: "transform 0.15s ease, filter 0.15s ease, color 0.15s ease",
         }}
       />
@@ -961,7 +1611,9 @@ function NavItem({
           letterSpacing: isActive ? "0.10em" : "0.12em",
           textShadow: isActive
             ? `0 0 12px ${s.navIconActive}80, 0 0 2px ${s.navIconActive}60`
-            : hov ? `0 0 10px rgba(255,255,255,0.45)` : `0 0 6px ${s.navIconInactive}40`,
+            : hov
+              ? `0 0 10px rgba(255,255,255,0.45)`
+              : `0 0 6px ${s.navIconInactive}40`,
           transition: "all 0.15s",
         }}
       >
@@ -1014,10 +1666,24 @@ function BottomNavLink({
         transition: "all 0.18s ease",
       }}
     >
-      <Icon className="h-3.5 w-3.5 shrink-0" style={{ transition: "transform 0.15s", transform: hov ? "scale(1.18)" : "scale(1)" }} />
-      <span className="flex-1" style={{ textShadow: hov ? "0 0 10px rgba(255,255,255,0.40)" : "none", transition: "text-shadow 0.18s" }}>{label}</span>
+      <Icon
+        className="h-3.5 w-3.5 shrink-0"
+        style={{ transition: "transform 0.15s", transform: hov ? "scale(1.18)" : "scale(1)" }}
+      />
+      <span
+        className="flex-1"
+        style={{
+          textShadow: hov ? "0 0 10px rgba(255,255,255,0.40)" : "none",
+          transition: "text-shadow 0.18s",
+        }}
+      >
+        {label}
+      </span>
       {RightIcon && (
-        <RightIcon className="h-3 w-3" style={{ opacity: hov ? 0.7 : 0, transition: "opacity 0.18s" }} />
+        <RightIcon
+          className="h-3 w-3"
+          style={{ opacity: hov ? 0.7 : 0, transition: "opacity 0.18s" }}
+        />
       )}
     </Link>
   );
@@ -1045,12 +1711,8 @@ function BottomNavButton({
       onMouseLeave={() => setHov(false)}
       className="flex items-center gap-3 px-3 py-2.5 text-[0.62rem] uppercase tracking-[0.10em] rounded-lg w-full text-left"
       style={{
-        color: hov
-          ? danger ? s.logoutHoverColor : s.bottomLinkHoverColor
-          : s.bottomLinkColor,
-        background: hov
-          ? danger ? s.logoutHoverBg : s.bottomLinkHoverBg
-          : "transparent",
+        color: hov ? (danger ? s.logoutHoverColor : s.bottomLinkHoverColor) : s.bottomLinkColor,
+        background: hov ? (danger ? s.logoutHoverBg : s.bottomLinkHoverBg) : "transparent",
         transition: "all 0.18s ease",
       }}
     >
@@ -1058,7 +1720,18 @@ function BottomNavButton({
         className="h-3.5 w-3.5 shrink-0"
         style={{ transition: "transform 0.15s", transform: hov ? "scale(1.18)" : "scale(1)" }}
       />
-      <span style={{ textShadow: hov ? (danger ? "0 0 10px rgba(248,113,113,0.45)" : "0 0 10px rgba(255,255,255,0.40)") : "none", transition: "text-shadow 0.18s" }}>{label}</span>
+      <span
+        style={{
+          textShadow: hov
+            ? danger
+              ? "0 0 10px rgba(248,113,113,0.45)"
+              : "0 0 10px rgba(255,255,255,0.40)"
+            : "none",
+          transition: "text-shadow 0.18s",
+        }}
+      >
+        {label}
+      </span>
     </button>
   );
 }
@@ -1072,7 +1745,7 @@ function AdminSidebar({ onLogout, onClose }: { onLogout: () => void; onClose?: (
   const path = router.location.pathname;
 
   const isActive = (to: string, exact?: boolean) =>
-    exact ? (path === "/admin" || path === "/admin/") : path.startsWith(to);
+    exact ? path === "/admin" || path === "/admin/" : path.startsWith(to);
 
   return (
     <aside
@@ -1100,10 +1773,17 @@ function AdminSidebar({ onLogout, onClose }: { onLogout: () => void; onClose?: (
               transition: "all 0.4s ease",
             }}
           >
-            <Gem className="h-[17px] w-[17px]" style={{ color: s.brandIconColor, transition: "color 0.4s ease" }} />
+            <Gem
+              className="h-[17px] w-[17px]"
+              style={{ color: s.brandIconColor, transition: "color 0.4s ease" }}
+            />
             <span
               className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border-[1.5px]"
-              style={{ background: s.statusDotColor, borderColor: "transparent", transition: "background 0.4s ease" }}
+              style={{
+                background: s.statusDotColor,
+                borderColor: "transparent",
+                transition: "background 0.4s ease",
+              }}
             />
           </div>
           <div className="min-w-0">
@@ -1159,10 +1839,7 @@ function AdminSidebar({ onLogout, onClose }: { onLogout: () => void; onClose?: (
       </nav>
 
       {/* Bottom zone */}
-      <div
-        className="px-3 py-4 space-y-0.5"
-        style={{ borderTop: `1px solid ${s.dividerColor}` }}
-      >
+      <div className="px-3 py-4 space-y-0.5" style={{ borderTop: `1px solid ${s.dividerColor}` }}>
         <BottomNavLink icon={Store} label="View Storefront" to="/" rightIcon={ArrowUpRight} />
         <BottomNavButton icon={LogOut} label="Sign Out" onClick={onLogout} danger />
       </div>
@@ -1178,14 +1855,14 @@ function MobileTopBar() {
   const router = useRouterState();
   const path = router.location.pathname;
 
-  const allNavItems = NAV_SECTIONS.flatMap(sec => sec.items);
+  const allNavItems = NAV_SECTIONS.flatMap((sec) => sec.items);
   const activeNav = allNavItems.find((n: any) =>
-    n.exact ? (path === "/admin" || path === "/admin/") : path.startsWith(n.to)
+    n.exact ? path === "/admin" || path === "/admin/" : path.startsWith(n.to),
   );
-  const activeSection = NAV_SECTIONS.find(sec =>
+  const activeSection = NAV_SECTIONS.find((sec) =>
     sec.items.some((n: any) =>
-      n.exact ? (path === "/admin" || path === "/admin/") : path.startsWith(n.to)
-    )
+      n.exact ? path === "/admin" || path === "/admin/" : path.startsWith(n.to),
+    ),
   );
   const ActiveIcon = activeNav?.icon;
 
@@ -1208,7 +1885,8 @@ function MobileTopBar() {
         <div
           className="relative flex items-center justify-center shrink-0"
           style={{
-            width: 34, height: 34,
+            width: 34,
+            height: 34,
             background: s.brandBg,
             border: `1px solid ${s.brandBorder}`,
             borderRadius: 9,
@@ -1222,10 +1900,16 @@ function MobileTopBar() {
           />
         </div>
         <div>
-          <p className="text-[0.66rem] font-bold leading-none tracking-tight" style={{ color: s.brandTextColor }}>
+          <p
+            className="text-[0.66rem] font-bold leading-none tracking-tight"
+            style={{ color: s.brandTextColor }}
+          >
             Qureshi Jewelers
           </p>
-          <p className="text-[0.40rem] uppercase tracking-[0.26em] mt-0.5" style={{ color: s.brandSubColor }}>
+          <p
+            className="text-[0.40rem] uppercase tracking-[0.26em] mt-0.5"
+            style={{ color: s.brandSubColor }}
+          >
             {activeSection?.label ?? "Admin Console"}
           </p>
         </div>
@@ -1257,51 +1941,56 @@ function MobileTopBar() {
 // ─── Mobile Bottom Nav ───────────────────────────────────────────────────────
 
 const BOTTOM_NAV_PRIMARY = [
-  { icon: LayoutDashboard, label: "Home",     to: "/admin/",        exact: true },
-  { icon: ShoppingBag,     label: "Orders",   to: "/admin/orders" },
-  { icon: Package,         label: "Products", to: "/admin/products" },
-  { icon: Sparkles,        label: "Creator",  to: "/admin/creator" },
+  { icon: LayoutDashboard, label: "Home", to: "/admin/", exact: true },
+  { icon: ShoppingBag, label: "Orders", to: "/admin/orders" },
+  { icon: Package, label: "Products", to: "/admin/products" },
+  { icon: Sparkles, label: "Creator", to: "/admin/creator" },
 ];
 
 // Sectioned structure for the More sheet
 const MORE_SECTIONS = [
   {
     label: "Store",
-    items: [
-      { icon: BarChart2,    label: "Analytics",      to: "/admin/analytics" },
-    ],
+    items: [{ icon: BarChart2, label: "Analytics", to: "/admin/analytics" }],
   },
   {
     label: "Operations",
     items: [
-      { icon: RotateCcw,    label: "Returns",         to: "/admin/returns" },
-      { icon: Users,        label: "Customers",       to: "/admin/customers" },
+      { icon: RotateCcw, label: "Returns", to: "/admin/returns" },
+      { icon: Users, label: "Customers", to: "/admin/customers" },
       { icon: ShoppingCart, label: "Abandoned Carts", to: "/admin/abandoned-carts" },
-      { icon: Mail,         label: "Inner Circle",    to: "/admin/subscribers" },
+      { icon: Mail, label: "Inner Circle", to: "/admin/subscribers" },
     ],
   },
   {
     label: "Catalog",
     items: [
-      { icon: Tag,          label: "Promotions",      to: "/admin/promotions" },
-      { icon: Star,         label: "Reviews",         to: "/admin/reviews" },
+      { icon: Tag, label: "Promotions", to: "/admin/promotions" },
+      { icon: Star, label: "Reviews", to: "/admin/reviews" },
     ],
   },
   {
     label: "Site",
     items: [
-      { icon: FileText,     label: "Content",         to: "/admin/content" },
-      { icon: Settings,     label: "Settings",        to: "/admin/settings" },
+      { icon: FileText, label: "Content", to: "/admin/content" },
+      { icon: Newspaper, label: "Blog", to: "/admin/blog" },
+      { icon: Settings, label: "Settings", to: "/admin/settings" },
     ],
   },
 ];
 
 // Flat list for "is more active" check
-const MORE_NAV_ITEMS = MORE_SECTIONS.flatMap(s => s.items);
+const MORE_NAV_ITEMS = MORE_SECTIONS.flatMap((s) => s.items);
 
 function MobileMoreSheet({
-  open, onClose, onLogout,
-}: { open: boolean; onClose: () => void; onLogout: () => void }) {
+  open,
+  onClose,
+  onLogout,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onLogout: () => void;
+}) {
   const { theme } = useAdminTheme();
   const s = theme.sidebar;
   const router = useRouterState();
@@ -1315,7 +2004,11 @@ function MobileMoreSheet({
       {/* Backdrop */}
       <div
         className="fixed inset-0 z-40 lg:hidden"
-        style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
+        style={{
+          background: "rgba(0,0,0,0.65)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+        }}
         onClick={onClose}
       />
 
@@ -1336,8 +2029,14 @@ function MobileMoreSheet({
         </div>
 
         {/* Header row */}
-        <div className="flex items-center justify-between px-5 pb-3" style={{ borderBottom: `1px solid ${s.dividerColor}` }}>
-          <p className="text-[0.50rem] uppercase tracking-[0.30em] font-bold" style={{ color: s.sectionLabelColor }}>
+        <div
+          className="flex items-center justify-between px-5 pb-3"
+          style={{ borderBottom: `1px solid ${s.dividerColor}` }}
+        >
+          <p
+            className="text-[0.50rem] uppercase tracking-[0.30em] font-bold"
+            style={{ color: s.sectionLabelColor }}
+          >
             Navigation
           </p>
           <button
@@ -1377,7 +2076,9 @@ function MobileMoreSheet({
                       <div
                         className="flex items-center justify-center"
                         style={{
-                          width: 32, height: 32, borderRadius: 9,
+                          width: 32,
+                          height: 32,
+                          borderRadius: 9,
                           background: active ? "transparent" : "transparent",
                         }}
                       >
@@ -1416,7 +2117,8 @@ function MobileMoreSheet({
             onClick={onClose}
             className="flex-1 flex items-center justify-center gap-2 transition-all active:scale-95"
             style={{
-              height: 46, borderRadius: 12,
+              height: 46,
+              borderRadius: 12,
               background: s.navHoverBg,
               border: `1px solid ${s.dividerColor}`,
               color: s.bottomLinkColor,
@@ -1430,10 +2132,14 @@ function MobileMoreSheet({
             View Store
           </Link>
           <button
-            onClick={() => { onClose(); onLogout(); }}
+            onClick={() => {
+              onClose();
+              onLogout();
+            }}
             className="flex-1 flex items-center justify-center gap-2 transition-all active:scale-95"
             style={{
-              height: 46, borderRadius: 12,
+              height: 46,
+              borderRadius: 12,
               background: "rgba(239,68,68,0.08)",
               border: "1px solid rgba(239,68,68,0.15)",
               color: s.logoutHoverColor,
@@ -1460,7 +2166,7 @@ function MobileBottomNav({ onLogout }: { onLogout: () => void }) {
   const [moreOpen, setMoreOpen] = useState(false);
 
   const isActive = (to: string, exact?: boolean) =>
-    exact ? (path === "/admin" || path === "/admin/") : path.startsWith(to);
+    exact ? path === "/admin" || path === "/admin/" : path.startsWith(to);
 
   const moreIsActive = MORE_NAV_ITEMS.some(({ to }) => path.startsWith(to));
 
@@ -1602,7 +2308,7 @@ function AdminRoot() {
     localStorage.setItem("qj_admin_theme", id);
   }, []);
 
-  const theme = THEMES.find(t => t.id === themeId) ?? THEMES[0];
+  const theme = THEMES.find((t) => t.id === themeId) ?? THEMES[0];
 
   const logout = () => {
     doLogout().catch(() => {});
@@ -1612,7 +2318,10 @@ function AdminRoot() {
 
   if (authenticated === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#0c0c0c" }}>
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: "#0c0c0c" }}
+      >
         <div className="flex flex-col items-center gap-4">
           <Gem className="h-7 w-7" style={{ color: "rgba(251,191,36,0.50)" }} />
           <div className="w-5 h-5 border-2 border-white/15 border-t-amber-400/60 rounded-full animate-spin" />
@@ -1622,7 +2331,7 @@ function AdminRoot() {
   }
 
   if (!authenticated) {
-    return <AdminLogin onLogin={() => setAuthenticated(true)} />;
+    return <EnterpriseAdminLogin onLogin={() => setAuthenticated(true)} />;
   }
 
   return (

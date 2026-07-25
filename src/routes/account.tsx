@@ -118,13 +118,15 @@ function AccountSignIn() {
     e.preventDefault();
     const clean = email.trim().toLowerCase();
     if (!clean || !clean.includes("@")) { toast.error("Enter a valid email address"); return; }
-    if (!password || password.length < 8) { toast.error("Password must be at least 8 characters"); return; }
+    if (!password || password.length < 10) { toast.error("Password must be at least 10 characters"); return; }
     if (password !== confirmPassword) { toast.error("Passwords don't match"); return; }
     setBusy(true);
     try {
-      await serverSignUp({ data: { email: clean, password, fullName: fullName.trim(), phone: phone.trim() } });
-      const { error: signInErr } = await supabase.auth.signInWithPassword({ email: clean, password });
-      if (signInErr) throw signInErr;
+      const result = await serverSignUp({ data: { email: clean, password, fullName: fullName.trim(), phone: phone.trim() } });
+      if (result.requiresEmailConfirmation) {
+        setSent(true);
+        toast.success("Check your email to confirm your account");
+      }
     } catch (err: any) {
       toast.error(err?.message ?? "Could not create account");
     } finally {
@@ -316,10 +318,10 @@ function AccountSignIn() {
                   type={showPw ? "text" : "password"}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  placeholder="At least 8 characters"
+                  placeholder="At least 10 characters"
                   autoComplete="new-password"
                   className={`${inputCls} pr-11`}
-                  required minLength={8}
+                  required minLength={10}
                 />
                 <button type="button" onClick={() => setShowPw(v => !v)} tabIndex={-1}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
@@ -528,7 +530,7 @@ function AccountDashboard({ session, onSignOut }: { session: Session; onSignOut:
           </button>
         </div>
 
-        <RecentOrders email={email} />
+        <RecentOrders token={session.access_token} userId={session.user.id} />
       </div>
     </div>
   );
@@ -629,16 +631,16 @@ function ProfileEditor({
 
 // ─── Recent orders widget ─────────────────────────────────────────────────────
 
-function RecentOrders({ email }: { email: string }) {
+function RecentOrders({ token, userId }: { token: string; userId: string }) {
   const fetchOrders = useServerFn(getOrdersByEmail);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchOrders({ data: { email } })
+    fetchOrders({ data: { token, userId } })
       .then(res => { setOrders(res.orders.slice(0, 3)); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [email]);
+  }, [token, userId]);
 
   const STATUS_BADGE: Record<string, string> = {
     pending:    "bg-amber-50 text-amber-700 border-amber-200",

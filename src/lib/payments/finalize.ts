@@ -4,8 +4,8 @@
 import { supabaseAdmin } from "../../integrations/supabase/client.server";
 import { sendOrderConfirmation } from "../email";
 import { alertAdminOnError } from "../error-alert";
-import { retrievePaymentIntent, isStripeConfigured, createTaxTransaction } from "./stripe.server";
-import { capturePaypalOrder, getPaypalOrder, isPaypalConfigured } from "./paypal.server";
+import { retrievePaymentIntent, isStripeConfigured, createTaxTransaction, createStripeRefund } from "./stripe.server";
+import { capturePaypalOrder, getPaypalOrder, isPaypalConfigured, createPaypalRefund } from "./paypal.server";
 
 const db = supabaseAdmin as any;
 
@@ -107,7 +107,11 @@ export async function finalizeReservation(reservationToken: string): Promise<Fin
   // Atomic claim: only one caller proceeds past this point per token.
   const { data: claimed } = await db
     .from("pending_orders")
-    .update({ status: "processing" })
+    .update({
+      status: "processing",
+      processing_started_at: new Date().toISOString(),
+      attempt_count: Number(pending.attempt_count ?? 0) + 1,
+    })
     .eq("id", pending.id)
     .eq("status", "pending")
     .select()
@@ -161,6 +165,28 @@ export async function finalizeReservation(reservationToken: string): Promise<Fin
     throw new Error("Payment was not completed");
   }
 
+  // Inventory and promo usage commit atomically in the database before the
+  // order row is created. For an expired checkout this re-checks current stock;
+  // a paid but no-longer-fulfillable checkout is refunded automatically.
+  const { error: commitError } = await db.rpc("commit_reservation", {
+    p_token: reservationToken,
+  });
+  if (commitError) {
+    try {
+      if (claimed.payment_method === "stripe") {
+        await createStripeRefund({ paymentIntentId: paymentReference });
+      } else {
+        await createPaypalRefund({ captureId: paymentReference });
+      }
+      await db.from("pending_orders").update({ status: "failed" }).eq("id", claimed.id);
+      await db.rpc("release_reservation", { p_token: reservationToken });
+    } catch (refundError) {
+      alertAdminOnError(`automatic refund required (token ${reservationToken})`, refundError);
+      await db.from("pending_orders").update({ status: "refund_required" }).eq("id", claimed.id);
+    }
+    throw new Error("Payment was refunded because this item is no longer available");
+  }
+
   let { data: order, error: insertErr } = await db
     .from("orders")
     .insert({
@@ -208,19 +234,10 @@ export async function finalizeReservation(reservationToken: string): Promise<Fin
     }
   }
 
-  await db.rpc("commit_reservation", { p_token: reservationToken });
   await db
     .from("pending_orders")
     .update({ status: "finalized", order_id: order.id })
     .eq("id", claimed.id);
-
-  if (payload.promo_code) {
-    await db
-      .rpc("increment_promo_usage", { p_code: payload.promo_code })
-      .catch((error: unknown) => {
-        console.warn("[Promo] usage increment failed:", error);
-      });
-  }
 
   if (payload.stripe_tax_calculation_id) {
     createTaxTransaction(payload.stripe_tax_calculation_id, order.order_number).catch(() => {});

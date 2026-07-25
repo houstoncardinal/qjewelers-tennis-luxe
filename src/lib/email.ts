@@ -267,6 +267,83 @@ export async function sendShippingNotification(data: ShippingEmailData): Promise
   });
 }
 
+// ─── 2b. General Order Status Update (processing / delivered / cancelled / refunded) ──
+
+export interface OrderStatusEmailData {
+  orderNumber:   string;
+  customerName:  string;
+  customerEmail: string;
+  status:        "processing" | "delivered" | "cancelled" | "refunded";
+  refundAmount?: number | null;
+}
+
+const STATUS_COPY: Record<OrderStatusEmailData["status"], { eyebrow: string; heading: (name: string) => string; body: string; subject: string }> = {
+  processing: {
+    eyebrow: "Order Update",
+    heading: (name) => `We're on it, ${name}.`,
+    body: "Your order has moved into processing — our team is preparing your piece for shipment.",
+    subject: "Your Order Is Being Processed",
+  },
+  delivered: {
+    eyebrow: "Order Delivered",
+    heading: (name) => `It has arrived, ${name}.`,
+    body: "Your Qureshi Jewelers order has been marked as delivered. We hope it's everything you hoped for.",
+    subject: "Your Order Has Been Delivered",
+  },
+  cancelled: {
+    eyebrow: "Order Cancelled",
+    heading: (name) => `Order cancelled, ${name}.`,
+    body: "Your order has been cancelled. If a payment was captured, any applicable refund will be processed to your original payment method.",
+    subject: "Your Order Has Been Cancelled",
+  },
+  refunded: {
+    eyebrow: "Order Refunded",
+    heading: (name) => `Refund confirmed, ${name}.`,
+    body: "Your order has been marked as refunded. Please allow 5–10 business days for the funds to appear on your original payment method.",
+    subject: "Your Order Has Been Refunded",
+  },
+};
+
+export async function sendOrderStatusUpdate(data: OrderStatusEmailData): Promise<void> {
+  if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY.startsWith("re_your")) {
+    console.warn("[Email] RESEND_API_KEY not configured — skipping order status update");
+    return;
+  }
+
+  const copy = STATUS_COPY[data.status];
+  const firstName = data.customerName.split(" ")[0];
+
+  const html = wrap(`
+    ${eyebrow(copy.eyebrow)}
+    ${h1(copy.heading(firstName))}
+    ${p(copy.body)}
+
+    ${divider()}
+
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      ${row("Order Number", data.orderNumber)}
+      ${row("Status", data.status.charAt(0).toUpperCase() + data.status.slice(1))}
+      ${data.status === "refunded" && data.refundAmount ? row("Refund Amount", fmt(data.refundAmount)) : ""}
+    </table>
+
+    ${divider()}
+
+    <div style="text-align:center;padding:8px 0 0;">
+      ${cta("View Order Status", `${SITE}/track-order`)}
+      <p style="margin:16px 0 0;font-size:11px;color:#9b9490;">
+        Questions? Reply to this email or visit <a href="${SITE}/contact" style="color:#C9A84C;">${SITE.replace("https://", "")}/contact</a>
+      </p>
+    </div>
+  `);
+
+  await resend.emails.send({
+    from:    FROM,
+    to:      data.customerEmail,
+    subject: `${copy.subject} — ${data.orderNumber} | Qureshi Jewelers`,
+    html,
+  });
+}
+
 // ─── 3. Return Confirmation ───────────────────────────────────────────────────
 
 export interface ReturnEmailData {
@@ -310,6 +387,57 @@ export async function sendReturnConfirmation(data: ReturnEmailData): Promise<voi
     from:    FROM,
     to:      data.customerEmail,
     subject: `Return Request Received — ${data.orderNumber} | Qureshi Jewelers`,
+    html,
+  });
+}
+
+// ─── 3b. Return Decision (approved / rejected) ────────────────────────────────
+
+export interface ReturnDecisionEmailData {
+  orderNumber:   string;
+  customerName:  string;
+  customerEmail: string;
+  status:        "approved" | "rejected";
+  adminNotes?:   string | null;
+}
+
+export async function sendReturnDecision(data: ReturnDecisionEmailData): Promise<void> {
+  if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY.startsWith("re_your")) {
+    console.warn("[Email] RESEND_API_KEY not configured — skipping return decision email");
+    return;
+  }
+
+  const firstName = data.customerName.split(" ")[0];
+  const isApproved = data.status === "approved";
+
+  const html = wrap(`
+    ${eyebrow(isApproved ? "Return Approved" : "Return Request Update")}
+    ${h1(isApproved ? `Good news, ${firstName}.` : `An update on your request, ${firstName}.`)}
+    ${p(
+      isApproved
+        ? `Your return request for order <strong style="color:#1a1814;">${data.orderNumber}</strong> has been approved. We'll follow up separately with return shipping instructions.`
+        : `After review, we're unable to approve the return request for order <strong style="color:#1a1814;">${data.orderNumber}</strong> under our return policy.`,
+    )}
+    ${data.adminNotes ? p(data.adminNotes, "font-style:italic;") : ""}
+
+    ${divider()}
+
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      ${row("Order Number", data.orderNumber)}
+      ${row("Decision", isApproved ? "Approved" : "Not Approved")}
+    </table>
+
+    ${divider()}
+
+    <div style="text-align:center;padding:8px 0 0;">
+      ${cta("Contact Us", `${SITE}/contact`)}
+    </div>
+  `);
+
+  await resend.emails.send({
+    from:    FROM,
+    to:      data.customerEmail,
+    subject: `${isApproved ? "Return Approved" : "Return Request Update"} — ${data.orderNumber} | Qureshi Jewelers`,
     html,
   });
 }

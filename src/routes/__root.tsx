@@ -9,13 +9,14 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { Toaster } from "sonner";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { X } from "lucide-react";
 
 import appCss from "../styles.css?url";
 import { CartProvider } from "@/lib/cart";
 import { Header, Footer } from "@/components/site-chrome";
 import { CookieConsent } from "@/components/cookie-consent";
+import { WelcomeOfferPopup } from "@/components/welcome-offer-popup";
 import { getAnnouncementBar } from "@/lib/products.functions";
 import { getSiteContent } from "@/lib/content.functions";
 import { checkAdminSession } from "@/lib/admin.functions";
@@ -255,10 +256,12 @@ function RootComponent() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isAdmin = pathname.startsWith("/admin");
 
-  // Scroll to top on every new page navigation
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "instant" });
-  }, [pathname]);
+  // Scroll-to-top on navigation is handled by the router's own
+  // `scrollRestoration` (see router.tsx) — it fires once the new route has
+  // actually committed. A separate effect keyed on pathname used to also
+  // scroll here, but pathname updates the instant navigation *starts*,
+  // before the new page's loader resolves — that made the still-visible old
+  // page snap to its own top and flash before the real page swapped in.
 
   const bar            = loaderData?.announcementBar;
   const siteContent    = loaderData?.siteContent ?? {};
@@ -285,6 +288,7 @@ function RootComponent() {
           </div>
           <Toaster position="top-center" richColors />
           <CookieConsent />
+          <WelcomeOfferPopup />
         </CartProvider>
       </CmsProvider>
     </QueryClientProvider>

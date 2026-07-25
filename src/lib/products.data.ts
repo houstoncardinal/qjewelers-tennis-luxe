@@ -20,6 +20,8 @@ export interface Product {
   seo_title: string;
   seo_description: string;
   base_price: number;
+  sale_price?: number | null;
+  sale_active?: boolean;
   image_url: string;
   is_featured: boolean;
   is_active: boolean;

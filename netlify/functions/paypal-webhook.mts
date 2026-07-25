@@ -29,6 +29,7 @@ export default async (request: Request) => {
         await finalizeReservation(token);
       } catch (err) {
         console.error("[paypal-webhook] finalize failed:", err);
+        return new Response("Order finalization failed", { status: 500 });
       }
     }
   }

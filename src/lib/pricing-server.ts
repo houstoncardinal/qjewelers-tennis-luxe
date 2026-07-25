@@ -1,46 +1,9 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { ALL_PRODUCTS } from "@/lib/products.data";
-import { getTennisBraceletPrice } from "@/lib/pricing";
+import { resolveCatalogPrice } from "@/lib/pricing";
 import { calculateTax, type TaxAddress } from "@/lib/payments/stripe.server";
 import { countryNameToISO } from "@/lib/countries";
-
-// Mirrors src/lib/pricing.ts's multiplier tables exactly — kept as a separate
-// server-side copy (rather than importing calculatePrice/calculateEarringPrice/
-// calculateRingPrice) because those apply a price floor (Math.max(99/59/299, ...))
-// that this validation path has never enforced; switching to them would change
-// which historical prices are accepted.
-const SIZE_MULT: Record<string, number> = {
-  "2mm": 1,
-  "3mm": 1.45,
-  "4mm": 1.95,
-  "5mm": 2.55,
-  "6.5mm": 3.45,
-};
-const EARRING_SIZE_MULT: Record<string, number> = {
-  "3mm": 1,
-  "4mm": 1.17,
-  "5mm": 1.34,
-  "6mm": 1.85,
-  "8mm": 2.69,
-};
-const RING_SIZE_MULT: Record<string, number> = {
-  "0.5ct": 1.0,
-  "1ct": 2.0,
-  "1.5ct": 3.2,
-  "2ct": 4.8,
-  "3ct": 8.0,
-};
-const LEN_ADD: Record<string, number> = {
-  '16"': -20,
-  '18"': 0,
-  '20"': 30,
-  '22"': 50,
-  '24"': 70,
-  '6"': -25,
-  '7"': -12,
-  '8"': 0,
-  '9"': 18,
-};
+import { resolveConfiguredVariant } from "@/lib/variant-resolution";
 
 export interface PricedOrderItem {
   productId: string;
@@ -86,15 +49,18 @@ export async function validateAndPriceOrder(
   } = {},
 ): Promise<PricingResult> {
   const slugs = [...new Set(items.map((i) => i.slug))];
-  const productMap = new Map<string, { base_price: number; type: string }>();
+  const productMap = new Map<string, { slug: string; base_price: number; sale_price: number | null; sale_active: boolean; type: string }>();
   try {
     const { data: rows } = await supabaseAdmin
       .from("products")
-      .select("slug, base_price, type")
+      .select("slug, base_price, sale_price, sale_active, type")
       .in("slug", slugs as any);
     for (const row of rows ?? []) {
       productMap.set((row as any).slug, {
+        slug: (row as any).slug,
         base_price: Number((row as any).base_price),
+        sale_price: (row as any).sale_price == null ? null : Number((row as any).sale_price),
+        sale_active: Boolean((row as any).sale_active),
         type: (row as any).type,
       });
     }
@@ -102,9 +68,40 @@ export async function validateAndPriceOrder(
   for (const slug of slugs) {
     if (!productMap.has(slug)) {
       const s = ALL_PRODUCTS.find((p) => p.slug === slug);
-      if (s) productMap.set(slug, { base_price: Number(s.base_price), type: s.type });
+      if (s) productMap.set(slug, {
+        slug,
+        base_price: Number(s.base_price),
+        sale_price: s.sale_price == null ? null : Number(s.sale_price),
+        sale_active: Boolean(s.sale_active),
+        type: s.type,
+      });
     }
   }
+
+  let configuredVariants: any[] = [];
+  try {
+    const { data: rows, error } = await (supabaseAdmin as any)
+      .from("product_variants")
+      .select("id, product_slug, color, size, length, price_override, stock, is_active")
+      .in("product_slug", slugs)
+      .eq("is_active", true);
+    if (error) throw error;
+    configuredVariants = rows ?? [];
+  } catch {
+    // Catalogs created before variant support continue to use product-level
+    // pricing and inventory. A successful query with zero rows is distinct.
+    configuredVariants = [];
+  }
+
+  const resolveVariant = (item: PricedOrderItem) => {
+    const forProduct = configuredVariants.filter((variant) => variant.product_slug === item.slug);
+    const variant = resolveConfiguredVariant(forProduct, {
+      color: item.color,
+      size: item.size,
+      length: item.length,
+    });
+    return { variant, hasVariants: forProduct.length > 0 };
+  };
 
   let freeShippingThreshold = 250;
   let flatShippingRate = 15;
@@ -122,22 +119,25 @@ export async function validateAndPriceOrder(
   } catch {}
 
   let subtotal = 0;
-  for (const item of items) {
+  const reservationVariantIds: Array<string | null> = items.map(() => null);
+  for (const [index, item] of items.entries()) {
     const product = productMap.get(item.slug);
     if (!product) throw new Error(`Product not found: ${item.slug}`);
 
-    let expected: number;
-    if (item.slug.includes("tennis") && item.slug.includes("bracelet")) {
-      expected = getTennisBraceletPrice(item.size, item.length);
-    } else if (product.type === "earring") {
-      expected = Math.round(product.base_price * (EARRING_SIZE_MULT[item.size] ?? 1));
-    } else if (product.type === "ring") {
-      expected = Math.max(299, Math.round(product.base_price * (RING_SIZE_MULT[item.size] ?? 1)));
-    } else {
-      expected = Math.round(
-        product.base_price * (SIZE_MULT[item.size] ?? 1) + (LEN_ADD[item.length] ?? 0),
-      );
+    const resolved = resolveVariant(item);
+    if (resolved.hasVariants && !resolved.variant) {
+      throw new Error(`This ${item.name} option is no longer available`);
     }
+    if (resolved.variant && Number(resolved.variant.stock) !== -1 && Number(resolved.variant.stock) < item.quantity) {
+      throw new Error(`Not enough stock for ${item.name}`);
+    }
+    reservationVariantIds[index] = resolved.variant?.id ?? null;
+
+    const expected = resolveCatalogPrice(product, {
+      size: item.size,
+      length: item.length,
+      variant: resolved.variant,
+    });
     if (expected !== item.unitPrice) {
       throw new Error(`Price mismatch for ${item.name}`);
     }
@@ -148,12 +148,13 @@ export async function validateAndPriceOrder(
   // accept a browser-supplied discount amount: it is trivial for a shopper to
   // alter a server-function request in devtools.
   let discount = 0;
+  let promoFreeShipping = false;
   const normalizedPromoCode = opts.promoCode?.trim().toUpperCase() ?? "";
   if (normalizedPromoCode) {
     const { data: promo, error } = await (supabaseAdmin as any)
       .from("promo_codes")
       .select(
-        "code, discount_type, discount_value, min_order_amount, max_uses, used_count, expires_at, active",
+        "code, discount_type, discount_value, min_order_amount, max_uses, used_count, expires_at, active, free_shipping",
       )
       .eq("code", normalizedPromoCode)
       .eq("active", true)
@@ -173,41 +174,12 @@ export async function validateAndPriceOrder(
         ? Math.round(subtotal * Number(promo.discount_value)) / 100
         : Math.min(Number(promo.discount_value), subtotal);
     discount = Math.max(0, Math.min(discount, subtotal));
+    promoFreeShipping = !!promo.free_shipping;
   }
 
   // Resolve the actual inventory variants from authoritative attributes. The
   // client does not choose the database id, which prevents reserving one cheap
   // variant while buying another configuration.
-  const reservationVariantIds: Array<string | null> = items.map(() => null);
-  try {
-    const { data: variants } = await (supabaseAdmin as any)
-      .from("product_variants")
-      .select("id, product_slug, color, size, length, is_active")
-      .in("product_slug", slugs)
-      .eq("is_active", true);
-    items.forEach((item, index) => {
-      const candidates = (variants ?? []).filter(
-        (variant: any) =>
-          variant.product_slug === item.slug &&
-          (variant.color == null || variant.color === item.color) &&
-          (variant.size == null || variant.size === item.size) &&
-          (variant.length == null || variant.length === item.length),
-      );
-      candidates.sort(
-        (a: any, b: any) =>
-          Number(b.color != null) +
-          Number(b.size != null) +
-          Number(b.length != null) -
-          Number(a.color != null) -
-          Number(a.size != null) -
-          Number(a.length != null),
-      );
-      reservationVariantIds[index] = candidates[0]?.id ?? null;
-    });
-  } catch {
-    // Product-level inventory remains a safe fallback for catalogs that have
-    // not migrated to variants yet.
-  }
   const method = opts.shippingMethod ?? "standard";
   let shipping: number;
   if (method === "express") {
@@ -215,7 +187,9 @@ export async function validateAndPriceOrder(
   } else if (method === "overnight") {
     shipping = 49.95;
   } else {
-    shipping = subtotal - discount >= freeShippingThreshold ? 0 : flatShippingRate;
+    // A promo's free_shipping waives standard shipping outright — express/
+    // overnight stay paid, matching normal "free shipping" retail practice.
+    shipping = promoFreeShipping || subtotal - discount >= freeShippingThreshold ? 0 : flatShippingRate;
   }
   // Default: flat store-wide tax_rate (legacy behavior, used as a fallback).
   let tax = taxRate > 0 ? Math.round((subtotal - discount) * (taxRate / 100) * 100) / 100 : 0;

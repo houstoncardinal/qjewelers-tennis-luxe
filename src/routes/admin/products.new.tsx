@@ -614,8 +614,8 @@ function AdminNewProduct() {
         const res = await upsertBulkFn({
           data: {
             token,
+            product_slug: newSlug,
             variants: combos.map(v => ({
-              product_slug: newSlug,
               color: v.color,
               size: v.size,
               length: v.length,

@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { listProducts } from "@/lib/products.functions";
 import { getProductThumb } from "@/lib/product-images";
-import { formatUSD, COLOR_MAP, COLOR_SHORT, SIZES_NECKLACE, SIZES_EARRING, SIZES_RING, getTennisBraceletPrice, getTennisChainPrice } from "@/lib/pricing";
+import { formatUSD, COLOR_MAP, COLOR_SHORT, SIZES_NECKLACE, SIZES_EARRING, SIZES_RING } from "@/lib/pricing";
 import { useState, useEffect } from "react";
 import { ArrowRight, SlidersHorizontal, ChevronDown } from "lucide-react";
 
@@ -85,7 +85,7 @@ export const Route = createFileRoute("/shop")({
           offers: {
             "@type": "Offer",
             priceCurrency: "USD",
-            price: Number(p.sale_active && p.sale_price ? p.sale_price : p.base_price),
+            price: Number(p.display_price ?? p.sale_price ?? p.base_price),
             availability: p.is_active ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
             url: productUrl,
           },
@@ -364,12 +364,13 @@ function Shop() {
       {/* ── Product grid ───────────────────────────────── */}
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-10 sm:py-14 pb-24 sm:pb-28">
         {isLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-5 gap-y-12">
-            {[...Array(8)].map((_, i) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-3 sm:gap-x-4 lg:gap-x-5 gap-y-8 sm:gap-y-10 lg:gap-y-12">
+            {[...Array(10)].map((_, i) => (
               <div key={i}>
-                <div className="aspect-[3/4] bg-cream animate-pulse" />
-                <div className="mt-4 h-3 bg-cream animate-pulse w-1/2" />
-                <div className="mt-2 h-5 bg-cream animate-pulse w-3/4" />
+                <div className="aspect-[3/4] rounded-xl sm:rounded-2xl bg-cream animate-pulse" />
+                <div className="mt-3 sm:mt-4 h-2.5 bg-cream animate-pulse w-1/3 rounded-full" />
+                <div className="mt-2.5 h-4 bg-cream animate-pulse w-3/4 rounded-full" />
+                <div className="mt-2 h-3 bg-cream animate-pulse w-1/2 rounded-full" />
               </div>
             ))}
           </div>
@@ -385,73 +386,99 @@ function Shop() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-5 gap-y-12">
-            {products.map((p: any) => (
-              <Link
-                key={p.id}
-                to="/product/$slug"
-                params={{ slug: p.slug }}
-                className="group"
-              >
-                {/* Image — taller aspect ratio for editorial feel */}
-                <div className="aspect-[3/4] overflow-hidden bg-cream relative">
-                  <img
-                    src={getProductThumb(p.slug, p.image_url)}
-                    alt={p.name}
-                    loading="lazy"
-                    decoding="async"
-                    width="400"
-                    height="533"
-                    className="h-full w-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.04]"
-                  />
-                  {/* Type label top-left */}
-                  <div className="absolute top-3 left-3 bg-background/90 backdrop-blur-sm px-2.5 py-1 text-[0.45rem] uppercase tracking-[0.2em] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    {TYPE_LABELS[p.type] ?? p.type}
-                  </div>
-                  {/* Select Options bottom overlay */}
-                  <div className="absolute inset-x-0 bottom-0 py-4 bg-gradient-to-t from-black/65 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden lg:flex items-center justify-center">
-                    <span className="text-white text-[0.52rem] uppercase tracking-[0.26em] font-semibold">Select Options</span>
-                  </div>
-                </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-3 sm:gap-x-4 lg:gap-x-5 gap-y-8 sm:gap-y-10 lg:gap-y-12">
+            {products.map((p: any) => {
+              const displayPrice = Number(p.display_price ?? p.sale_price ?? p.base_price);
+              const regularPrice = Number(p.regular_price ?? p.base_price);
+              const onSale = !!p.sale_active && regularPrice > displayPrice;
+              const pctOff = onSale ? Math.round((1 - displayPrice / regularPrice) * 100) : 0;
 
-                {/* Info */}
-                <div className="mt-4">
-                  <div className="flex items-center gap-1.5">
-                    {/* Base metal badge */}
-                    <span className="text-[0.48rem] uppercase tracking-[0.12em] text-gray-400 font-mono border border-gray-200 px-1.5 py-0.5 leading-none">
-                      S925
-                    </span>
-                    {/* Metal color swatches — dynamic per product */}
-                    <div className="flex items-center ml-1">
-                      {(p.color ?? "gold").split(",").map((c: string, i: number) => {
-                        const cv = COLOR_MAP[c.trim()];
-                        if (!cv) return null;
-                        return (
-                          <span
-                            key={c.trim()}
-                            className={`w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-black/10${i > 0 ? " -ml-1" : ""}`}
-                            style={{ backgroundColor: cv.hex }}
-                            title={cv.label}
-                          />
-                        );
-                      })}
+              return (
+                <Link
+                  key={p.id}
+                  to="/product/$slug"
+                  params={{ slug: p.slug }}
+                  className="group block"
+                >
+                  {/* Image — taller aspect ratio for editorial feel, softly rounded + elevated for a modern card feel */}
+                  <div className="relative aspect-[3/4] overflow-hidden rounded-xl sm:rounded-2xl bg-cream ring-1 ring-black/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-shadow duration-300 group-hover:shadow-[0_12px_28px_rgba(0,0,0,0.12)]">
+                    <img
+                      src={getProductThumb(p.slug, p.image_url)}
+                      alt={p.name}
+                      loading="lazy"
+                      decoding="async"
+                      width="400"
+                      height="533"
+                      className="h-full w-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.04]"
+                    />
+
+                    {/* Type label — always visible on touch devices, hover-reveal on desktop for a cleaner default look */}
+                    <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 rounded-full bg-background/90 backdrop-blur-sm px-2 py-1 text-[0.4rem] sm:text-[0.44rem] uppercase tracking-[0.18em] text-muted-foreground opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300">
+                      {TYPE_LABELS[p.type] ?? p.type}
+                    </div>
+
+                    {/* Sale badge — always visible */}
+                    {onSale && (
+                      <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 rounded-full bg-foreground text-background px-2 py-1 text-[0.4rem] sm:text-[0.44rem] uppercase tracking-[0.14em] font-semibold">
+                        −{pctOff}%
+                      </div>
+                    )}
+
+                    {/* Select Options bottom overlay — desktop hover only */}
+                    <div className="absolute inset-x-0 bottom-0 py-4 bg-gradient-to-t from-black/65 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden lg:flex items-center justify-center">
+                      <span className="text-white text-[0.52rem] uppercase tracking-[0.26em] font-semibold">Select Options</span>
+                    </div>
+
+                    {/* Tap affordance on touch devices, where hover states never fire */}
+                    <div className="absolute bottom-2.5 right-2.5 lg:hidden flex items-center justify-center w-6 h-6 rounded-full bg-background/90 backdrop-blur-sm shadow-sm">
+                      <ArrowRight className="h-2.5 w-2.5 text-foreground" />
                     </div>
                   </div>
-                  <h2 className="mt-2 font-display text-[1.45rem] sm:text-[1.6rem] leading-tight group-hover:text-gold transition-colors duration-300">
-                    {p.name.split("—")[0].trim()}
-                  </h2>
-                  <p className="mt-2 text-sm text-foreground">
-                    From <span className="font-medium">
-                      {(p.slug?.includes("tennis-bracelet") || p.slug?.includes("tennis_bracelet"))
-                        ? formatUSD(getTennisBraceletPrice("2mm", '6"'))
-                        : (p.slug?.includes("tennis-chain") || p.slug?.includes("tennis_chain"))
-                          ? formatUSD(getTennisChainPrice("3mm", '16"'))
-                          : formatUSD(Number(p.base_price))}
-                    </span>
-                  </p>
-                </div>
-              </Link>
-            ))}
+
+                  {/* Info */}
+                  <div className="mt-3 sm:mt-4">
+                    <div className="flex items-center gap-1.5">
+                      {/* Base metal badge */}
+                      <span className="text-[0.44rem] sm:text-[0.48rem] uppercase tracking-[0.12em] text-gray-400 font-mono border border-gray-200 rounded px-1.5 py-0.5 leading-none">
+                        S925
+                      </span>
+                      {/* Metal color swatches — dynamic per product */}
+                      <div className="flex items-center ml-1">
+                        {(p.color ?? "gold").split(",").map((c: string, i: number) => {
+                          const cv = COLOR_MAP[c.trim()];
+                          if (!cv) return null;
+                          return (
+                            <span
+                              key={c.trim()}
+                              className={`w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-black/10${i > 0 ? " -ml-1" : ""}`}
+                              style={{ backgroundColor: cv.hex }}
+                              title={cv.label}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                    {/* Fixed-height, clamped title so every card in a row lines up
+                        regardless of name length — ragged heights read as unpolished. */}
+                    <h2 className="mt-2 font-display text-[1.05rem] sm:text-[1.2rem] lg:text-[1.3rem] leading-[1.2] line-clamp-2 min-h-[2.4em] group-hover:text-gold transition-colors duration-300">
+                      {p.name.split("—")[0].trim()}
+                    </h2>
+                    <p className="mt-1.5 text-xs sm:text-sm text-foreground flex items-baseline gap-2">
+                      {onSale ? (
+                        <>
+                          <span className="font-medium">{formatUSD(displayPrice)}</span>
+                          <span className="text-muted-foreground line-through text-[0.8em]">{formatUSD(regularPrice)}</span>
+                        </>
+                      ) : (
+                        <>
+                          From <span className="font-medium">{formatUSD(displayPrice)}</span>
+                        </>
+                      )}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
 

@@ -27,6 +27,8 @@ dist-ssr
 
 # Netlify local CLI state (production configuration lives in Netlify)
 .netlify/
+test-results/
+playwright-report/
 
 # Local dev image uploads — production uploads go to Supabase Storage instead
 public/uploads/

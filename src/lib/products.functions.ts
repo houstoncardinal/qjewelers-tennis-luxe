@@ -4,11 +4,12 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { ALL_PRODUCTS } from "@/lib/products.data";
 import { checkHoneypot, checkRateLimit } from "@/lib/rate-limit";
 import { validateAndPriceOrder } from "@/lib/pricing-server";
-import { isStripeConfigured, createStripePaymentIntent } from "@/lib/payments/stripe.server";
+import { isStripeConfigured, createStripePaymentIntent, cancelPaymentIntent } from "@/lib/payments/stripe.server";
 import { isPaypalConfigured, createPaypalOrder } from "@/lib/payments/paypal.server";
 import { finalizeReservation } from "@/lib/payments/finalize";
 import { alertAdminOnError } from "@/lib/error-alert";
 import { countryNameToISO } from "@/lib/countries";
+import { lowestCatalogPrice, resolveCatalogPrice } from "@/lib/pricing";
 
 export type ProductRow = {
   id: string;
@@ -31,6 +32,8 @@ export type ProductRow = {
   sort_order: number;
   created_at?: string;
   updated_at?: string;
+  display_price?: number;
+  max_price?: number;
 };
 
 // Public: announcement bar settings for storefront (no auth)
@@ -79,8 +82,42 @@ export const listProducts = createServerFn({ method: "GET" }).handler(async () =
       .eq("is_active", true)
       .order("sort_order", { ascending: true });
     if (error) throw new Error(error.message);
-    // DB is reachable — return whatever is there, even if empty
-    return { products: (data ?? []) as unknown as ProductRow[] };
+    const products = (data ?? []) as unknown as ProductRow[];
+    const slugs = products.map((product) => product.slug);
+    const { data: variantRows, error: variantError } = slugs.length
+      ? await (supabaseAdmin as any)
+          .from("product_variants")
+          .select("product_slug, size, length, price_override, stock, is_active")
+          .in("product_slug", slugs)
+          .eq("is_active", true)
+      : { data: [], error: null };
+    if (variantError) throw new Error(variantError.message);
+
+    return {
+      products: products.map((product) => {
+        const variants = (variantRows ?? []).filter(
+          (variant: any) => variant.product_slug === product.slug,
+        );
+        const prices = variants
+          .filter((variant: any) => Number(variant.stock ?? -1) !== 0)
+          .map((variant: any) =>
+            resolveCatalogPrice(product, {
+              size: variant.size,
+              length: variant.length,
+              variant,
+            }),
+          );
+        return {
+          ...product,
+          display_price: lowestCatalogPrice(product, variants),
+          // Pre-discount price for strikethrough display — same resolver,
+          // just with the sale ignored, so it always matches how the price
+          // was actually computed (size/length multipliers, variant overrides).
+          regular_price: lowestCatalogPrice({ ...product, sale_active: false }, variants),
+          max_price: prices.length ? Math.max(...prices) : lowestCatalogPrice(product, variants),
+        };
+      }),
+    };
   } catch (e) {
     console.warn("[Products] Supabase unavailable, using static catalog");
     return { products: ALL_PRODUCTS as unknown as ProductRow[] };
@@ -344,6 +381,14 @@ export const initiateCheckout = createServerFn({ method: "POST" })
     const reserved: string[] = [];
 
     try {
+      if (data.promo_code?.trim()) {
+        const { error: promoReservationError } = await db.rpc("reserve_promo", {
+          p_code: data.promo_code.trim().toUpperCase(),
+          p_token: reservationToken,
+          p_ttl_seconds: 900,
+        });
+        if (promoReservationError) throw new Error("This promo code is no longer available");
+      }
       for (const [index, item] of data.items.entries()) {
         const { error: resErr } = await db.rpc("reserve_stock", {
           p_slug: item.slug,
@@ -423,7 +468,10 @@ export const initiateCheckout = createServerFn({ method: "POST" })
           .from("pending_orders")
           .update({ stripe_payment_intent_id: paymentIntentId })
           .eq("reservation_token", reservationToken);
-        if (updateErr) throw updateErr;
+        if (updateErr) {
+          await cancelPaymentIntent(paymentIntentId).catch(() => {});
+          throw updateErr;
+        }
         return { provider: "stripe" as const, clientSecret, reservationToken, total: priced.total };
       }
 

@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { sendReturnConfirmation } from "@/lib/email";
-import { requireAdmin, getCurrentAdminId, writeAuditLog } from "@/lib/admin.functions";
+import { sendReturnConfirmation, sendReturnDecision, sendOrderStatusUpdate } from "@/lib/email";
+import { requireAdmin, requireAdminRole, getCurrentAdminId, writeAuditLog } from "@/lib/admin.functions";
+import { verifyUser } from "@/lib/customer.functions";
 import { checkHoneypot, checkRateLimit } from "@/lib/rate-limit";
 import { createStripeRefund, isStripeConfigured } from "@/lib/payments/stripe.server";
 import { createPaypalRefund, isPaypalConfigured } from "@/lib/payments/paypal.server";
@@ -284,7 +285,7 @@ export const createProduct = createServerFn({ method: "POST" })
 export const deleteProduct = createServerFn({ method: "POST" })
   .inputValidator((d: { token: string; slug: string }) => d)
   .handler(async ({ data }) => {
-    requireAdmin(data.token);
+    requireAdminRole(["admin"]);
     const { error } = await supabaseAdmin
       .from("products")
       .delete()
@@ -313,7 +314,7 @@ export const bulkUpdateProducts = createServerFn({ method: "POST" })
 export const bulkDeleteProducts = createServerFn({ method: "POST" })
   .inputValidator((d: { token: string; slugs: string[] }) => d)
   .handler(async ({ data }) => {
-    requireAdmin(data.token);
+    requireAdminRole(["admin"]);
     if (!data.slugs.length) return { success: true };
     const { error } = await supabaseAdmin
       .from("products")
@@ -326,7 +327,7 @@ export const bulkDeleteProducts = createServerFn({ method: "POST" })
 export const deleteAllProducts = createServerFn({ method: "POST" })
   .inputValidator((d: { token: string }) => d)
   .handler(async ({ data }) => {
-    requireAdmin(data.token);
+    requireAdminRole(["admin"]);
     // .neq("slug", "") matches every row (all slugs are non-empty)
     const { error } = await supabaseAdmin
       .from("products")
@@ -552,6 +553,7 @@ export const createPromoCode = createServerFn({ method: "POST" })
     max_uses?: number | null;
     expires_at?: string | null;
     active: boolean;
+    free_shipping?: boolean;
   }) => d)
   .handler(async ({ data }) => {
     requireAdmin(data.token);
@@ -583,6 +585,7 @@ export const updatePromoCode = createServerFn({ method: "POST" })
     max_uses?: number | null;
     expires_at?: string | null;
     active?: boolean;
+    free_shipping?: boolean;
   }) => d)
   .handler(async ({ data }) => {
     requireAdmin(data.token);
@@ -656,6 +659,7 @@ export const validatePromoCode = createServerFn({ method: "POST" })
       discountType: promo.discount_type as string,
       discountValue: Number(promo.discount_value),
       discountAmount,
+      freeShipping: !!promo.free_shipping,
     };
   });
 
@@ -698,11 +702,33 @@ export const updateReturn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     requireAdmin(data.token);
     const { token: _t, returnId, ...fields } = data;
+
+    let before: { status: string; customer_name: string; customer_email: string; order_number: string } | null = null;
+    if (data.status === "approved" || data.status === "rejected") {
+      const { data: row } = await db
+        .from("returns")
+        .select("status, customer_name, customer_email, order_number")
+        .eq("id", returnId)
+        .maybeSingle();
+      before = row ?? null;
+    }
+
     const { error } = await db
       .from("returns")
       .update({ ...fields, updated_at: new Date().toISOString() } as any)
       .eq("id", returnId);
     if (error) throw new Error(error.message);
+
+    if (before && before.status !== data.status && (data.status === "approved" || data.status === "rejected")) {
+      sendReturnDecision({
+        orderNumber:   before.order_number,
+        customerName:  before.customer_name,
+        customerEmail: before.customer_email,
+        status:        data.status,
+        adminNotes:    data.admin_notes ?? null,
+      }).catch((e) => console.warn("[Email] Return decision email failed:", e));
+    }
+
     return { success: true };
   });
 
@@ -711,16 +737,15 @@ export const updateReturn = createServerFn({ method: "POST" })
 export const executeReturnRefund = createServerFn({ method: "POST" })
   .inputValidator((d: { token: string; returnId: string }) => d)
   .handler(async ({ data }) => {
-    requireAdmin(data.token);
+    requireAdminRole(["admin"]);
 
     const { data: ret, error: retError } = await db
       .from("returns")
-      .select("id, order_id, refund_amount, refund_status")
+      .select("id, order_id, refund_amount, refund_status, order_number, customer_name, customer_email")
       .eq("id", data.returnId)
       .single();
     if (retError) throw new Error(retError.message);
     if (!ret) throw new Error("Return not found");
-    if (ret.refund_status === "succeeded") throw new Error("This return has already been refunded");
     if (!ret.refund_amount || ret.refund_amount <= 0) throw new Error("Set a refund amount before processing");
 
     const { data: order, error: orderError } = await db
@@ -734,7 +759,10 @@ export const executeReturnRefund = createServerFn({ method: "POST" })
       throw new Error("Refund amount cannot exceed the order total");
     }
 
-    await db.from("returns").update({ refund_status: "processing" }).eq("id", data.returnId);
+    const { error: claimError } = await db.rpc("claim_return_refund", {
+      p_return_id: data.returnId,
+    });
+    if (claimError) throw new Error("This refund is already processing or completed");
 
     try {
       let refundId: string;
@@ -765,6 +793,13 @@ export const executeReturnRefund = createServerFn({ method: "POST" })
         updated_at: new Date().toISOString(),
       }).eq("id", data.returnId);
 
+      // A full refund also flips the linked order's own status for consistency
+      // with track-order / admin order views. Partial refunds leave order
+      // status alone — the order itself isn't fully refunded.
+      if (ret.refund_amount >= Number(order.total)) {
+        await db.from("orders").update({ status: "refunded" } as any).eq("id", ret.order_id);
+      }
+
       writeAuditLog({
         adminUserId: getCurrentAdminId(),
         action: "refund_executed",
@@ -772,6 +807,14 @@ export const executeReturnRefund = createServerFn({ method: "POST" })
         targetId: data.returnId,
         details: { refundId, amount: ret.refund_amount, paymentMethod: order.payment_method },
       }).catch((e) => console.warn("[AuditLog] refund_executed failed:", e));
+
+      sendOrderStatusUpdate({
+        orderNumber:   ret.order_number,
+        customerName:  ret.customer_name,
+        customerEmail: ret.customer_email,
+        status:        "refunded",
+        refundAmount:  ret.refund_amount,
+      }).catch((e) => console.warn("[Email] Refund confirmation email failed:", e));
 
       return { success: true, refundId };
     } catch (e) {
@@ -853,7 +896,7 @@ export const getStoreSettings = createServerFn({ method: "GET" })
 export const updateStoreSetting = createServerFn({ method: "POST" })
   .inputValidator((d: { token: string; key: string; value: string }) => d)
   .handler(async ({ data }) => {
-    requireAdmin(data.token);
+    requireAdminRole(["admin"]);
     const { error } = await db
       .from("store_settings")
       .update({ value: data.value, updated_at: new Date().toISOString() })
@@ -2690,6 +2733,8 @@ export interface ProductVariant {
   size: string | null;
   length: string | null;
   price_override: number | null;
+  supplier_unit_cost: number | null;
+  pricing_multiplier: number | null;
   sku: string | null;
   stock: number;
   weight_grams: number | null;
@@ -2697,6 +2742,27 @@ export interface ProductVariant {
   created_at: string;
   updated_at: string;
 }
+
+const cleanVariantOption = (value?: string | null) => {
+  const cleaned = value?.trim();
+  return cleaned ? cleaned : null;
+};
+
+const variantKey = (value: Pick<ProductVariant, "color" | "size" | "length">) =>
+  [value.color ?? "", value.size ?? "", value.length ?? ""].join("\u001f");
+
+const assertVariantNumbers = (value: {
+  price_override?: number | null;
+  stock?: number;
+  weight_grams?: number | null;
+}) => {
+  if (value.price_override != null && (!Number.isFinite(value.price_override) || value.price_override < 0))
+    throw new Error("Variant price must be zero or greater");
+  if (value.stock != null && (!Number.isInteger(value.stock) || value.stock < -1))
+    throw new Error("Variant stock must be a whole number (-1 means unlimited)");
+  if (value.weight_grams != null && (!Number.isFinite(value.weight_grams) || value.weight_grams < 0))
+    throw new Error("Variant weight must be zero or greater");
+};
 
 export const getVariants = createServerFn({ method: "GET" })
   .inputValidator((d: { token: string; slug: string }) => d)
@@ -2752,8 +2818,9 @@ export const upsertVariant = createServerFn({ method: "POST" })
 export const upsertVariantsBulk = createServerFn({ method: "POST" })
   .inputValidator((d: {
     token: string;
+    product_slug: string;
+    replace_missing?: boolean;
     variants: Array<{
-      product_slug: string;
       color?: string | null;
       size?: string | null;
       length?: string | null;
@@ -2765,30 +2832,80 @@ export const upsertVariantsBulk = createServerFn({ method: "POST" })
   }) => d)
   .handler(async ({ data }) => {
     requireAdmin(data.token);
-    if (data.variants.length === 0) return { count: 0 };
+    const adminUserId = getCurrentAdminId();
+    const slug = data.product_slug.trim();
+    if (!slug) throw new Error("Product slug is required");
+    if (data.variants.length === 0) throw new Error("At least one variant is required");
+    if (data.variants.length > 500) throw new Error("A product cannot exceed 500 generated variants");
 
-    const rows = data.variants.map(v => ({
-      product_slug: v.product_slug,
-      color: v.color ?? null,
-      size: v.size ?? null,
-      length: v.length ?? null,
-      price_override: v.price_override ?? null,
-      sku: v.sku ?? null,
-      stock: v.stock ?? -1,
-      is_active: v.is_active ?? true,
-    }));
+    const { data: current, error: currentError } = await db
+      .from("product_variants")
+      .select("*")
+      .eq("product_slug", slug);
+    if (currentError) throw new Error(currentError.message);
+    const existing = new Map<string, ProductVariant>(
+      ((current ?? []) as ProductVariant[]).map((variant) => [variantKey(variant), variant]),
+    );
+    const seen = new Set<string>();
+    const rows = data.variants.map((variant) => {
+      assertVariantNumbers(variant);
+      const options = {
+        color: cleanVariantOption(variant.color),
+        size: cleanVariantOption(variant.size),
+        length: cleanVariantOption(variant.length),
+      };
+      const key = variantKey(options);
+      if (seen.has(key)) throw new Error("Duplicate variant combination in request");
+      seen.add(key);
+      const saved = existing.get(key);
+      return {
+        product_slug: slug,
+        ...options,
+        // Regeneration is structural: never erase merchandising edits already
+        // made to an existing combination.
+        price_override: saved?.price_override ?? variant.price_override ?? null,
+        sku: saved?.sku ?? cleanVariantOption(variant.sku),
+        stock: saved?.stock ?? variant.stock ?? -1,
+        weight_grams: saved?.weight_grams ?? null,
+        is_active: saved ? saved.is_active : (variant.is_active ?? true),
+      };
+    });
 
     const { data: inserted, error } = await db
       .from("product_variants")
       .upsert(rows, { onConflict: "product_slug,color,size,length" })
       .select();
     if (error) throw new Error(error.message);
-    return { count: (inserted ?? []).length };
+    let deactivated = 0;
+    if (data.replace_missing) {
+      const staleIds = ((current ?? []) as ProductVariant[])
+        .filter((variant) => !seen.has(variantKey(variant)) && variant.is_active)
+        .map((variant) => variant.id);
+      if (staleIds.length) {
+        const { data: stale, error: staleError } = await db
+          .from("product_variants")
+          .update({ is_active: false })
+          .eq("product_slug", slug)
+          .in("id", staleIds)
+          .select("id");
+        if (staleError) throw new Error(staleError.message);
+        deactivated = stale?.length ?? 0;
+      }
+    }
+    await writeAuditLog({
+      adminUserId,
+      action: "product_variants_synced",
+      targetType: "products",
+      targetId: slug,
+      details: { activeCombinations: rows.length, deactivated },
+    });
+    return { count: (inserted ?? []).length, deactivated, variants: inserted as ProductVariant[] };
   });
 
 export const updateVariant = createServerFn({ method: "POST" })
   .inputValidator((d: {
     token: string;
+    slug: string;
     id: string;
     price_override?: number | null;
     sku?: string | null;
@@ -2798,6 +2915,8 @@ export const updateVariant = createServerFn({ method: "POST" })
   }) => d)
   .handler(async ({ data }) => {
     requireAdmin(data.token);
+    const adminUserId = getCurrentAdminId();
+    assertVariantNumbers(data);
     const updates: any = {};
     if (data.price_override !== undefined) updates.price_override = data.price_override;
     if (data.sku !== undefined) updates.sku = data.sku;
@@ -2805,41 +2924,48 @@ export const updateVariant = createServerFn({ method: "POST" })
     if (data.weight_grams !== undefined) updates.weight_grams = data.weight_grams;
     if (data.is_active !== undefined) updates.is_active = data.is_active;
 
-    const { error } = await db
+    if (Object.keys(updates).length === 0) throw new Error("No variant changes supplied");
+    if (data.sku !== undefined) updates.sku = cleanVariantOption(data.sku);
+    const { data: variant, error } = await db
       .from("product_variants")
       .update(updates)
-      .eq("id", data.id);
+      .eq("id", data.id)
+      .eq("product_slug", data.slug)
+      .select("*")
+      .single();
     if (error) throw new Error(error.message);
-    return { success: true };
+    await writeAuditLog({ adminUserId, action: "product_variant_updated", targetType: "product_variants", targetId: data.id, details: { slug: data.slug, fields: Object.keys(updates) } });
+    return { variant: variant as ProductVariant };
   });
 
 export const deleteVariant = createServerFn({ method: "POST" })
-  .inputValidator((d: { token: string; id: string }) => d)
+  .inputValidator((d: { token: string; slug: string; id: string }) => d)
   .handler(async ({ data }) => {
     requireAdmin(data.token);
-    const { error } = await db.from("product_variants").delete().eq("id", data.id);
+    const { error } = await db.from("product_variants").delete().eq("id", data.id).eq("product_slug", data.slug);
     if (error) throw new Error(error.message);
     return { success: true };
   });
 
 export const deleteVariantsBulk = createServerFn({ method: "POST" })
-  .inputValidator((d: { token: string; ids: string[] }) => d)
+  .inputValidator((d: { token: string; slug: string; ids: string[] }) => d)
   .handler(async ({ data }) => {
     requireAdmin(data.token);
     if (data.ids.length === 0) return { count: 0 };
-    const { error } = await db.from("product_variants").delete().in("id", data.ids);
+    const { data: removed, error } = await db.from("product_variants").delete().eq("product_slug", data.slug).in("id", data.ids).select("id");
     if (error) throw new Error(error.message);
-    return { count: data.ids.length };
+    return { count: removed?.length ?? 0 };
   });
 
 export const toggleVariantsBulk = createServerFn({ method: "POST" })
-  .inputValidator((d: { token: string; ids: string[]; is_active: boolean }) => d)
+  .inputValidator((d: { token: string; slug: string; ids: string[]; is_active: boolean }) => d)
   .handler(async ({ data }) => {
     requireAdmin(data.token);
     if (data.ids.length === 0) return { count: 0 };
     const { error } = await db
       .from("product_variants")
       .update({ is_active: data.is_active })
+      .eq("product_slug", data.slug)
       .in("id", data.ids);
     if (error) throw new Error(error.message);
     return { count: data.ids.length };
@@ -2850,6 +2976,7 @@ export const updateVariantsPriceBulk = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     requireAdmin(data.token);
     if (data.ids.length === 0) return { count: 0 };
+    assertVariantNumbers({ price_override: data.price_override });
     const { error } = await db
       .from("product_variants")
       .update({ price_override: data.price_override })
@@ -2864,6 +2991,7 @@ export const updateVariantsStockBulk = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     requireAdmin(data.token);
     if (data.ids.length === 0) return { count: 0 };
+    assertVariantNumbers({ stock: data.stock });
     const { error } = await db
       .from("product_variants")
       .update({ stock: data.stock })
@@ -2876,7 +3004,7 @@ export const updateVariantsStockBulk = createServerFn({ method: "POST" })
 export const deleteAllVariants = createServerFn({ method: "POST" })
   .inputValidator((d: { token: string; slug: string }) => d)
   .handler(async ({ data }) => {
-    requireAdmin(data.token);
+    requireAdminRole(["admin"]);
     const { error } = await db
       .from("product_variants")
       .delete()
@@ -2973,10 +3101,15 @@ export const uploadAdminImage = createServerFn({ method: "POST" })
 // ─── Customer Account — public, email-verified via Supabase Auth ──────────────
 
 export const getOrdersByEmail = createServerFn({ method: "POST" })
-  .inputValidator((d: { email: string }) => d)
+  .inputValidator((d: { token: string; userId: string }) => d)
   .handler(async ({ data }) => {
-    const email = data.email.trim().toLowerCase();
-    if (!email || !email.includes("@")) throw new Error("Invalid email");
+    // The comment above always claimed this was "email-verified via Supabase
+    // Auth" but the handler never actually checked the caller's session —
+    // any caller could pass an arbitrary email and read that customer's full
+    // order history. Now the email comes only from the verified session.
+    const user = await verifyUser(data.token, data.userId);
+    const email = user.email?.trim().toLowerCase();
+    if (!email) throw new Error("Invalid email");
     const { data: orders, error } = await (supabaseAdmin as any)
       .from("orders")
       .select("order_number, created_at, status, total, subtotal, shipping, tax, discount_amount, items, shipping_method, shipping_city, shipping_state, tracking_number, notes")
