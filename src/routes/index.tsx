@@ -984,7 +984,7 @@ function Index() {
       </section>
 
       {/* ════════════════════════════════════════════════════════
-          FEATURED ITEMS
+          FEATURED ENGAGEMENT RINGS
       ════════════════════════════════════════════════════════ */}
       <section className="border-b border-border bg-[oklch(0.985_0.003_75)]">
         <div className="mx-auto max-w-[1360px] px-5 lg:px-10 pt-12 lg:pt-18 pb-10 lg:pb-16">
@@ -992,10 +992,150 @@ function Index() {
           {/* ── Header ── */}
           <div className="flex items-end justify-between mb-5 reveal">
             <div>
-              <Eyebrow center={false}>Curated For You</Eyebrow>
+              <Eyebrow center={false}>Forever Starts Here</Eyebrow>
               <h2 className="font-display" style={{ fontSize: "clamp(1.9rem, 3vw, 3rem)" }}>
-                Featured Items
+                Engagement Rings
               </h2>
+            </div>
+            <Link
+              to="/shop"
+              search={{ type: "ring" as any }}
+              className="hidden sm:flex items-center gap-1.5 text-[0.55rem] uppercase tracking-[0.22em] text-muted-foreground hover:text-foreground transition-colors pb-1"
+            >
+              View All <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+
+          {/* ── Mobile: snap-scroll row ── */}
+          <div
+            className="flex md:hidden gap-3 overflow-x-auto pb-4 -mx-5 px-5 snap-x snap-mandatory reveal"
+            style={{ scrollbarWidth: "none", transitionDelay: "0.10s" }}
+          >
+            {isLoading
+              ? [...Array(4)].map((_, i) => (
+                  <div key={i} className="w-[70vw] shrink-0 snap-start"><SkeletonCard /></div>
+                ))
+              : sig.filter((p: any) => p.type === "ring").slice(0, 4).map((p: any) => (
+                  <div key={p.id} className="w-[70vw] shrink-0 snap-start">
+                    <ProductCard p={p} />
+                  </div>
+                ))
+            }
+          </div>
+
+          {/* ── Desktop: 4-column grid ── */}
+          <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 reveal" style={{ transitionDelay: "0.10s" }}>
+            {isLoading
+              ? [...Array(4)].map((_, i) => <SkeletonCard key={i} />)
+              : sig.filter((p: any) => p.type === "ring").slice(0, 4).map((p: any) => <ProductCard key={p.id} p={p} />)
+            }
+          </div>
+
+          {/* ── Bottom CTA ── */}
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 reveal" style={{ transitionDelay: "0.15s" }}>
+            <Link
+              to="/shop"
+              search={{ type: "ring" as any }}
+              className="inline-flex items-center gap-2.5 px-8 py-3.5 bg-foreground text-background text-[0.52rem] uppercase tracking-[0.26em] font-semibold hover:opacity-90 transition-opacity w-full sm:w-auto justify-center"
+            >
+              Shop Engagement Rings <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+            <Link
+              to="/moissanite-guide"
+              className="inline-flex items-center gap-2 px-8 py-3.5 border border-border text-[0.52rem] uppercase tracking-[0.26em] text-muted-foreground hover:text-foreground hover:border-foreground transition-colors w-full sm:w-auto justify-center"
+            >
+              The Moissanite Guide
+            </Link>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════════════
+          FEATURED NECKLACES & CHAINS
+      ════════════════════════════════════════════════════════ */}
+      <section className="border-b border-border bg-background">
+        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 pt-12 lg:pt-18 pb-10 lg:pb-16">
+
+          {/* ── Header ── */}
+          <div className="flex items-end justify-between mb-5 reveal">
+            <div>
+              <Eyebrow center={false}>Signature Collection</Eyebrow>
+              <h2 className="font-display" style={{ fontSize: "clamp(1.9rem, 3vw, 3rem)" }}>
+                Necklaces & Chains
+              </h2>
+            </div>
+            <Link
+              to="/shop"
+              search={{ type: "necklace" as any }}
+              className="hidden sm:flex items-center gap-1.5 text-[0.55rem] uppercase tracking-[0.22em] text-muted-foreground hover:text-foreground transition-colors pb-1"
+            >
+              View All <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+
+          {/* ── Mobile: snap-scroll row ── */}
+          <div
+            className="flex md:hidden gap-3 overflow-x-auto pb-4 -mx-5 px-5 snap-x snap-mandatory reveal"
+            style={{ scrollbarWidth: "none", transitionDelay: "0.10s" }}
+          >
+            {isLoading
+              ? [...Array(4)].map((_, i) => (
+                  <div key={i} className="w-[70vw] shrink-0 snap-start"><SkeletonCard /></div>
+                ))
+              : sig.filter((p: any) => p.type === "necklace").slice(0, 4).map((p: any) => (
+                  <div key={p.id} className="w-[70vw] shrink-0 snap-start">
+                    <ProductCard p={p} />
+                  </div>
+                ))
+            }
+          </div>
+
+          {/* ── Desktop: 4-column grid ── */}
+          <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 reveal" style={{ transitionDelay: "0.10s" }}>
+            {isLoading
+              ? [...Array(4)].map((_, i) => <SkeletonCard key={i} />)
+              : sig.filter((p: any) => p.type === "necklace").slice(0, 4).map((p: any) => <ProductCard key={p.id} p={p} />)
+            }
+          </div>
+
+          {/* ── Bottom CTA ── */}
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 reveal" style={{ transitionDelay: "0.15s" }}>
+            <Link
+              to="/shop"
+              search={{ type: "necklace" as any }}
+              className="inline-flex items-center gap-2.5 px-8 py-3.5 bg-foreground text-background text-[0.52rem] uppercase tracking-[0.26em] font-semibold hover:opacity-90 transition-opacity w-full sm:w-auto justify-center"
+            >
+              Shop Chains <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+            <Link
+              to="/shop"
+              search={{ type: "bracelet" as any }}
+              className="inline-flex items-center gap-2 px-8 py-3.5 border border-border text-[0.52rem] uppercase tracking-[0.26em] text-muted-foreground hover:text-foreground hover:border-foreground transition-colors w-full sm:w-auto justify-center"
+            >
+              Shop Bracelets
+            </Link>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════════════
+          TRENDING / LATEST ITEMS
+      ════════════════════════════════════════════════════════ */}
+      <section className="border-b border-border bg-[oklch(0.985_0.003_75)]">
+        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 pt-12 lg:pt-18 pb-10 lg:pb-16">
+
+          {/* ── Header ── */}
+          <div className="flex items-end justify-between mb-5 reveal">
+            <div>
+              <Eyebrow center={false}>Trending Now</Eyebrow>
+              <h2 className="font-display" style={{ fontSize: "clamp(1.9rem, 3vw, 3rem)" }}>
+                Latest & Trending
+              </h2>
+              <p className="text-[0.72rem] text-muted-foreground mt-1.5">
+                Our most-loved pieces, hand-picked for you.
+              </p>
             </div>
             <Link
               to="/shop"
@@ -1010,7 +1150,7 @@ function Index() {
             {[
               { icon: ShieldCheck, text: "GRA Certified" },
               { icon: Truck,       text: "Free Shipping $250+" },
-              { icon: RotateCcw,   text: "30-Day Returns" },
+              { icon: RotateCcw,   text: "14-Day Returns" },
               { icon: Award,       text: "Lifetime Guarantee" },
             ].map(({ icon: Icon, text }) => (
               <span key={text} className="flex items-center gap-1.5 shrink-0 text-[0.48rem] uppercase tracking-[0.20em] text-muted-foreground">
@@ -1020,7 +1160,7 @@ function Index() {
             ))}
           </div>
 
-          {/* ── Mobile: snap-scroll row (1.5 cards peek) ── */}
+          {/* ── Mobile: snap-scroll row ── */}
           <div
             className="flex md:hidden gap-3 overflow-x-auto pb-4 -mx-5 px-5 snap-x snap-mandatory reveal"
             style={{ scrollbarWidth: "none", transitionDelay: "0.10s" }}
