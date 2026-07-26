@@ -14,7 +14,6 @@ Set these under **Netlify → Site configuration → Environment variables**:
 - `VITE_SUPABASE_PUBLISHABLE_KEY`
 - `VITE_SUPABASE_PROJECT_ID`
 - `ADMIN_BOOTSTRAP_PASSWORD` (temporary: remove after the first successful admin login)
-- `ADMIN_PIN` (temporary six-digit `/admin` owner PIN; currently `011491`)
 - `ADMIN_SESSION_SECRET`
 - `STRIPE_SECRET_KEY`
 - `VITE_STRIPE_PUBLISHABLE_KEY`
@@ -45,15 +44,6 @@ are intentionally public; secret/service-role keys are server-only.
 The `checkout-maintenance` scheduled function runs every five minutes after
 deployment. Confirm it appears under Netlify **Functions** and that scheduled
 invocations succeed; it expires stale carts and cancels open Stripe intents.
-
-## Admin access
-
-The current `/admin` screen uses the server-only six-digit `ADMIN_PIN`. Set it
-to `011491` in Netlify environment variables, keep `ADMIN_SESSION_SECRET` set,
-and redeploy. The PIN is rate limited and exchanges for a signed, expiring,
-HttpOnly admin session; it is never included in the browser bundle. Password
-and named staff authentication remain available in the backend for a later
-return to individual accounts.
 
 ## Launch tests
 
