@@ -406,6 +406,20 @@ export const Route = createFileRoute("/product/$slug")({
       ],
       links: [{ rel: "canonical", href: pageUrl }],
       scripts: [
+        // BreadcrumbList — helps Google understand site navigation hierarchy
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Home", item: SITE },
+              { "@type": "ListItem", position: 2, name: "Shop", item: `${SITE}/shop` },
+              { "@type": "ListItem", position: 3, name: categoryLabel, item: `${SITE}/shop?type=${p.type}` },
+              { "@type": "ListItem", position: 4, name: p.name, item: pageUrl },
+            ],
+          }),
+        },
         // ProductGroup schema — the modern Google recommendation for variant
         // products. Each color option becomes a distinct Product child so Google
         // understands the full option set and can surface multiple offers.
@@ -438,10 +452,13 @@ export const Route = createFileRoute("/product/$slug")({
             url: pageUrl,
             image: allImages,
             sku: p.slug,
+            gtin12: p.slug.replace(/[^0-9]/g, '').slice(0, 12) || undefined,
+            mpn: p.slug.toUpperCase(),
             category: `Jewelry > ${categoryLabel}`,
             material: "925 Sterling Silver",
             color: colorLabel,
-            brand: { "@type": "Brand", name: "Qureshi Jewelers" },
+            brand: { "@type": "Brand", name: "Qureshi Jewelers", "@id": `${SITE}/#organization` },
+            manufacturer: { "@type": "Organization", name: "Qureshi Jewelers" },
             // Links this product to the Moissanite entity in the Wikipedia/Wikidata
             // Knowledge Graph — a strong topical authority signal for Google and AI.
             about: [

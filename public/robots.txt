@@ -8,6 +8,17 @@ Disallow: /cart
 
 Sitemap: https://qureshijewelers.com/sitemap.xml
 
+# Allow Googlebot and other major crawlers
+User-agent: Googlebot
+Allow: /
+User-agent: Bingbot
+Allow: /
+User-agent: Slurp
+Allow: /
+
+# Crawl-delay to prevent overloading
+Crawl-delay: 1
+
 # AI/LLM Context File — helps AI tools understand our products and expertise
 # https://llmstxt.org
 LLMs: https://qureshijewelers.com/llms.txt

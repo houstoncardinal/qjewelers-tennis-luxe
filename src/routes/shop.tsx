@@ -193,6 +193,8 @@ function Shop() {
   if (type)  products = products.filter((p: any) => p.type === type);
   if (color) products = products.filter((p: any) => (p.color ?? "").split(",").map((c: string) => c.trim()).includes(color));
   if (size)  products = products.filter((p: any) => p.size === size || !p.size);
+  // Hide "For Freddy" product from shop page (accessible via direct link only)
+  products = products.filter((p: any) => !p.name.toLowerCase().includes("freddy"));
 
   const displaySizes =
     type === "earring" ? SIZES_EARRING :

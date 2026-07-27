@@ -956,7 +956,7 @@ function Index() {
                   const rings = sig.filter((p: any) => p.type === "ring");
                   const ovalGold = rings.find((p: any) => p.slug.includes("oval") && p.color === "gold");
                   const roseGold1ct = rings.find((p: any) => p.slug.includes("1ct") && p.color === "rose_gold");
-                  const otherRings = rings.filter((p: any) => !p.name.toLowerCase().includes("mens")).reverse();
+                  const otherRings = rings.filter((p: any) => !p.name.toLowerCase().includes("mens") && !p.name.toLowerCase().includes("freddy")).reverse();
                   const displayRings = [ovalGold, roseGold1ct, ...otherRings].filter(Boolean);
                   return displayRings.slice(0, 6).map((p: any) => (
                     <div key={p.id} className="w-[70vw] shrink-0 snap-start">
@@ -975,7 +975,7 @@ function Index() {
                   const rings = sig.filter((p: any) => p.type === "ring");
                   const ovalGold = rings.find((p: any) => p.slug.includes("oval") && p.color === "gold");
                   const roseGold1ct = rings.find((p: any) => p.slug.includes("1ct") && p.color === "rose_gold");
-                  const otherRings = rings.filter((p: any) => !p.name.toLowerCase().includes("mens")).reverse();
+                  const otherRings = rings.filter((p: any) => !p.name.toLowerCase().includes("mens") && !p.name.toLowerCase().includes("freddy")).reverse();
                   const displayRings = [ovalGold, roseGold1ct, ...otherRings].filter(Boolean);
                   return displayRings.slice(0, 6).map((p: any) => <ProductCard key={p.id} p={p} />);
                 })()
