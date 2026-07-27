@@ -1,0 +1,42 @@
+{
+  "name": "Qureshi Jewelers Admin",
+  "short_name": "Qureshi Admin",
+  "description": "Admin dashboard for Qureshi Jewelers - Manage products, orders, and customers",
+  "start_url": "/admin",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "shopping"],
+  "shortcuts": [
+    {
+      "name": "Products",
+      "short_name": "Products",
+      "description": "Manage products",
+      "url": "/admin/products",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Orders",
+      "short_name": "Orders",
+      "description": "View orders",
+      "url": "/admin/orders",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}

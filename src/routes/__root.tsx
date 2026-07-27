@@ -138,6 +138,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://www.googletagmanager.com" },
       { rel: "dns-prefetch", href: "https://www.googletagmanager.com" },
+      { rel: "manifest", href: "/manifest.json" },
+      { rel: "apple-touch-icon", href: "/icon-192x192.png" },
+      { rel: "icon", type: "image/png", href: "/icon-192x192.png" },
     ],
     scripts: [
       // JewelryStore (extends Organization) — the entity identity Google

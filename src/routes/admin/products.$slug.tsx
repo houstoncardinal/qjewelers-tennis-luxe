@@ -8,7 +8,7 @@ import {
   Ruler, Hash, FileText, Package, Search, ChevronDown, ChevronUp, RefreshCw,
   Copy, CheckCheck, AlertCircle, MoveUp, MoveDown, Pen, Layers, Maximize2,
   Minimize2, Link2, Link2Off, Scan, Wand2, FileImage, ImageOff, SlidersHorizontal,
-  BarChart2, ArrowRight,
+  BarChart2, ArrowRight, List,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -48,6 +48,8 @@ import {
   isPendantSlug,
   isEarringType,
 } from "@/lib/pricing";
+import { triggerHaptic } from "@/lib/haptics";
+import { PageTransition } from "@/components/page-transition";
 import { getProductThumb } from "@/lib/product-images";
 import { FormattedDescription } from "@/lib/format-description";
 
@@ -1749,10 +1751,36 @@ function DescriptionEditor({
 }) {
   const [mode, setMode] = useState<"write" | "preview">("write");
   const [showHelp, setShowHelp] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const insertFormatting = (before: string, after: string = "") => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = value;
+    const selectedText = text.substring(start, end);
+    
+    const newText = text.substring(0, start) + before + selectedText + after + text.substring(end);
+    onChange(newText);
+    
+    // Restore cursor position
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + before.length, start + before.length + selectedText.length);
+    }, 0);
+  };
+
+  const insertParagraph = () => insertFormatting("$$", "$$");
+  const insertBold = () => insertFormatting("**", "**");
+  const insertItalic = () => insertFormatting("/", "/");
+  const insertBullet = () => insertFormatting("• ", "");
+  const insertNumbered = () => insertFormatting("1. ", "");
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setMode("write")}
@@ -1779,8 +1807,54 @@ function DescriptionEditor({
         </button>
       </div>
 
+      {mode === "write" && (
+        <div className="flex items-center gap-1 flex-wrap border border-gray-200 rounded-t-lg px-2 py-1.5 bg-gray-50">
+          <button
+            type="button"
+            onClick={insertParagraph}
+            className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors"
+            title="Paragraph break"
+          >
+            <FileText className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={insertBold}
+            className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors font-bold"
+            title="Bold"
+          >
+            B
+          </button>
+          <button
+            type="button"
+            onClick={insertItalic}
+            className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors italic"
+            title="Italic"
+          >
+            I
+          </button>
+          <div className="w-px h-4 bg-gray-300 mx-1" />
+          <button
+            type="button"
+            onClick={insertBullet}
+            className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors"
+            title="Bullet list"
+          >
+            <List className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={insertNumbered}
+            className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors"
+            title="Numbered list"
+          >
+            <Hash className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
       {showHelp && (
-        <div className="bg-gray-50 border border-gray-100 px-4 py-3 text-[0.62rem] text-gray-500 leading-relaxed">
+        <div className="bg-gray-50 border border-gray-100 px-4 py-3 text-[0.62rem] text-gray-500 leading-relaxed rounded-lg">
           <p className="font-medium text-gray-700 mb-1">Available formatting:</p>
           <code className="block text-[0.55rem]">{"$$text$$"}</code> — Double dollar signs create paragraphs / preserved line breaks.
           <br />
@@ -1790,20 +1864,23 @@ function DescriptionEditor({
           <br />
           <code className="text-[0.55rem]">{"**bold**"}</code> Surround text with double asterisks for <strong>bold</strong>.
           <br />
+          <code className="text-[0.55rem]">{"1. "}</code> Start a line with "1. " for numbered lists.
+          <br />
           HTML tags like {'<br>'} and {'<strong>'} are rendered as-is.
         </div>
       )}
 
       {mode === "write" ? (
         <textarea
+          ref={textareaRef}
           value={value}
           onChange={e => onChange(e.target.value)}
           rows={14}
           placeholder={placeholder || "Product description… Use $$ for paragraph breaks, • for bullet lists, /italic/ and **bold**"}
-          className="w-full border border-gray-200 px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-gray-400 transition-colors bg-white resize-y font-mono text-[0.80rem] leading-relaxed"
+          className="w-full border border-gray-200 border-t-0 px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-gray-400 transition-colors bg-white resize-y font-mono text-[0.80rem] leading-relaxed rounded-b-lg"
         />
       ) : (
-        <div className="min-h-[280px] border border-gray-200 px-4 py-3.5 bg-white text-sm text-gray-700 leading-relaxed whitespace-pre-wrap overflow-auto">
+        <div className="min-h-[280px] border border-gray-200 px-4 py-3.5 bg-white text-sm text-gray-700 leading-relaxed whitespace-pre-wrap overflow-auto rounded-lg">
           {value ? (
             <FormattedDescription text={value} />
           ) : (
@@ -2329,6 +2406,9 @@ function AdminProductEditor() {
   // Notes
   const [adminNotes,    setAdminNotes]    = useState("");
 
+  // Materials & Details
+  const [materialsDetails, setMaterialsDetails] = useState<Array<{ key: string; value: string; highlight: boolean }>>([]);
+
   // Original values for dirty tracking (updated on load + after successful save)
   const origRef = useRef<Record<string, any>>({});
   // Tracks which product slug local state was last seeded from — guards the
@@ -2392,6 +2472,7 @@ function AdminProductEditor() {
       setColorImages((product as any).color_images ?? {});
       setProductSize(product.size ?? "");
       setProductLength(product.length ?? "");
+      setMaterialsDetails(Array.isArray((product as any).materials_details?.rows) ? (product as any).materials_details.rows : []);
 
       origRef.current = { name: n, short_description: sd, description: desc,
         base_price: bp, sale_price: sp, sale_active: sa, image_url: img,
@@ -2402,6 +2483,7 @@ function AdminProductEditor() {
         type_val: product.type ?? "bracelet",
         color_val: (product.color ?? "gold").split(",").map((c: string) => c.trim()).filter(Boolean).join(","),
         color_images_val: JSON.stringify((product as any).color_images ?? {}),
+        materials_details_val: JSON.stringify((product as any).materials_details?.rows ?? []),
         size_val: product.size ?? "",
         length_val: product.length ?? "",
       };
@@ -2435,11 +2517,12 @@ function AdminProductEditor() {
     if (JSON.stringify(colorImages)               !== o.color_images_val) d.add("color_images");
     if (productSize   !== o.size_val)   d.add("size");
     if (productLength !== o.length_val) d.add("length");
+    if (JSON.stringify(materialsDetails)          !== o.materials_details_val) d.add("materials_details");
     return d;
   }, [name, shortDesc, description, basePrice, salePrice, saleActive, imageUrl,
       isFeatured, isActive, sortOrder, trackInventory, stockQty,
       seoTitle, seoDesc, seoKeywords, tags, adminNotes,
-      productType, productColor, colorImages, productSize, productLength]);
+      productType, productColor, colorImages, productSize, productLength, materialsDetails]);
 
   const save = async () => {
     if (!name.trim()) { toast.error("Name is required"); return; }
@@ -2471,6 +2554,7 @@ function AdminProductEditor() {
     if (d.has("color_images"))      changes.color_images      = colorImages;
     if (d.has("size"))              changes.size              = productSize || null;
     if (d.has("length"))            changes.length            = productLength || null;
+    if (d.has("materials_details"))  changes.materials_details  = { rows: materialsDetails };
 
     setSaving(true);
     try {
@@ -2499,6 +2583,7 @@ function AdminProductEditor() {
       if (d.has("color_images"))      o.color_images_val     = JSON.stringify(colorImages);
       if (d.has("size"))              o.size_val          = productSize;
       if (d.has("length"))            o.length_val        = productLength;
+      if (d.has("materials_details"))  o.materials_details_val = JSON.stringify(materialsDetails);
 
       await queryClient.invalidateQueries({ queryKey: ["admin-product", token, slug] });
       await queryClient.invalidateQueries({ queryKey: ["admin-products"] });
@@ -2617,7 +2702,8 @@ function AdminProductEditor() {
   ];
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl">
+    <PageTransition>
+      <div className="p-4 sm:p-6 lg:p-8 max-w-7xl pb-24 lg:pb-8">
       {/* Top bar */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <Link
@@ -2822,6 +2908,82 @@ function AdminProductEditor() {
                       onChange={setDescription}
                       placeholder="Product description… Use $$ for paragraph breaks, • for bullet lists"
                     />
+                  </div>
+
+                  {/* Materials & Details */}
+                  <div>
+                    <label className={labelCls}>Materials & Details</label>
+                    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                      <div className="p-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                        <span className="text-[0.58rem] text-gray-500">Custom spec table shown on product page</span>
+                        <button
+                          type="button"
+                          onClick={() => setMaterialsDetails([...materialsDetails, { key: "", value: "", highlight: false }])}
+                          className="flex items-center gap-1 text-[0.60rem] text-gray-600 hover:text-gray-900 px-2 py-1 rounded border border-gray-200 hover:border-gray-400 transition-colors"
+                        >
+                          <Plus className="h-3 w-3" /> Add Row
+                        </button>
+                      </div>
+                      <div className="divide-y divide-gray-100">
+                        {materialsDetails.map((row, idx) => (
+                          <div key={idx} className="flex items-center gap-2 p-2">
+                            <input
+                              type="text"
+                              value={row.key}
+                              onChange={e => {
+                                const updated = [...materialsDetails];
+                                updated[idx].key = e.target.value;
+                                setMaterialsDetails(updated);
+                              }}
+                              placeholder="Key (e.g., Material)"
+                              className="flex-1 min-w-0 border border-gray-200 px-2 py-1.5 text-xs focus:outline-none focus:border-gray-400 bg-white rounded"
+                            />
+                            <input
+                              type="text"
+                              value={row.value}
+                              onChange={e => {
+                                const updated = [...materialsDetails];
+                                updated[idx].value = e.target.value;
+                                setMaterialsDetails(updated);
+                              }}
+                              placeholder="Value (e.g., Solid S925 Sterling Silver)"
+                              className="flex-2 min-w-0 border border-gray-200 px-2 py-1.5 text-xs focus:outline-none focus:border-gray-400 bg-white rounded"
+                            />
+                            <label className="flex items-center gap-1 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={row.highlight}
+                                onChange={e => {
+                                  const updated = [...materialsDetails];
+                                  updated[idx].highlight = e.target.checked;
+                                  setMaterialsDetails(updated);
+                                }}
+                                className="h-3.5 w-3.5 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                              />
+                              <span className="text-[0.50rem] text-gray-500">Highlight</span>
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = materialsDetails.filter((_, i) => i !== idx);
+                                setMaterialsDetails(updated);
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                        {materialsDetails.length === 0 && (
+                          <div className="p-4 text-center text-gray-400 text-xs">
+                            No materials & details rows yet. Click "Add Row" to start.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <p className="mt-1 text-[0.54rem] text-gray-400">
+                      These rows appear in the "Materials & Details" accordion on the product page. Use highlight for emphasis.
+                    </p>
                   </div>
 
                   <p className="text-[0.56rem] text-gray-400 mt-2">
@@ -3702,5 +3864,6 @@ function AdminProductEditor() {
         </div>
       </div>
     </div>
+    </PageTransition>
   );
 }

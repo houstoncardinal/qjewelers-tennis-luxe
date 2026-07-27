@@ -37,6 +37,9 @@ import { toast } from "sonner";
 import { AdminTokenCtx, AdminThemeCtx, useAdminTheme } from "@/lib/admin-context";
 import { THEMES, themeCSS } from "@/lib/admin-themes";
 import { adminAuth, adminPinAuth, adminLogout, checkAdminSession, verifyTotpLogin } from "@/lib/admin.functions";
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
+import { NetworkStatus } from "@/components/network-status";
+import { triggerHaptic } from "@/lib/haptics";
 
 export const Route = createFileRoute("/admin")({
   component: AdminRoot,
@@ -2170,6 +2173,15 @@ function MobileBottomNav({ onLogout }: { onLogout: () => void }) {
 
   const moreIsActive = MORE_NAV_ITEMS.some(({ to }) => path.startsWith(to));
 
+  const handleNavClick = () => {
+    triggerHaptic('light');
+  };
+
+  const handleMoreClick = () => {
+    triggerHaptic('medium');
+    setMoreOpen(true);
+  };
+
   return (
     <>
       <MobileMoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} onLogout={onLogout} />
@@ -2193,6 +2205,7 @@ function MobileBottomNav({ onLogout }: { onLogout: () => void }) {
               <Link
                 key={to}
                 to={to as any}
+                onClick={handleNavClick}
                 className="flex-1 flex flex-col items-center justify-center transition-all active:scale-90"
                 style={{ minHeight: 52, gap: active ? 4 : 5 }}
               >
@@ -2240,7 +2253,7 @@ function MobileBottomNav({ onLogout }: { onLogout: () => void }) {
 
           {/* More tab */}
           <button
-            onClick={() => setMoreOpen(true)}
+            onClick={handleMoreClick}
             className="flex-1 flex flex-col items-center justify-center transition-all active:scale-90"
             style={{ minHeight: 52, gap: moreIsActive ? 4 : 5 }}
           >
@@ -2342,6 +2355,8 @@ function AdminRoot() {
           className={`admin-shell at-${theme.id} min-h-screen`}
           style={{ background: "var(--at-canvas-bg)", transition: "background 0.4s ease" }}
         >
+          <NetworkStatus />
+          <PWAInstallPrompt />
           {/* Desktop sidebar */}
           <div className="hidden lg:block">
             <AdminSidebar onLogout={logout} />

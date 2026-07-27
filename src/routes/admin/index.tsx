@@ -15,6 +15,10 @@ import { getDashboardStats, listAdminOrders } from "@/lib/admin.functions";
 import { getDashboardExtended, getInventoryAlerts } from "@/lib/admin-extended.functions";
 import { useAdminToken, useAdminTheme } from "@/lib/admin-context";
 import { formatUSD } from "@/lib/pricing";
+import { PullToRefresh } from "@/components/pull-to-refresh";
+import { triggerHaptic } from "@/lib/haptics";
+import { PageTransition } from "@/components/page-transition";
+import { AdminDashboardSkeleton } from "@/components/skeleton";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboard,
@@ -129,27 +133,33 @@ function KpiCard({
   delta?: number | null; deltaSuffix?: string;
   sparkData?: number[]; sparkColor?: string;
 }) {
+  const handleClick = () => {
+    triggerHaptic('light');
+  };
+
   return (
     <Link
       to={to as any}
       search={search as any}
-      className="admin-kpi-card admin-surface group relative overflow-hidden flex flex-col p-5 rounded-xl transition-transform hover:-translate-y-0.5"
+      onClick={handleClick}
+      className="admin-kpi-card admin-surface group relative overflow-hidden flex flex-col p-4 sm:p-5 rounded-xl transition-transform hover:-translate-y-0.5 active:scale-95"
       style={{
         background: "var(--at-kpi-bg)",
         border: highlight ? "1px solid rgba(239,68,68,0.30)" : "var(--at-kpi-border)",
         boxShadow: "var(--at-kpi-shadow)",
         cursor: "pointer",
+        minHeight: "120px",
       }}
     >
       <div className="flex items-start justify-between mb-3.5">
         <div
-          className="p-2 flex items-center justify-center rounded-lg"
+          className="p-2.5 sm:p-2 flex items-center justify-center rounded-lg"
           style={{
             background: "var(--at-kpi-icon-bg)",
             boxShadow: "0 2px 8px color-mix(in srgb, var(--at-kpi-icon), transparent 80%)",
           }}
         >
-          <Icon style={{ color: "var(--at-kpi-icon)", width: 16, height: 16 }} />
+          <Icon style={{ color: "var(--at-kpi-icon)", width: 18, height: 18 }} />
         </div>
         {delta !== undefined && delta !== null && (
           <span
@@ -162,10 +172,10 @@ function KpiCard({
           </span>
         )}
       </div>
-      <p className="text-[0.55rem] uppercase tracking-[0.22em] font-semibold mb-1.5" style={{ color: "var(--at-kpi-label)" }}>{label}</p>
+      <p className="text-[0.55rem] sm:text-[0.55rem] uppercase tracking-[0.22em] font-semibold mb-1.5" style={{ color: "var(--at-kpi-label)" }}>{label}</p>
       <div className="flex items-end justify-between gap-2 mt-auto">
         <div className="min-w-0">
-          <p className="text-[1.65rem] font-bold leading-none tracking-tight truncate" style={{ color: "var(--at-kpi-value)" }}>
+          <p className="text-[1.75rem] sm:text-[1.65rem] font-bold leading-none tracking-tight truncate" style={{ color: "var(--at-kpi-value)" }}>
             {value}
           </p>
           {sub && <p className="text-[0.62rem] mt-1.5 truncate" style={{ color: "var(--at-text-muted)" }}>{sub}{deltaSuffix}</p>}
@@ -562,100 +572,105 @@ function AdminDashboard() {
     return "Good evening";
   })();
 
-  return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-7">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-lg font-semibold tracking-tight" style={{ color: "var(--at-text-heading)" }}>{greeting}</h1>
-            <span
-              className="text-[0.44rem] uppercase tracking-[0.22em] px-2 py-0.5 font-semibold flex items-center gap-1 rounded-sm"
-              style={{ background: "var(--at-live-bg)", color: "var(--at-live-text)", border: "1px solid var(--at-live-border)" }}
-            >
-              <span className="admin-status-dot w-1.5 h-1.5 rounded-full inline-block" style={{ background: "var(--at-live-text)" }} />
-              Live
-            </span>
-          </div>
-          <p className="text-[0.68rem]" style={{ color: "var(--at-text-muted)" }}>
-            {new Date().toLocaleDateString("en-US", {
-              weekday: "long", year: "numeric", month: "long", day: "numeric",
-            })}
-            {" · "}Here's how the store is performing
-          </p>
-        </div>
-        <div className="flex items-center gap-2.5">
-          <Link
-            to="/admin/analytics"
-            className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-lg transition-opacity hover:opacity-80"
-            style={{ background: "var(--at-card-bg)", border: "1px solid var(--at-card-border)" }}
-          >
-            <TrendingUp className="h-3.5 w-3.5" style={{ color: "#10b981" }} />
-            <span className="text-[0.62rem]" style={{ color: "var(--at-text-muted)" }}>
-              Today: <strong style={{ color: "var(--at-text-heading)" }}>{formatUSD(stats.todayRevenue)}</strong>
-              {" · "}{stats.todayOrderCount} order{stats.todayOrderCount !== 1 ? "s" : ""}
-            </span>
-          </Link>
-          <button
-            onClick={() => { refetchStats(); refetchOrders(); }}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-[0.60rem] uppercase tracking-[0.14em] transition-all rounded-lg"
-            style={{ background: "var(--at-btn-bg)", border: "1px solid var(--at-btn-border)", color: "var(--at-btn-text)", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
-          >
-            <RefreshCw className="h-3 w-3" /> Refresh
-          </button>
-        </div>
-      </div>
+  const handleRefresh = async () => {
+    triggerHaptic('medium');
+    await Promise.all([refetchStats(), refetchOrders()]);
+  };
 
-      {/* KPI Cards — consolidated metrics with trend deltas + sparklines */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        {statsLoading || ordersLoading ? (
-          [...Array(4)].map((_, i) => (
-            <div key={i} className="h-32 animate-pulse rounded-xl" style={{ background: "var(--at-card-bg)", border: "1px solid var(--at-card-border)" }} />
-          ))
-        ) : (
-          <>
-            <KpiCard
-              icon={DollarSign}
-              label="Total Revenue"
-              value={formatUSD(stats.totalRevenue)}
-              sub={`${formatUSD(thisWeekRev)} this week`}
-              to="/admin/analytics"
-              delta={weekRevDelta}
-              sparkData={revenueSpark}
-              sparkColor="#10b981"
-            />
-            <KpiCard
-              icon={ShoppingBag}
-              label="Total Orders"
-              value={String(stats.totalOrders)}
-              sub={`${thisWeekOrders} this week`}
-              to="/admin/orders"
-              delta={weekOrdersDelta}
-              sparkData={ordersSpark}
-              sparkColor="#3b82f6"
-            />
-            <KpiCard
-              icon={Receipt}
-              label="Avg Order Value"
-              value={formatUSD(overallAOV)}
-              sub={`${formatUSD(thisWeekAOV)} this week`}
-              to="/admin/analytics"
-              delta={aovDelta}
-              sparkData={aovSpark}
-              sparkColor="#8b5cf6"
-            />
-            <KpiCard
-              icon={AlertCircle}
-              label="Needs Action"
-              value={String(needsAction)}
-              sub={`${stats.pendingOrders ?? 0} pending · ${stats.processingOrders ?? 0} processing`}
-              to="/admin/orders"
-              search={{ status: "pending" }}
-              highlight={needsAction > 0}
-            />
-          </>
-        )}
-      </div>
+  if (statsLoading || ordersLoading) {
+    return <AdminDashboardSkeleton />;
+  }
+
+  return (
+    <PullToRefresh onRefresh={handleRefresh}>
+      <PageTransition>
+        <div className="p-4 sm:p-6 lg:p-8 max-w-7xl pb-24 lg:pb-8">
+          {/* Header */}
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-lg font-semibold tracking-tight" style={{ color: "var(--at-text-heading)" }}>{greeting}</h1>
+                <span
+                  className="text-[0.44rem] uppercase tracking-[0.22em] px-2 py-0.5 font-semibold flex items-center gap-1 rounded-sm"
+                  style={{ background: "var(--at-live-bg)", color: "var(--at-live-text)", border: "1px solid var(--at-live-border)" }}
+                >
+                  <span className="admin-status-dot w-1.5 h-1.5 rounded-full inline-block" style={{ background: "var(--at-live-text)" }} />
+                  Live
+                </span>
+              </div>
+              <p className="text-[0.68rem]" style={{ color: "var(--at-text-muted)" }}>
+                {new Date().toLocaleDateString("en-US", {
+                  weekday: "long", year: "numeric", month: "long", day: "numeric",
+                })}
+                {" · "}Here's how the store is performing
+              </p>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <Link
+                to="/admin/analytics"
+                className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-lg transition-opacity hover:opacity-80"
+                style={{ background: "var(--at-card-bg)", border: "1px solid var(--at-card-border)" }}
+              >
+                <TrendingUp className="h-3.5 w-3.5" style={{ color: "#10b981" }} />
+                <span className="text-[0.62rem]" style={{ color: "var(--at-text-muted)" }}>
+                  Today: <strong style={{ color: "var(--at-text-heading)" }}>{formatUSD(stats.todayRevenue)}</strong>
+                  {" · "}{stats.todayOrderCount} order{stats.todayOrderCount !== 1 ? "s" : ""}
+                </span>
+              </Link>
+              <button
+                onClick={handleRefresh}
+                className="flex items-center gap-1.5 px-3.5 py-2 text-[0.60rem] uppercase tracking-[0.14em] transition-all rounded-lg active:scale-95"
+                style={{ background: "var(--at-btn-bg)", border: "1px solid var(--at-btn-border)", color: "var(--at-btn-text)", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
+              >
+                <RefreshCw className="h-3 w-3" /> Refresh
+              </button>
+            </div>
+          </div>
+
+          {/* KPI Cards — consolidated metrics with trend deltas + sparklines */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <>
+              <KpiCard
+                icon={DollarSign}
+                label="Total Revenue"
+                value={formatUSD(stats.totalRevenue)}
+                sub={`${formatUSD(thisWeekRev)} this week`}
+                to="/admin/analytics"
+                delta={weekRevDelta}
+                sparkData={revenueSpark}
+                sparkColor="#10b981"
+              />
+              <KpiCard
+                icon={ShoppingBag}
+                label="Total Orders"
+                value={String(stats.totalOrders)}
+                sub={`${thisWeekOrders} this week`}
+                to="/admin/orders"
+                delta={weekOrdersDelta}
+                sparkData={ordersSpark}
+                sparkColor="#3b82f6"
+              />
+              <KpiCard
+                icon={Receipt}
+                label="Avg Order Value"
+                value={formatUSD(overallAOV)}
+                sub={`${formatUSD(thisWeekAOV)} this week`}
+                to="/admin/analytics"
+                delta={aovDelta}
+                sparkData={aovSpark}
+                sparkColor="#8b5cf6"
+              />
+              <KpiCard
+                icon={AlertCircle}
+                label="Needs Action"
+                value={String(needsAction)}
+                sub={`${stats.pendingOrders ?? 0} pending · ${stats.processingOrders ?? 0} processing`}
+                to="/admin/orders"
+                search={{ status: "pending" }}
+                highlight={needsAction > 0}
+              />
+            </>
+          </div>
 
       {/* Attention Needed — only renders when there's something to act on */}
       {(lowStock.length > 0 || (extData?.pendingReturns ?? 0) > 0) && (
@@ -868,5 +883,7 @@ function AdminDashboard() {
         )}
       </div>
     </div>
+      </PageTransition>
+    </PullToRefresh>
   );
 }

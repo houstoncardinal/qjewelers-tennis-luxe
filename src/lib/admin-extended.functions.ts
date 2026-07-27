@@ -184,6 +184,7 @@ export const updateProduct = createServerFn({ method: "POST" })
     color?: string;
     size?: string | null;
     length?: string | null;
+    materials_details?: any;
   }) => d)
   .handler(async ({ data }) => {
     requireAdmin(data.token);
@@ -245,6 +246,7 @@ export const createProduct = createServerFn({ method: "POST" })
     is_active?: boolean;
     sort_order?: number;
     color_images?: Record<string, string>;
+    materials_details?: any;
   }) => d)
   .handler(async ({ data }) => {
     requireAdmin(data.token);

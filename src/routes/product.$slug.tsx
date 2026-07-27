@@ -2500,7 +2500,10 @@ function ProductPage() {
               {/* Luxury spec table */}
               <dl className="border border-border mb-7 overflow-hidden">
                 <div className="h-[2px]" style={{ background: "var(--gradient-gold-h)" }} />
-                {(isAnklet
+                {(
+                  (product as any).materials_details?.rows && Array.isArray((product as any).materials_details.rows) && (product as any).materials_details.rows.length > 0
+                    ? (product as any).materials_details.rows.map((row: any) => ({ k: row.key, v: row.value, hl: row.highlight }))
+                    : (isAnklet
                   ? [
                       { k: "Material", v: "Solid S925 Sterling Silver (92.5% purity)", hl: false },
                       { k: "Plating", v: "18K Yellow Gold · Rose Gold · White Gold", hl: true },
@@ -2613,7 +2616,7 @@ function ProductPage() {
                             { k: "Finish", v: "Tarnish-resistant", hl: false },
                             { k: "Certificate", v: "GRA included", hl: false },
                           ]
-                ).map(({ k, v, hl }) => (
+                )).map(({ k, v, hl }: { k: string; v: string; hl: boolean }) => (
                   <div
                     key={k}
                     className={`flex items-start justify-between px-4 sm:px-5 py-3.5 border-b border-border last:border-0 ${hl ? "bg-[oklch(0.97_0.012_80)]" : ""}`}

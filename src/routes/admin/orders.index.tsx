@@ -7,6 +7,10 @@ import { listAdminOrders } from "@/lib/admin.functions";
 import { useAdminToken } from "@/lib/admin-context";
 import { formatUSD } from "@/lib/pricing";
 import { z } from "zod";
+import { PullToRefresh } from "@/components/pull-to-refresh";
+import { triggerHaptic } from "@/lib/haptics";
+import { PageTransition } from "@/components/page-transition";
+import { TableRowSkeleton } from "@/components/skeleton";
 
 const searchSchema = z.object({ status: z.string().optional() });
 
@@ -160,39 +164,58 @@ function AdminOrders() {
     }, {});
   }, [data]);
 
-  const goToOrder = (o: any) =>
+  const goToOrder = (o: any) => {
+    triggerHaptic('light');
     navigate({ to: "/admin/orders/$orderId", params: { orderId: String(o.id) } });
+  };
 
-  return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-7">
-        <div className="flex items-center gap-3">
-          <h1 className="text-lg font-semibold text-gray-900">Orders</h1>
-          {!isLoading && (
-            <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[0.62rem] font-medium rounded-full tabular-nums">
-              {(data?.orders ?? []).length}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => exportCSV(filtered)}
-            disabled={filtered.length === 0}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-[0.62rem] uppercase tracking-[0.12em] text-gray-600 border border-gray-200 hover:border-gray-400 hover:text-gray-800 transition-colors bg-white disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <Download className="h-3 w-3" />
-            Export CSV
-          </button>
-          <button
-            onClick={() => refetch()}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-[0.62rem] uppercase tracking-[0.12em] text-gray-500 border border-gray-200 hover:border-gray-400 hover:text-gray-700 transition-colors bg-white"
-          >
-            <RefreshCw className="h-3 w-3" />
-            Refresh
-          </button>
+  const handleRefresh = async () => {
+    triggerHaptic('medium');
+    await refetch();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
+        <div className="space-y-3">
+          {[...Array(5)].map((_, i) => <TableRowSkeleton key={i} />)}
         </div>
       </div>
+    );
+  }
+
+  return (
+    <PullToRefresh onRefresh={handleRefresh}>
+      <PageTransition>
+        <div className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <h1 className="text-lg font-semibold text-gray-900">Orders</h1>
+              <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[0.62rem] font-medium rounded-full tabular-nums">
+                {(data?.orders ?? []).length}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { triggerHaptic('light'); exportCSV(filtered); }}
+                disabled={filtered.length === 0}
+                className="flex items-center gap-1.5 px-3.5 py-2 text-[0.62rem] uppercase tracking-[0.12em] text-gray-600 border border-gray-200 hover:border-gray-400 hover:text-gray-800 transition-colors bg-white disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+              >
+                <Download className="h-3 w-3" />
+                <span className="hidden sm:inline">Export CSV</span>
+                <span className="sm:hidden">Export</span>
+              </button>
+              <button
+                onClick={handleRefresh}
+                className="flex items-center gap-1.5 px-3.5 py-2 text-[0.62rem] uppercase tracking-[0.12em] text-gray-500 border border-gray-200 hover:border-gray-400 hover:text-gray-700 transition-colors bg-white active:scale-95"
+              >
+                <RefreshCw className="h-3 w-3" />
+                <span className="hidden sm:inline">Refresh</span>
+                <span className="sm:hidden">Refresh</span>
+              </button>
+            </div>
+          </div>
 
       {/* Table panel */}
       <div className="bg-white border border-gray-100">
@@ -356,5 +379,7 @@ function AdminOrders() {
         )}
       </div>
     </div>
+        </PageTransition>
+      </PullToRefresh>
   );
 }
