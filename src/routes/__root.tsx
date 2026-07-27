@@ -16,7 +16,6 @@ import appCss from "../styles.css?url";
 import { CartProvider } from "@/lib/cart";
 import { Header, Footer } from "@/components/site-chrome";
 import { CookieConsent } from "@/components/cookie-consent";
-import { WelcomeOfferPopup } from "@/components/welcome-offer-popup";
 import { getAnnouncementBar } from "@/lib/products.functions";
 import { getSiteContent } from "@/lib/content.functions";
 import { checkAdminSession } from "@/lib/admin.functions";
@@ -291,7 +290,6 @@ function RootComponent() {
           </div>
           <Toaster position="top-center" richColors />
           <CookieConsent />
-          <WelcomeOfferPopup />
         </CartProvider>
       </CmsProvider>
     </QueryClientProvider>

@@ -6,6 +6,9 @@ import { Search, ChevronRight, Download } from "lucide-react";
 import { listAdminOrders } from "@/lib/admin.functions";
 import { useAdminToken } from "@/lib/admin-context";
 import { formatUSD } from "@/lib/pricing";
+import { triggerHaptic } from "@/lib/haptics";
+import { PageTransition } from "@/components/page-transition";
+import { TableRowSkeleton } from "@/components/skeleton";
 
 export const Route = createFileRoute("/admin/customers/")({
   component: AdminCustomers,
@@ -97,11 +100,24 @@ function AdminCustomers() {
     );
   }, [sorted, search]);
 
-  const goToCustomer = (c: any) =>
+  const goToCustomer = (c: any) => {
+    triggerHaptic('light');
     navigate({ to: "/admin/customers/$customerId", params: { customerId: btoa(c.email) } });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
+        <div className="space-y-3">
+          {[...Array(5)].map((_, i) => <TableRowSkeleton key={i} />)}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <PageTransition>
+      <div className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-7">
         <div className="flex items-center gap-3">
@@ -250,5 +266,6 @@ function AdminCustomers() {
         )}
       </div>
     </div>
+    </PageTransition>
   );
 }

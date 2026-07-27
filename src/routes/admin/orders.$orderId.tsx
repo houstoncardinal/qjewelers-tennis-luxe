@@ -11,6 +11,8 @@ import { getAdminOrder, updateAdminOrder } from "@/lib/admin.functions";
 import { useAdminToken } from "@/lib/admin-context";
 import { formatUSD } from "@/lib/pricing";
 import { getProductThumb } from "@/lib/product-images";
+import { triggerHaptic } from "@/lib/haptics";
+import { PageTransition } from "@/components/page-transition";
 
 export const Route = createFileRoute("/admin/orders/$orderId")({
   component: AdminOrderDetail,
@@ -96,6 +98,7 @@ function InfoBlock({ label, value }: { label: string; value?: string | null }) {
 function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
+    triggerHaptic('light');
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
@@ -396,8 +399,9 @@ function AdminOrderDetail() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <div className="max-w-5xl">
+    <PageTransition>
+      <div className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
+        <div className="max-w-5xl">
         {/* Back link */}
         <Link
           to="/admin/orders"
@@ -672,6 +676,7 @@ function AdminOrderDetail() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </PageTransition>
   );
 }

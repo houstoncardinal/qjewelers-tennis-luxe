@@ -1515,7 +1515,7 @@ function VariantsManager({
             <div className="rounded-lg p-4" style={{ background: "#f9fafb", border: "1px solid rgba(0,0,0,0.07)" }}>
               <p className="text-[0.60rem] uppercase tracking-[0.12em] font-semibold text-gray-500 mb-3">Apply Markup %</p>
               <div className="flex gap-2 items-center">
-                <input type="number" min="1" value={markupPercent} onChange={e => setMarkupPercent(e.target.value)}
+                <input type="number" min="1" inputMode="numeric" value={markupPercent} onChange={e => setMarkupPercent(e.target.value)}
                   className="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm text-right focus:outline-none focus:border-gray-400 bg-white" />
                 <span className="text-[0.62rem] text-gray-400 shrink-0">%</span>
                 <button onClick={handleMarkupPricing} disabled={saving}
@@ -1589,7 +1589,7 @@ function VariantsManager({
               <span className="text-[0.60rem] text-blue-700 font-semibold">Price for {selectedIds.size} variants:</span>
               <div className="flex items-center gap-1.5">
                 <span className="text-blue-400 font-medium">$</span>
-                <input type="number" step="0.01" min="0" value={bulkPrice} onChange={e => setBulkPrice(e.target.value)}
+                <input type="number" step="0.01" min="0" inputMode="decimal" value={bulkPrice} onChange={e => setBulkPrice(e.target.value)}
                   placeholder="Blank = base price"
                   className="w-36 px-3 py-1.5 border border-blue-200 rounded-lg text-sm bg-white focus:outline-none focus:border-blue-400" />
               </div>
@@ -1601,7 +1601,7 @@ function VariantsManager({
           {bulkMode === "stock" && selectedIds.size > 0 && (
             <div className="px-5 py-3 flex items-center gap-3 border-b" style={{ background: "#eff6ff", borderColor: "#bfdbfe" }}>
               <span className="text-[0.60rem] text-blue-700 font-semibold">Stock for {selectedIds.size} variants:</span>
-              <input type="number" min="-1" value={bulkStock} onChange={e => setBulkStock(e.target.value)}
+              <input type="number" min="-1" inputMode="numeric" value={bulkStock} onChange={e => setBulkStock(e.target.value)}
                 placeholder="-1 = unlimited"
                 className="w-32 px-3 py-1.5 border border-blue-200 rounded-lg text-sm bg-white focus:outline-none focus:border-blue-400" />
               <span className="text-[0.55rem] text-gray-500">−1 = unlimited · 0 = out of stock</span>
@@ -1667,7 +1667,7 @@ function VariantsManager({
                       <td className="px-4 py-4 min-w-[140px]">
                         <div className="flex items-center justify-end gap-1">
                           <span className="text-gray-400 text-sm">$</span>
-                          <input type="number" step="0.01" min="0"
+                          <input type="number" step="0.01" min="0" inputMode="decimal"
                             defaultValue={v.price_override ?? ""}
                             key={`${v.id}-price-${v.updated_at}`}
                             onBlur={e => {
@@ -1691,7 +1691,7 @@ function VariantsManager({
                       </td>
                       <td className="px-4 py-4 min-w-[120px]">
                         <div className="flex items-center justify-end gap-2">
-                          <input type="number" min="-1"
+                          <input type="number" min="-1" inputMode="numeric"
                             defaultValue={v.stock}
                             key={`${v.id}-stock-${v.updated_at}`}
                             onBlur={e => {

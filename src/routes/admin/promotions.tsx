@@ -9,6 +9,9 @@ import {
 } from "@/lib/admin-extended.functions";
 import { useAdminToken } from "@/lib/admin-context";
 import { formatUSD } from "@/lib/pricing";
+import { triggerHaptic } from "@/lib/haptics";
+import { PageTransition } from "@/components/page-transition";
+import { TableRowSkeleton } from "@/components/skeleton";
 
 export const Route = createFileRoute("/admin/promotions")({
   component: AdminPromotions,
@@ -213,6 +216,7 @@ function AdminPromotions() {
   const refetch = () => queryClient.invalidateQueries({ queryKey: ["admin-promo-codes", token] });
 
   const toggle = async (id: string, active: boolean) => {
+    triggerHaptic('light');
     try {
       await toggleFn({ data: { token, id, active: !active } });
       await refetch();
@@ -223,6 +227,7 @@ function AdminPromotions() {
   };
 
   const remove = async (id: string, code: string) => {
+    triggerHaptic('warning');
     if (!confirm(`Delete code "${code}"?`)) return;
     try {
       await deleteFn({ data: { token, id } });
@@ -235,8 +240,19 @@ function AdminPromotions() {
 
   const activeCount = codes.filter((c: any) => c.active).length;
 
+  if (isLoading) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
+        <div className="space-y-3">
+          {[...Array(5)].map((_, i) => <TableRowSkeleton key={i} />)}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <PageTransition>
+      <div className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
       {showCreate && (
         <PromoModal
           onClose={() => setShowCreate(false)}
@@ -430,5 +446,6 @@ function AdminPromotions() {
         )}
       </div>
     </div>
+    </PageTransition>
   );
 }

@@ -178,8 +178,9 @@ function ProductCard({
 
   return (
     <div className={`group relative bg-white border transition-all duration-150 hover:shadow-md hover:border-gray-300 ${
-      selected ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-100"
-    }`}>
+        selected ? "border-blue-400 ring-1 ring-blue-300" : "border-gray-100"
+      }`}
+    >
       {/* Image */}
       <Link to="/admin/products/$slug" params={{ slug: p.slug }} className="block">
         <div className="relative aspect-square overflow-hidden bg-gray-50">

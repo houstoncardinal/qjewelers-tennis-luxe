@@ -16,6 +16,8 @@ import {
 } from "@/lib/admin.functions";
 import { useAdminToken, useAdminTheme } from "@/lib/admin-context";
 import { THEMES, type AdminTheme } from "@/lib/admin-themes";
+import { triggerHaptic } from "@/lib/haptics";
+import { PageTransition } from "@/components/page-transition";
 
 export const Route = createFileRoute("/admin/settings")({
   component: AdminSettings,
@@ -42,6 +44,7 @@ function ToggleRow({
   useEffect(() => { setChecked(initialValue === "true"); }, [initialValue]);
 
   const toggle = async () => {
+    triggerHaptic('light');
     const next = !checked;
     setChecked(next);
     setSaving(true);
@@ -784,9 +787,10 @@ function AdminSettings() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
-      <div className="mb-8">
-        <h1 className="text-xl font-semibold text-gray-900">Store Settings</h1>
+    <PageTransition>
+      <div className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8 max-w-5xl">
+        <div className="mb-8">
+          <h1 className="text-xl font-semibold text-gray-900">Store Settings</h1>
         <p className="text-xs text-gray-400 mt-0.5">Configure your store's operational, appearance, and admin theme settings</p>
       </div>
 
@@ -1010,6 +1014,7 @@ function AdminSettings() {
 
         </div>{/* end max-w-3xl */}
       </div>
-    </div>
+      </div>
+    </PageTransition>
   );
 }
