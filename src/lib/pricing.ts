@@ -178,32 +178,38 @@ export interface CatalogPriceVariant {
  * and structured data. Explicit variant prices describe the normal retail
  * price. A product sale applies the same discount ratio to every variant so a
  * sale cannot disappear when the customer changes size or metal.
+ *
+ * IMPORTANT: Admin-set prices are always respected exactly:
+ * - Variant price_override values are used as-is
+ * - For products without variants, base_price is used directly (no multipliers)
+ * - Multipliers only apply for specific configurable product types (tennis bracelets/chains)
  */
 export function resolveCatalogPrice(
   product: CatalogPriceProduct,
   selection: { size?: string | null; length?: string | null; variant?: CatalogPriceVariant | null },
 ): number {
   const base = Number(product.base_price);
-  const size = selection.size ?? "";
-  const length = selection.length ?? "";
-  let regular: number;
 
+  // Variant price override always takes precedence - use exactly as set by admin
   if (selection.variant?.price_override != null) {
-    regular = Number(selection.variant.price_override);
-  } else if (isTennisBraceletSlug(product.slug)) {
-    regular = getTennisBraceletPrice(size, length);
-  } else if (product.slug.includes("tennis") && product.slug.includes("chain")) {
-    regular = getTennisChainPrice(size, length);
-  } else if (isAnkletSlug(product.slug) || product.type === "pendant") {
-    regular = base;
-  } else if (product.type === "earring") {
-    regular = calculateEarringPrice(base, size as EarringSize);
-  } else if (product.type === "ring") {
-    regular = calculateRingPrice(base, size as RingSize);
-  } else {
-    regular = calculatePrice(base, size as Size, length as Length);
+    return Number(selection.variant.price_override);
   }
 
+  // Tennis bracelets use hardcoded price table (special case)
+  if (isTennisBraceletSlug(product.slug)) {
+    return getTennisBraceletPrice(selection.size ?? "", selection.length ?? "");
+  }
+
+  // Tennis chains use hardcoded price table (special case)
+  if (product.slug.includes("tennis") && product.slug.includes("chain")) {
+    return getTennisChainPrice(selection.size ?? "", selection.length ?? "");
+  }
+
+  // For all other products, use base_price directly as set by admin
+  // No multipliers applied - admin has full control over the price
+  let regular = base;
+
+  // Apply sale pricing if active
   const sale = Number(product.sale_price);
   if (product.sale_active && Number.isFinite(sale) && sale > 0 && sale < base && base > 0) {
     return Math.round(regular * (sale / base) * 100) / 100;

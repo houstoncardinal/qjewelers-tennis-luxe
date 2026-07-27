@@ -1108,10 +1108,18 @@ function ProductPage() {
     length: selectedLength,
   });
   const hasConfiguredVariants = (variants ?? []).length > 0;
+
+  // Check availability based on variants OR product-level inventory
   const selectedVariantAvailable =
-    !hasConfiguredVariants ||
-    (!!selectedVariant &&
-      (Number(selectedVariant.stock) === -1 || Number(selectedVariant.stock) >= qty));
+    !hasConfiguredVariants
+      ? // No variants: check product-level inventory
+        !product.track_inventory ||
+        product.stock_quantity === null ||
+        Number(product.stock_quantity) === -1 ||
+        Number(product.stock_quantity) >= qty
+      : // Has variants: check variant-level stock
+        !!selectedVariant &&
+        (Number(selectedVariant.stock) === -1 || Number(selectedVariant.stock) >= qty);
 
   const matchedRingVariant = isRing
     ? ringVariants.find(
@@ -1217,6 +1225,7 @@ function ProductPage() {
         image: cartImage,
       },
       qty,
+      { trackInventory: product.track_inventory, stockQuantity: product.stock_quantity },
     );
     setAddedToBag(true);
     setTimeout(() => setAddedToBag(false), 3000);

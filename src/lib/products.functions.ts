@@ -30,6 +30,8 @@ export type ProductRow = {
   is_featured: boolean;
   is_active: boolean;
   sort_order: number;
+  track_inventory?: boolean | null;
+  stock_quantity?: number | null;
   created_at?: string;
   updated_at?: string;
   display_price?: number;

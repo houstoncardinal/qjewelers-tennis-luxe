@@ -19,7 +19,7 @@ export interface CartItem {
 
 interface CartCtx {
   items: CartItem[];
-  add: (item: Omit<CartItem, "quantity">, qty?: number) => void;
+  add: (item: Omit<CartItem, "quantity">, qty?: number, stockCheck?: { trackInventory?: boolean | null; stockQuantity?: number | null }) => void;
   remove: (id: string) => void;
   setQty: (id: string, qty: number) => void;
   clear: () => void;
@@ -110,7 +110,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const value: CartCtx = useMemo(() => ({
     items,
-    add: (item, qty = 1) => {
+    add: (item, qty = 1, stockCheck) => {
+      // Validate inventory if tracking is enabled
+      if (stockCheck?.trackInventory && stockCheck.stockQuantity !== null) {
+        const stock = Number(stockCheck.stockQuantity);
+        const currentQty = items.find(i => i.id === item.id)?.quantity ?? 0;
+        const newTotal = currentQty + qty;
+        
+        // -1 means unlimited, otherwise check stock
+        if (stock !== -1 && newTotal > stock) {
+          throw new Error(`Only ${stock} item${stock !== 1 ? 's' : ''} available`);
+        }
+      }
+      
       setItems((prev) => {
         const idx = prev.findIndex((p) => p.id === item.id);
         if (idx >= 0) {
