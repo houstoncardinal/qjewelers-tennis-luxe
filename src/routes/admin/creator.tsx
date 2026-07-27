@@ -1595,7 +1595,7 @@ function CreatorHub() {
                         <Copy className="h-3.5 w-3.5 text-gray-400" />
                         <span className="text-xs font-semibold text-gray-800">Platform Copy</span>
                         {generatedContent && <span className="text-[0.52rem] uppercase tracking-[0.1em] text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded-full">Ready</span>}
-                        {generating && <span className="text-[0.52rem] uppercase tracking-[0.1em] text-amber-500 bg-amber-50 px-1.5 py-0.5 rounded-full">Generating…</span>}
+                        {generating && <span className="text-[0.52rem] uppercase tracking-[0.1em] text-green-500 bg-green-50 px-1.5 py-0.5 rounded-full">Generating…</span>}
                       </div>
                       {copyOpen ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
                     </button>

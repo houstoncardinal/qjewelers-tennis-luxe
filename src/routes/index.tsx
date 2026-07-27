@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, useMemo, useRef } from "react";
-import { ArrowRight, ShieldCheck, Gem, Award, Truck, Star, Check, Sparkles, Eye, Diamond, X, Leaf, Crown, Heart, RotateCcw } from "lucide-react";
+import { ArrowRight, ShieldCheck, Gem, Award, Truck, Star, Check, Sparkles, Eye, Diamond, X, Leaf, Crown, Heart, RotateCcw, TrendingUp, Sun, Shield, Zap } from "lucide-react";
 import { listProducts } from "@/lib/products.functions";
 import { images, getProductThumb } from "@/lib/product-images";
 import { formatUSD } from "@/lib/pricing";
@@ -224,8 +224,8 @@ const SPARKS = [
   { top: "28%", left: "91%", delay: "1.5s",  dur: "2.5s", s: 13 },
 ];
 
-const GOLD     = "oklch(0.90 0.10 84)";
-const GOLD_MID = "oklch(0.82 0.10 80 / 0.75)";
+const GOLD     = "oklch(0.55 0.14 145)";
+const GOLD_MID = "oklch(0.45 0.12 145 / 0.75)";
 
 function SparkleEffects() {
   return (
@@ -284,7 +284,7 @@ function Ticker({ dark = false }: { dark?: boolean }) {
             TICKER_ITEMS.map((item, i) => (
               <span key={`${copy}-${i}`} className="inline-flex items-center shrink-0">
                 <span className="px-8">{item}</span>
-                <span className={`text-[0.38rem] ${dark ? "text-white/10" : "text-gold/35"}`}>◆</span>
+                <span className={`text-[0.38rem] ${dark ? "text-white/10" : "text-green-600/35"}`}>◆</span>
               </span>
             ))
           )}
@@ -324,7 +324,7 @@ function ProductCard({ p }: { p: any }) {
           className="h-full w-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.06]"
         />
 
-        {/* Gold top edge reveal */}
+        {/* Green top edge reveal */}
         <div
           className="absolute top-0 left-0 right-0 h-[3px] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"
           style={{ background: "var(--gradient-gold-h)" }}
@@ -361,13 +361,13 @@ function ProductCard({ p }: { p: any }) {
         {/* Stars */}
         <div className="flex items-center gap-0.5">
           {[...Array(5)].map((_, i) => (
-            <Star key={i} className="h-2.5 w-2.5 text-amber-400 fill-amber-400" />
+            <Star key={i} className="h-2.5 w-2.5 text-yellow-400 fill-yellow-400" />
           ))}
           <span className="text-[0.47rem] text-gray-400 ml-1.5 leading-none">4.9</span>
         </div>
 
         {/* Name */}
-        <h3 className="font-display text-[1rem] sm:text-[1.15rem] leading-[1.25] group-hover:text-gold transition-colors duration-300 line-clamp-2">
+        <h3 className="font-display text-[1rem] sm:text-[1.15rem] leading-[1.25] group-hover:text-green-600 transition-colors duration-300 line-clamp-2">
           {p.name}
         </h3>
 
@@ -433,6 +433,7 @@ interface CategoryTileProps {
 }
 
 function CategoryTile({ image, label, tagline, shopType, className = "" }: CategoryTileProps) {
+  const isStacked = className.includes("grid-rows");
   return (
     <Link
       to="/shop"
@@ -445,21 +446,43 @@ function CategoryTile({ image, label, tagline, shopType, className = "" }: Categ
         loading="lazy"
         className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
       />
-      {/* Bottom gradient so text is always readable */}
+      {/* Ultra-light gradient - lets product images shine through */}
       <div
         className="absolute inset-0 pointer-events-none"
-        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.30) 45%, rgba(0,0,0,0.04) 100%)" }}
+        style={{ background: "linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 40%, rgba(0,0,0,0.08) 100%)" }}
       />
-      {/* Text overlay */}
-      <div className="absolute bottom-0 left-0 right-0 px-5 pb-5 md:px-6 md:pb-6">
-        <p className="text-[0.47rem] uppercase tracking-[0.32em] mb-1.5" style={{ color: "rgba(251,191,36,0.80)" }}>{tagline}</p>
-        <p className="font-display text-white leading-tight" style={{ fontSize: "clamp(1.25rem, 2vw, 1.9rem)" }}>{label}</p>
-        <p
-          className="mt-2 text-[0.48rem] uppercase tracking-[0.26em] transition-colors duration-300"
-          style={{ color: "rgba(255,255,255,0.45)" }}
-        >
-          Shop Collection →
-        </p>
+      {/* Subtle dark overlay at bottom for text readability */}
+      <div className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.35), transparent)" }} />
+      {/* Premium typography with elegant shadows */}
+      <div className="absolute bottom-0 left-0 right-0 px-6 pb-7 md:px-8 md:pb-9">
+        <div className={isStacked ? "space-y-2" : "space-y-3"}>
+          <p 
+            className="font-display text-white leading-tight" 
+            style={{ 
+              fontSize: isStacked ? "clamp(1.2rem, 1.8vw, 1.55rem)" : "clamp(1.55rem, 2.5vw, 2.2rem)",
+              textShadow: "0 2px 8px rgba(0,0,0,0.5), 0 0 30px rgba(0,0,0,0.3)",
+              letterSpacing: "-0.01em"
+            }}
+          >
+            {label}
+          </p>
+          <div className="flex items-center gap-2.5 mt-3">
+            <span 
+              className="text-[0.52rem] uppercase tracking-[0.22em] font-medium relative inline-block"
+              style={{ 
+                color: "rgba(255,255,255,0.98)",
+                textShadow: "0 1px 4px rgba(0,0,0,0.5)"
+              }}
+            >
+              <span className="absolute bottom-0 left-0 w-full h-[1px] bg-white/60 transition-all duration-300 group-hover:bg-white group-hover:h-[2px]" />
+              Shop Collection
+            </span>
+            <ArrowRight 
+              className="h-3 w-3 text-white/95 transition-transform duration-300 group-hover:translate-x-1" 
+              style={{ textShadow: "0 1px 4px rgba(0,0,0,0.5)" }} 
+            />
+          </div>
+        </div>
       </div>
     </Link>
   );
@@ -472,20 +495,20 @@ function ReviewCard({ name, text, rating, location }: { name: string; text: stri
     <div className="qj-premium-card bg-white border border-border p-7 rounded-xl relative overflow-hidden">
       <span
         className="font-display italic absolute top-2 right-5 text-[3.5rem] leading-none select-none pointer-events-none"
-        style={{ color: "oklch(0.60 0.092 68 / 0.10)" }}
+        style={{ color: "oklch(0.45 0.12 145 / 0.10)" }}
       >
         "
       </span>
       <div className="flex items-center gap-1 mb-3 relative z-10">
         {[...Array(5)].map((_, i) => (
-          <Star key={i} className={`h-3.5 w-3.5 ${i < rating ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
+          <Star key={i} className={`h-3.5 w-3.5 ${i < rating ? "text-yellow-400 fill-yellow-400" : "text-gray-200"}`} />
         ))}
       </div>
       <p className="text-[0.82rem] text-foreground leading-[1.75] mb-5 relative z-10">{text}</p>
       <div className="flex items-center gap-2.5 relative z-10">
         <div
-          className="qj-icon-ring w-9 h-9 rounded-full bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center text-[0.68rem] font-semibold text-amber-800 shrink-0"
-          style={{ boxShadow: "0 0 0 1px oklch(0.60 0.092 68 / 0.15)" }}
+          className="qj-icon-ring w-9 h-9 rounded-full bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center text-[0.68rem] font-semibold text-green-800 shrink-0"
+          style={{ boxShadow: "0 0 0 1px oklch(0.45 0.12 145 / 0.15)" }}
         >
           {name.charAt(0)}
         </div>
@@ -554,7 +577,7 @@ function StatTile({ icon: Icon, stat, label }: { icon: React.ElementType; stat: 
   return (
     <div ref={ref} className="qj-stat-tile bg-white px-6 py-7 text-center rounded-xl border border-border/70 relative overflow-hidden">
       <span className="qj-stat-topline absolute top-0 left-0 right-0 h-[2px] origin-left" style={{ background: "var(--gradient-gold-h)" }} />
-      <Icon className="qj-stat-icon h-4 w-4 mx-auto mb-3 text-gold/70" />
+      <Icon className="qj-stat-icon h-4 w-4 mx-auto mb-3 text-green-600/70" />
       <p className="font-display text-[1.9rem] leading-none mb-1.5 gold-text tabular-nums">
         {value}{suffix}
       </p>
@@ -633,6 +656,37 @@ function Index() {
 
   const [heroType, setHeroType] = useState("all");
   const [isDockPaused, setIsDockPaused] = useState(false);
+  const [metalPrices, setMetalPrices] = useState<{ gold: number; silver: number; platinum: number } | null>(null);
+  
+  // Fetch real-time precious metals prices
+  useEffect(() => {
+    const fetchMetalPrices = async () => {
+      try {
+        // Using a free metals API - in production, you'd want to use a paid API with better reliability
+        const response = await fetch('https://api.metals.live/v1/spot/all');
+        const data = await response.json();
+        
+        if (data && data.length > 0) {
+          const gold = data.find((m: any) => m.symbol === 'XAU')?.price || 0;
+          const silver = data.find((m: any) => m.symbol === 'XAG')?.price || 0;
+          const platinum = data.find((m: any) => m.symbol === 'XPT')?.price || 0;
+          
+          setMetalPrices({ gold, silver, platinum });
+        }
+      } catch (error) {
+        console.error('Failed to fetch metal prices:', error);
+        // Fallback to static prices if API fails
+        setMetalPrices({ gold: 2340, silver: 28.5, platinum: 1020 });
+      }
+    };
+
+    fetchMetalPrices();
+    
+    // Update every 60 seconds
+    const interval = setInterval(fetchMetalPrices, 60000);
+    
+    return () => clearInterval(interval);
+  }, []);
   const heroProducts = useMemo(() => {
     const pool = heroType === "all" ? sig : sig.filter((p: any) => p.type === heroType);
     const colorOrder: Record<string, number> = { gold: 0, rose_gold: 1, silver: 2, white_gold: 3 };
@@ -644,26 +698,43 @@ function Index() {
   // Belt speed: ~55px/s constant; more products = longer loop = longer duration
   const beltDuration = Math.max(20, heroProducts.length * 2.4);
 
-  // One per category, gold color variant preferred, max 4 total
-  const goldOr = (type: string) =>
-    sig.find((p: any) => p.type === type && p.color === "gold") ??
-    sig.find((p: any) => p.type === type);
+  // Select 6 random items with variety across categories
+  const getRandomItems = (count: number) => {
+    const categories = ["necklace", "bracelet", "earring", "ring"];
+    const selected: any[] = [];
+    
+    // Ensure at least one from each category
+    for (const cat of categories) {
+      const catItems = sig.filter((p: any) => p.type === cat);
+      if (catItems.length > 0) {
+        const randomIndex = Math.floor(Math.random() * catItems.length);
+        selected.push(catItems[randomIndex]);
+      }
+    }
+    
+    // Fill remaining slots with random items from any category
+    const remainingCount = count - selected.length;
+    const remainingItems = sig.filter((p: any) => !selected.includes(p));
+    for (let i = 0; i < remainingCount && remainingItems.length > 0; i++) {
+      const randomIndex = Math.floor(Math.random() * remainingItems.length);
+      selected.push(remainingItems[randomIndex]);
+      remainingItems.splice(randomIndex, 1);
+    }
+    
+    // Shuffle the final selection
+    return selected.sort(() => Math.random() - 0.5);
+  };
 
-  const featuredProducts = [
-    goldOr("necklace"),
-    goldOr("bracelet"),
-    goldOr("earring"),
-    goldOr("ring"),
-  ].filter(Boolean);
+  const featuredProducts = getRandomItems(6);
 
   return (
     <>
       {/* ════════════════════════════════════════════════════════
-          HERO — dark editorial image hero + product dock
+          HERO — premium editorial hero + product dock
       ════════════════════════════════════════════════════════ */}
       <section
-        className="flex flex-col overflow-hidden h-[calc(100svh-4rem)] md:h-[calc(100svh-5rem)] lg:h-[calc(100svh-6rem)]"
-        style={{ minHeight: "600px", maxHeight: "1020px" }}
+        className="flex flex-col overflow-hidden h-[calc(100svh-3rem)] md:h-[calc(100svh-4rem)] lg:h-[calc(100svh-5rem)]"
+        style={{ minHeight: "800px", maxHeight: "1400px" }}
       >
 
         {/* ── Full-bleed image zone ───────────────────────────── */}
@@ -678,143 +749,149 @@ function Index() {
             preload="auto"
             poster={images.hero}
             aria-label="VVS moissanite tennis jewelry — Qureshi Jewelers"
-            className="absolute inset-0 h-full w-full object-cover object-center"
+            className="absolute inset-0 h-full w-full object-cover object-center scale-105"
           >
             <source src={images.heroVideo} type="video/mp4" />
           </video>
 
-          {/* ── Overlay system ───────────────────────────────────
-               Mobile : uniform dark scrim — text readable anywhere
-               Desktop: directional — solid left, clear right so
-                        jewelry stays visible through the photo
+          {/* ── Premium overlay system ─────────────────────────────
+               Mobile : elegant dark scrim with subtle gradient
+               Desktop: sophisticated directional overlay
           ────────────────────────────────────────────────────── */}
-          <div className="absolute inset-0 sm:hidden" style={{ background: "rgba(0,0,0,0.64)" }} />
+          <div className="absolute inset-0 sm:hidden" style={{ background: "linear-gradient(135deg, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.65) 50%, rgba(0,0,0,0.70) 100%)" }} />
           <div
             className="absolute inset-0 hidden sm:block"
-            style={{ background: "linear-gradient(to right, rgba(0,0,0,0.93) 0%, rgba(0,0,0,0.86) 28%, rgba(0,0,0,0.55) 50%, rgba(0,0,0,0.18) 70%, rgba(0,0,0,0.04) 100%)" }}
+            style={{ background: "linear-gradient(to right, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.82) 30%, rgba(0,0,0,0.55) 55%, rgba(0,0,0,0.25) 75%, rgba(0,0,0,0.08) 100%)" }}
           />
-          {/* Top + bottom polish vignette */}
+          {/* Premium vignette */}
           <div
             className="absolute inset-0"
-            style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.28) 0%, transparent 18%, transparent 68%, rgba(0,0,0,0.32) 100%)" }}
+            style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, transparent 20%, transparent 75%, rgba(0,0,0,0.38) 100%)" }}
           />
+          {/* Subtle noise texture overlay */}
+          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "url('data:image/svg+xml,%3Csvg viewBox=%220 0 256 256%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noise%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%224%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noise)%22/%3E%3C/svg%3E')" }} />
 
-          {/* ── Editorial content ─────────────────────────────── */}
+          {/* ── Premium editorial content ─────────────────────── */}
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full px-6 sm:px-12 lg:px-20 xl:px-28">
-              <div className="w-[90vw] sm:w-auto sm:max-w-[560px] lg:max-w-[820px]">
+            <div className="w-full px-5 sm:px-8 lg:px-16 xl:px-20 pt-60 sm:pt-64 lg:pt-68 pb-32 sm:pb-36 lg:pb-40">
+              <div className="w-[95vw] sm:w-auto sm:max-w-[680px] lg:max-w-[950px]">
 
-                {/* Eyebrow */}
-                <div className="flex items-center gap-3 mb-3 sm:mb-4 animate-fade-in" style={{ animationDelay: "0s" }}>
-                  <span className="h-px w-8 shrink-0" style={{ background: "linear-gradient(to right, transparent, oklch(0.82 0.14 82))" }} />
-                  <span className="text-[0.52rem] sm:text-[0.55rem] uppercase tracking-[0.36em] font-semibold whitespace-nowrap" style={{ color: "oklch(0.84 0.14 82)" }}>
-                    VVS1 · D Color · GRA Certified
+                {/* Headline */}
+                <h1 className="font-display leading-[0.92] mb-6 sm:mb-7" style={{ letterSpacing: "-0.02em" }}>
+                  <span className="block text-white animate-fade-up" style={{ fontSize: "clamp(2.4rem, 6vw, 5.2rem)", animationDelay: "0.12s", textShadow: "0 4px 32px rgba(0,0,0,0.65)" }}>
+                    Certified Moissanite Brilliance, Set in Fine Gold
                   </span>
-                  <span className="h-px w-8 shrink-0" style={{ background: "linear-gradient(to left, transparent, oklch(0.82 0.14 82))" }} />
-                </div>
-
-                {/* Headline — 2 lines max, all white, sm:whitespace-nowrap prevents 3rd line */}
-                <h1 className="font-display leading-[0.90] mb-4 sm:mb-5" style={{ letterSpacing: "-0.01em" }}>
-                  <EditableText
-                    contentKey="home.hero.headline_line1"
-                    label="Hero — Headline Line 1"
-                    defaultValue="Crafted to Outshine"
-                    tag="span"
-                    className="block text-white animate-fade-up sm:whitespace-nowrap"
-                    style={{ fontSize: "clamp(2.8rem, 6.5vw, 5.2rem)", animationDelay: "0.14s", textShadow: "0 2px 24px rgba(0,0,0,0.60)" }}
-                  />
-                  <EditableText
-                    contentKey="home.hero.headline_line2"
-                    label="Hero — Headline Line 2"
-                    defaultValue="Every Diamond."
-                    tag="span"
-                    className="block text-white animate-fade-up sm:whitespace-nowrap"
-                    style={{ fontSize: "clamp(2.8rem, 6.5vw, 5.2rem)", animationDelay: "0.24s", textShadow: "0 2px 24px rgba(0,0,0,0.60)" }}
-                  />
                 </h1>
 
                 {/* Subheadline */}
                 <p
-                  className="text-white text-[0.88rem] sm:text-[0.94rem] leading-[1.82] mb-5 sm:mb-6 animate-fade-up"
-                  style={{ animationDelay: "0.36s", maxWidth: "52ch", textShadow: "0 1px 12px rgba(0,0,0,0.55)" }}
+                  className="text-white/90 text-[0.95rem] sm:text-[1rem] leading-[1.85] mb-8 sm:mb-10 animate-fade-up"
+                  style={{ animationDelay: "0.34s", maxWidth: "58ch", textShadow: "0 2px 16px rgba(0,0,0,0.50)" }}
                 >
-                  More brilliance than any diamond — VVS clarity, GRA certified, hand-set in 5× 18K gold-plated sterling silver. Starting from $59.
+                  Hand-set in 18K gold-plated sterling silver. Includes official GRA certification and lifetime shine guarantee.
                 </p>
 
-                {/* CTAs */}
-                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-5 sm:mb-7 animate-fade-up" style={{ animationDelay: "0.46s" }}>
+                {/* Premium CTAs */}
+                <div className="flex flex-col sm:flex-row gap-3.5 sm:gap-4 mb-2 sm:mb-3 animate-fade-up" style={{ animationDelay: "0.44s" }}>
                   <Link
                     to="/shop"
-                    className="group relative overflow-hidden inline-flex items-center justify-center gap-2.5 bg-white text-black px-8 sm:px-10 py-[13px] sm:py-[14px] text-[0.60rem] uppercase tracking-[0.22em] font-black transition-colors duration-300 hover:bg-[oklch(0.96_0.020_82)]"
-                    style={{ boxShadow: "0 6px 36px rgba(0,0,0,0.50), 0 0 0 1px rgba(255,255,255,0.10)" }}
+                    className="group relative overflow-hidden inline-flex items-center justify-center gap-3 bg-white text-black px-10 sm:px-12 py-[15px] sm:py-[16px] text-[0.58rem] uppercase tracking-[0.24em] font-bold transition-all duration-300 hover:bg-gray-50 hover:shadow-2xl hover:shadow-black/20 hover:-translate-y-0.5"
+                    style={{ boxShadow: "0 8px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.15)" }}
                   >
-                    <span className="relative z-10 flex items-center gap-2.5">
-                      Shop the Collection
-                      <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1.5" />
+                    <span className="relative z-10 flex items-center gap-3">
+                      Shop Best Sellers
+                      <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                     </span>
-                    <div className="absolute inset-0 translate-x-[-110%] group-hover:translate-x-[110%] transition-transform duration-700 bg-gradient-to-r from-transparent via-black/5 to-transparent" />
+                    <div className="absolute inset-0 translate-x-[-110%] group-hover:translate-x-[110%] transition-transform duration-700 bg-gradient-to-r from-transparent via-black/8 to-transparent" />
                   </Link>
                   <Link
                     to="/moissanite-guide"
-                    className="group inline-flex items-center justify-center gap-2.5 text-white/82 px-8 sm:px-10 py-[13px] sm:py-[14px] text-[0.60rem] uppercase tracking-[0.22em] font-semibold transition-all duration-300 hover:text-white hover:bg-white/10"
-                    style={{ border: "1px solid rgba(255,255,255,0.24)", backdropFilter: "blur(4px)" }}
-                    onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.50)")}
-                    onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.24)")}
+                    className="group inline-flex items-center justify-center gap-3 text-white/90 px-10 sm:px-12 py-[15px] sm:py-[16px] text-[0.58rem] uppercase tracking-[0.24em] font-semibold transition-all duration-300 hover:text-white hover:bg-white/12 hover:-translate-y-0.5"
+                    style={{ border: "1.5px solid rgba(255,255,255,0.30)", backdropFilter: "blur(8px)" }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.55)")}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.30)")}
                   >
                     Our Story
-                    <ArrowRight className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1.5" />
+                    <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                   </Link>
                 </div>
 
-                {/* Trust row */}
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-2.5 animate-fade-in" style={{ animationDelay: "0.58s" }}>
+                {/* Premium trust row */}
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-20 animate-fade-in" style={{ animationDelay: "0.56s" }}>
                   {[
                     { icon: ShieldCheck, text: "GRA Certified"   },
                     { icon: Gem,         text: "VVS1 · D Color"  },
                     { icon: Truck,       text: "Free US Shipping" },
                   ].map(({ icon: TrustIcon, text }, i) => (
-                    <span key={i} className="flex items-center gap-2">
-                      {i > 0 && <span className="hidden sm:block w-px h-3.5 mr-1" style={{ background: "rgba(255,255,255,0.25)" }} />}
-                      <TrustIcon className="h-3.5 w-3.5 shrink-0 text-white" />
-                      <span className="text-[0.58rem] sm:text-[0.60rem] uppercase tracking-[0.18em] font-semibold text-white whitespace-nowrap">
+                    <span key={i} className="flex items-center gap-2.5">
+                      {i > 0 && <span className="hidden sm:block w-px h-4 mr-1" style={{ background: "rgba(255,255,255,0.30)" }} />}
+                      <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
+                        <TrustIcon className="h-4 w-4 text-white" />
+                      </div>
+                      <span className="text-[0.54rem] sm:text-[0.58rem] uppercase tracking-[0.16em] font-semibold text-white/95 whitespace-nowrap">
                         {text}
                       </span>
                     </span>
                   ))}
                 </div>
 
+                {/* Real-time precious metals ticker */}
+                {metalPrices && (
+                  <div className="mt-6 animate-fade-in" style={{ animationDelay: "0.68s" }}>
+                    <div className="inline-flex items-center gap-4 px-5 py-3 rounded-full bg-white/5 backdrop-blur-md border border-white/10">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[0.46rem] uppercase tracking-[0.18em] text-white/70">Gold</span>
+                        <span className="text-[0.58rem] font-semibold text-white">${metalPrices.gold.toFixed(2)}/oz</span>
+                      </div>
+                      <span className="w-px h-3 bg-white/20" />
+                      <div className="flex items-center gap-2">
+                        <span className="text-[0.46rem] uppercase tracking-[0.18em] text-white/70">Silver</span>
+                        <span className="text-[0.58rem] font-semibold text-white">${metalPrices.silver.toFixed(2)}/oz</span>
+                      </div>
+                      <span className="w-px h-3 bg-white/20" />
+                      <div className="flex items-center gap-2">
+                        <span className="text-[0.46rem] uppercase tracking-[0.18em] text-white/70">Platinum</span>
+                        <span className="text-[0.58rem] font-semibold text-white">${metalPrices.platinum.toFixed(2)}/oz</span>
+                      </div>
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse ml-1" />
+                    </div>
+                  </div>
+                )}
+
               </div>
             </div>
           </div>
         </div>
 
-        {/* ── Product browser dock — light ─────────────────── */}
+        {/* ── Premium product browser dock ─────────────────── */}
         <div
-          className="flex-shrink-0 bg-background border-t border-border"
+          className="flex-shrink-0 bg-white/95 backdrop-blur-xl border-t border-gray-200 shadow-2xl shadow-black/5"
           onMouseEnter={() => setIsDockPaused(true)}
           onMouseLeave={() => setIsDockPaused(false)}
         >
 
-          {/* Tab bar */}
+          {/* Enhanced tab bar */}
           <div
-            className="relative border-b border-border flex overflow-x-auto"
+            className="relative border-b border-gray-200/80 flex overflow-x-auto"
             style={{ scrollbarWidth: "none" }}
           >
-            <div className="flex items-stretch px-5 lg:px-10 min-w-max">
-              <span className="hidden sm:flex items-center text-[0.42rem] uppercase tracking-[0.38em] text-muted-foreground/28 pr-5 shrink-0">
+            <div className="flex items-stretch px-6 lg:px-12 min-w-max">
+              <span className="hidden sm:flex items-center text-[0.40rem] uppercase tracking-[0.32em] text-gray-400 pr-6 shrink-0 font-medium">
                 Browse
               </span>
               {HERO_TABS.map((t) => (
                 <button
                   key={t.key}
                   onClick={() => setHeroType(t.key)}
-                  className={`px-4 lg:px-5 py-2.5 text-[0.52rem] uppercase tracking-[0.14em] shrink-0 relative transition-colors duration-200 whitespace-nowrap ${
-                    heroType === t.key ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"
+                  className={`px-5 lg:px-6 py-3 text-[0.52rem] uppercase tracking-[0.16em] shrink-0 relative transition-all duration-300 whitespace-nowrap ${
+                    heroType === t.key 
+                      ? "text-gray-900 font-semibold" 
+                      : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
                   }`}
                 >
                   {t.label}
                   {heroType === t.key && (
-                    <span className="absolute bottom-[-1px] left-0 right-0 h-[2px] bg-foreground" />
+                    <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-gray-900 rounded-full" />
                   )}
                 </button>
               ))}
@@ -823,7 +900,7 @@ function Index() {
             <Link
               to="/shop"
               search={heroType !== "all" ? { type: heroType as any } : {}}
-              className="px-5 lg:px-10 flex items-center text-[0.52rem] uppercase tracking-[0.20em] text-muted-foreground hover:text-foreground transition-colors duration-200 whitespace-nowrap"
+              className="px-6 lg:px-12 flex items-center text-[0.52rem] uppercase tracking-[0.22em] text-gray-600 hover:text-gray-900 transition-all duration-300 whitespace-nowrap font-medium hover:bg-gray-50"
             >
               View All →
             </Link>
@@ -831,7 +908,7 @@ function Index() {
 
           {/* Product infinite belt */}
           <div
-            className="overflow-hidden py-3"
+            className="overflow-hidden py-5"
             style={{
               maskImage: "linear-gradient(to right, transparent, black 4%, black 96%, transparent)",
               WebkitMaskImage: "linear-gradient(to right, transparent, black 4%, black 96%, transparent)",
@@ -896,104 +973,16 @@ function Index() {
       <Ticker />
 
       {/* ════════════════════════════════════════════════════════
-          SHOP BY CATEGORY — editorial overlay grid
-      ════════════════════════════════════════════════════════ */}
-      <section className="border-b border-border">
-        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 pt-10 pb-3 lg:pt-14 lg:pb-4 reveal">
-          <div className="flex items-end justify-between mb-5">
-            <div>
-              <Eyebrow center={false}>Collections</Eyebrow>
-              <h2 className="font-display" style={{ fontSize: "clamp(1.9rem, 3vw, 3rem)" }}>
-                Shop by Category
-              </h2>
-            </div>
-            <Link
-              to="/shop"
-              className="hidden sm:flex items-center gap-1.5 text-[0.55rem] uppercase tracking-[0.22em] text-muted-foreground hover:text-foreground transition-colors pb-1"
-            >
-              View All <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
-        </div>
-
-        {/* Desktop: hero-left + 3-stack-right */}
-        <div className="hidden md:grid grid-cols-[3fr_2fr] mx-auto max-w-[1360px] px-5 lg:px-10 pb-10 lg:pb-14 gap-2 reveal" style={{ height: "clamp(420px, 52vh, 640px)", transitionDelay: "0.05s" }}>
-          <CategoryTile
-            image={images.tennischain}
-            label="Moissanite Chains"
-            tagline="Tennis & Rope"
-            shopType="necklace"
-            className="h-full"
-          />
-          <div className="grid grid-rows-3 gap-2 h-full">
-            <CategoryTile
-              image={images.tennisBraceletYellowGold}
-              label="Bracelets"
-              tagline="Tennis Bracelets"
-              shopType="bracelet"
-              className="h-full"
-            />
-            <CategoryTile
-              image={images.earring2}
-              label="Earrings"
-              tagline="Stud Earrings"
-              shopType="earring"
-              className="h-full"
-            />
-            <CategoryTile
-              image={images.ring}
-              label="Rings"
-              tagline="Moissanite Rings"
-              shopType="ring"
-              className="h-full"
-            />
-          </div>
-        </div>
-
-        {/* Mobile: 2×2 compact squares */}
-        <div className="md:hidden grid grid-cols-2 gap-1.5 px-5 pb-8 reveal" style={{ transitionDelay: "0.05s" }}>
-          <CategoryTile
-            image={images.tennischain}
-            label="Chains"
-            tagline="Tennis & Rope"
-            shopType="necklace"
-            className="aspect-square"
-          />
-          <CategoryTile
-            image={images.tennisBraceletYellowGold}
-            label="Bracelets"
-            tagline="Tennis"
-            shopType="bracelet"
-            className="aspect-square"
-          />
-          <CategoryTile
-            image={images.earring2}
-            label="Earrings"
-            tagline="Stud Earrings"
-            shopType="earring"
-            className="aspect-square"
-          />
-          <CategoryTile
-            image={images.ring}
-            label="Rings"
-            tagline="Moissanite"
-            shopType="ring"
-            className="aspect-square"
-          />
-        </div>
-      </section>
-
-      {/* ════════════════════════════════════════════════════════
           FEATURED ENGAGEMENT RINGS
       ════════════════════════════════════════════════════════ */}
       <section className="border-b border-border bg-[oklch(0.985_0.003_75)]">
-        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 pt-12 lg:pt-18 pb-10 lg:pb-16">
+        <div className="w-full px-5 sm:px-8 lg:px-16 pt-14 lg:pt-20 pb-12 lg:pb-18">
 
           {/* ── Header ── */}
-          <div className="flex items-end justify-between mb-5 reveal">
+          <div className="flex items-end justify-between mb-8 max-w-[1600px] mx-auto reveal">
             <div>
               <Eyebrow center={false}>Forever Starts Here</Eyebrow>
-              <h2 className="font-display" style={{ fontSize: "clamp(1.9rem, 3vw, 3rem)" }}>
+              <h2 className="font-display" style={{ fontSize: "clamp(2rem, 3.5vw, 3.5rem)" }}>
                 Engagement Rings
               </h2>
             </div>
@@ -1008,26 +997,40 @@ function Index() {
 
           {/* ── Mobile: snap-scroll row ── */}
           <div
-            className="flex md:hidden gap-3 overflow-x-auto pb-4 -mx-5 px-5 snap-x snap-mandatory reveal"
+            className="flex md:hidden gap-3 overflow-x-auto pb-5 -mx-5 px-5 snap-x snap-mandatory reveal"
             style={{ scrollbarWidth: "none", transitionDelay: "0.10s" }}
           >
             {isLoading
-              ? [...Array(4)].map((_, i) => (
+              ? [...Array(6)].map((_, i) => (
                   <div key={i} className="w-[70vw] shrink-0 snap-start"><SkeletonCard /></div>
                 ))
-              : sig.filter((p: any) => p.type === "ring").slice(0, 4).map((p: any) => (
-                  <div key={p.id} className="w-[70vw] shrink-0 snap-start">
-                    <ProductCard p={p} />
-                  </div>
-                ))
+              : (() => {
+                  const rings = sig.filter((p: any) => p.type === "ring");
+                  const ovalGold = rings.find((p: any) => p.slug.includes("oval") && p.color === "gold");
+                  const roseGold1ct = rings.find((p: any) => p.slug.includes("1ct") && p.color === "rose_gold");
+                  const otherRings = rings.filter((p: any) => !p.name.toLowerCase().includes("mens")).reverse();
+                  const displayRings = [ovalGold, roseGold1ct, ...otherRings].filter(Boolean);
+                  return displayRings.slice(0, 6).map((p: any) => (
+                    <div key={p.id} className="w-[70vw] shrink-0 snap-start">
+                      <ProductCard p={p} />
+                    </div>
+                  ));
+                })()
             }
           </div>
 
-          {/* ── Desktop: 4-column grid ── */}
-          <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 reveal" style={{ transitionDelay: "0.10s" }}>
+          {/* ── Desktop: 6-column grid ── */}
+          <div className="hidden md:grid grid-cols-2 lg:grid-cols-6 gap-4 lg:gap-6 max-w-[1600px] mx-auto reveal" style={{ transitionDelay: "0.10s" }}>
             {isLoading
-              ? [...Array(4)].map((_, i) => <SkeletonCard key={i} />)
-              : sig.filter((p: any) => p.type === "ring").slice(0, 4).map((p: any) => <ProductCard key={p.id} p={p} />)
+              ? [...Array(6)].map((_, i) => <SkeletonCard key={i} />)
+              : (() => {
+                  const rings = sig.filter((p: any) => p.type === "ring");
+                  const ovalGold = rings.find((p: any) => p.slug.includes("oval") && p.color === "gold");
+                  const roseGold1ct = rings.find((p: any) => p.slug.includes("1ct") && p.color === "rose_gold");
+                  const otherRings = rings.filter((p: any) => !p.name.toLowerCase().includes("mens")).reverse();
+                  const displayRings = [ovalGold, roseGold1ct, ...otherRings].filter(Boolean);
+                  return displayRings.slice(0, 6).map((p: any) => <ProductCard key={p.id} p={p} />);
+                })()
             }
           </div>
 
@@ -1055,13 +1058,13 @@ function Index() {
           FEATURED NECKLACES & CHAINS
       ════════════════════════════════════════════════════════ */}
       <section className="border-b border-border bg-background">
-        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 pt-12 lg:pt-18 pb-10 lg:pb-16">
+        <div className="w-full px-5 sm:px-8 lg:px-16 pt-14 lg:pt-20 pb-12 lg:pb-18">
 
           {/* ── Header ── */}
-          <div className="flex items-end justify-between mb-5 reveal">
+          <div className="flex items-end justify-between mb-8 max-w-[1600px] mx-auto reveal">
             <div>
               <Eyebrow center={false}>Signature Collection</Eyebrow>
-              <h2 className="font-display" style={{ fontSize: "clamp(1.9rem, 3vw, 3rem)" }}>
+              <h2 className="font-display" style={{ fontSize: "clamp(2rem, 3.5vw, 3.5rem)" }}>
                 Necklaces & Chains
               </h2>
             </div>
@@ -1076,14 +1079,14 @@ function Index() {
 
           {/* ── Mobile: snap-scroll row ── */}
           <div
-            className="flex md:hidden gap-3 overflow-x-auto pb-4 -mx-5 px-5 snap-x snap-mandatory reveal"
+            className="flex md:hidden gap-3 overflow-x-auto pb-5 -mx-5 px-5 snap-x snap-mandatory reveal"
             style={{ scrollbarWidth: "none", transitionDelay: "0.10s" }}
           >
             {isLoading
               ? [...Array(4)].map((_, i) => (
                   <div key={i} className="w-[70vw] shrink-0 snap-start"><SkeletonCard /></div>
                 ))
-              : sig.filter((p: any) => p.type === "necklace").slice(0, 4).map((p: any) => (
+              : sig.filter((p: any) => p.type === "necklace").reverse().slice(0, 4).map((p: any) => (
                   <div key={p.id} className="w-[70vw] shrink-0 snap-start">
                     <ProductCard p={p} />
                   </div>
@@ -1091,16 +1094,16 @@ function Index() {
             }
           </div>
 
-          {/* ── Desktop: 4-column grid ── */}
-          <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 reveal" style={{ transitionDelay: "0.10s" }}>
+          {/* ── Desktop: 5-column grid ── */}
+          <div className="hidden md:grid grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6 max-w-[1600px] mx-auto reveal" style={{ transitionDelay: "0.10s" }}>
             {isLoading
-              ? [...Array(4)].map((_, i) => <SkeletonCard key={i} />)
-              : sig.filter((p: any) => p.type === "necklace").slice(0, 4).map((p: any) => <ProductCard key={p.id} p={p} />)
+              ? [...Array(5)].map((_, i) => <SkeletonCard key={i} />)
+              : sig.filter((p: any) => p.type === "necklace").reverse().slice(0, 5).map((p: any) => <ProductCard key={p.id} p={p} />)
             }
           </div>
 
           {/* ── Bottom CTA ── */}
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 reveal" style={{ transitionDelay: "0.15s" }}>
+          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 max-w-[1600px] mx-auto reveal" style={{ transitionDelay: "0.15s" }}>
             <Link
               to="/shop"
               search={{ type: "necklace" as any }}
@@ -1124,16 +1127,16 @@ function Index() {
           TRENDING / LATEST ITEMS
       ════════════════════════════════════════════════════════ */}
       <section className="border-b border-border bg-[oklch(0.985_0.003_75)]">
-        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 pt-12 lg:pt-18 pb-10 lg:pb-16">
+        <div className="w-full px-5 sm:px-8 lg:px-16 pt-14 lg:pt-20 pb-12 lg:pb-18">
 
           {/* ── Header ── */}
-          <div className="flex items-end justify-between mb-5 reveal">
+          <div className="flex items-end justify-between mb-8 max-w-[1600px] mx-auto reveal">
             <div>
               <Eyebrow center={false}>Trending Now</Eyebrow>
-              <h2 className="font-display" style={{ fontSize: "clamp(1.9rem, 3vw, 3rem)" }}>
+              <h2 className="font-display" style={{ fontSize: "clamp(2rem, 3.5vw, 3.5rem)" }}>
                 Latest & Trending
               </h2>
-              <p className="text-[0.72rem] text-muted-foreground mt-1.5">
+              <p className="text-[0.75rem] text-muted-foreground mt-2">
                 Our most-loved pieces, hand-picked for you.
               </p>
             </div>
@@ -1146,14 +1149,14 @@ function Index() {
           </div>
 
           {/* ── Trust strip ── */}
-          <div className="flex items-center gap-5 mb-7 overflow-x-auto pb-1 reveal" style={{ transitionDelay: "0.05s" }}>
+          <div className="flex items-center gap-6 mb-8 overflow-x-auto pb-1 max-w-[1600px] mx-auto reveal" style={{ transitionDelay: "0.05s" }}>
             {[
               { icon: ShieldCheck, text: "GRA Certified" },
               { icon: Truck,       text: "Free Shipping $250+" },
               { icon: RotateCcw,   text: "14-Day Returns" },
               { icon: Award,       text: "Lifetime Guarantee" },
             ].map(({ icon: Icon, text }) => (
-              <span key={text} className="flex items-center gap-1.5 shrink-0 text-[0.48rem] uppercase tracking-[0.20em] text-muted-foreground">
+              <span key={text} className="flex items-center gap-1.5 shrink-0 text-[0.50rem] uppercase tracking-[0.20em] text-muted-foreground">
                 <Icon className="h-3 w-3 shrink-0" style={{ color: "#C9A84C" }} />
                 {text}
               </span>
@@ -1162,14 +1165,14 @@ function Index() {
 
           {/* ── Mobile: snap-scroll row ── */}
           <div
-            className="flex md:hidden gap-3 overflow-x-auto pb-4 -mx-5 px-5 snap-x snap-mandatory reveal"
+            className="flex md:hidden gap-3 overflow-x-auto pb-5 -mx-5 px-5 snap-x snap-mandatory reveal"
             style={{ scrollbarWidth: "none", transitionDelay: "0.10s" }}
           >
             {isLoading
-              ? [...Array(4)].map((_, i) => (
+              ? [...Array(6)].map((_, i) => (
                   <div key={i} className="w-[70vw] shrink-0 snap-start"><SkeletonCard /></div>
                 ))
-              : featuredProducts.slice(0, 4).map((p: any) => (
+              : featuredProducts.slice(0, 6).map((p: any) => (
                   <div key={p.id} className="w-[70vw] shrink-0 snap-start">
                     <ProductCard p={p} />
                   </div>
@@ -1177,16 +1180,16 @@ function Index() {
             }
           </div>
 
-          {/* ── Desktop: 4-column grid ── */}
-          <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 reveal" style={{ transitionDelay: "0.10s" }}>
+          {/* ── Desktop: 6-column grid ── */}
+          <div className="hidden md:grid grid-cols-2 lg:grid-cols-6 gap-4 lg:gap-6 max-w-[1600px] mx-auto reveal" style={{ transitionDelay: "0.10s" }}>
             {isLoading
-              ? [...Array(4)].map((_, i) => <SkeletonCard key={i} />)
-              : featuredProducts.slice(0, 4).map((p: any) => <ProductCard key={p.id} p={p} />)
+              ? [...Array(6)].map((_, i) => <SkeletonCard key={i} />)
+              : featuredProducts.slice(0, 6).map((p: any) => <ProductCard key={p.id} p={p} />)
             }
           </div>
 
           {/* ── Bottom CTA ── */}
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 reveal" style={{ transitionDelay: "0.15s" }}>
+          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 max-w-[1600px] mx-auto reveal" style={{ transitionDelay: "0.15s" }}>
             <Link
               to="/shop"
               className="inline-flex items-center gap-2.5 px-8 py-3.5 bg-foreground text-background text-[0.52rem] uppercase tracking-[0.26em] font-semibold hover:opacity-90 transition-opacity w-full sm:w-auto justify-center"
@@ -1206,55 +1209,60 @@ function Index() {
       </section>
 
       {/* ════════════════════════════════════════════════════════
-          WHY MOISSANITE — comparison section (replaces "The Stone")
+          WHY CHOOSE QURESHI JEWELERS — company values & service
       ════════════════════════════════════════════════════════ */}
       <section className="border-b border-border">
         <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-16 lg:py-24">
           <div className="text-center mb-11 reveal">
-            <Eyebrow>The Science of Brilliance</Eyebrow>
+            <Eyebrow>Our Commitment to You</Eyebrow>
             <h2 className="font-display leading-[0.95]" style={{ fontSize: "clamp(2.2rem, 4.5vw, 4rem)" }}>
-              Why Moissanite?
+              Why Choose Qureshi Jewelers?
             </h2>
             <p className="mt-4 text-muted-foreground text-[0.85rem] leading-[1.75] max-w-xl mx-auto">
-              Not a substitute. A discovery. Moissanite outperforms diamond in every measurable way — and costs a fraction of the price.
+              We don't just sell jewelry — we craft experiences. Every piece is hand-set with precision, every customer is treated like family, and every order reflects our dedication to excellence.
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 reveal" style={{ transitionDelay: "0.1s" }}>
             {[
               {
-                icon: Sparkles,
-                title: "More Fire",
-                desc: "Dispersion of 0.104 — nearly 3× that of diamond. The rainbow flashes you see in our jewelry are real, not a filter.",
-                stat: "0.104",
-                statLabel: "Fire Dispersion",
-              },
-              {
-                icon: Eye,
-                title: "More Brilliance",
-                desc: "Refractive index of 2.65 — the highest of any gemstone on earth. Light enters and bounces back with unmatched intensity.",
-                stat: "2.65",
-                statLabel: "Refractive Index",
+                icon: Heart,
+                title: "Crafted with Care",
+                desc: "Every stone is hand-set by skilled artisans. We inspect each piece multiple times to ensure perfection before it reaches your hands.",
+                stat: "100%",
+                statLabel: "Quality Inspected",
               },
               {
                 icon: ShieldCheck,
-                title: "More Durable",
-                desc: "9.25 on the Mohs scale — harder than ruby, sapphire, and emerald. Only diamond is harder. Built to last a lifetime.",
-                stat: "9.25",
-                statLabel: "Mohs Hardness",
+                title: "Customer First",
+                desc: "Our team is dedicated to your satisfaction. From personalized guidance to after-purchase support, we're here for every step of your journey.",
+                stat: "24/7",
+                statLabel: "Support Available",
+              },
+              {
+                icon: Award,
+                title: "Premium Quality",
+                desc: "We use only VVS1 D Colorless moissanite and solid S925 sterling silver with 5× 18K gold plating. No compromises, ever.",
+                stat: "5×",
+                statLabel: "Gold Plating",
               },
             ].map(({ icon: Icon, title, desc, stat, statLabel }) => (
               <div
                 key={title}
                 className="qj-premium-card bg-white border border-border p-8 rounded-xl group"
               >
-                <div className="qj-icon-ring w-12 h-12 rounded-full bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center mb-6">
-                  <Icon className="h-5 w-5 text-amber-600" />
+                <div className="qj-icon-ring w-12 h-12 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center mb-6">
+                  <Icon className="h-5 w-5 text-gray-900" />
                 </div>
                 <h3 className="font-display text-[1.5rem] mb-3">{title}</h3>
                 <p className="text-[0.82rem] text-muted-foreground leading-[1.75] mb-6">{desc}</p>
                 <div className="pt-4 border-t border-border">
-                  <div className="font-display text-[2rem] leading-none mb-1 gold-text">
+                  <div className="font-display text-[2rem] leading-none mb-1" style={{
+                    background: "linear-gradient(135deg, #1a1a1a, #404040)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
+                  }}>
                     {stat}
                   </div>
                   <div className="text-[0.46rem] uppercase tracking-[0.20em] text-muted-foreground">{statLabel}</div>
@@ -1265,76 +1273,15 @@ function Index() {
 
           <div className="text-center mt-8 reveal" style={{ transitionDelay: "0.2s" }}>
             <Link
-              to="/moissanite-guide"
+              to="/contact"
               className="inline-flex items-center gap-2 text-[0.6rem] uppercase tracking-[0.28em] lux-link text-muted-foreground hover:text-foreground transition-colors duration-350"
             >
-              The full story <ArrowRight className="h-3 w-3" />
+              Get in touch <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
         </div>
       </section>
 
-
-      {/* ════════════════════════════════════════════════════════
-          CERTIFICATION — GRA badge + trust signals
-      ════════════════════════════════════════════════════════ */}
-      <section className="border-b border-border">
-        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-16 lg:py-22">
-          <div className="grid lg:grid-cols-2 gap-16 lg:gap-24 items-center">
-            <div className="reveal">
-              <Eyebrow center={false}>Certified Authenticity</Eyebrow>
-              <h2 className="font-display leading-[0.95]" style={{ fontSize: "clamp(2.2rem, 4.5vw, 4rem)" }}>
-                Every stone,
-                <br />
-                <em
-                  className="italic"
-                  style={{
-                    background: "var(--gradient-gold)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                    backgroundClip: "text",
-                  }}
-                >
-                  independently verified.
-                </em>
-              </h2>
-            </div>
-
-            <div className="reveal space-y-7" style={{ transitionDelay: "0.18s" }}>
-              <p className="text-muted-foreground leading-[1.95] text-[0.9rem]">
-                Every Qureshi piece comes with a GRA (Gemological Research Academy) certificate.
-                This is not a marketing claim — it's a third-party verification of clarity, color,
-                cut, and carat weight. Your stone is tested, graded, and documented.
-              </p>
-
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  { icon: ShieldCheck, label: "GRA Certified", desc: "Independent verification" },
-                  { icon: Gem, label: "VVS Clarity", desc: "VVS1 · Eye-clean" },
-                  { icon: Award, label: "D Color", desc: "Colorless grade" },
-                  { icon: Check, label: "Tester Verified", desc: "Professional grade" },
-                ].map(({ icon: Icon, label, desc }) => (
-                  <div
-                    key={label}
-                    className="border border-border bg-background px-5 py-5 hover:border-foreground/15 transition-colors duration-350"
-                  >
-                    <Icon className="h-4 w-4 text-gold/70 mb-2" />
-                    <p className="text-[0.72rem] font-semibold text-foreground mb-0.5">{label}</p>
-                    <p className="text-[0.55rem] text-muted-foreground">{desc}</p>
-                  </div>
-                ))}
-              </div>
-
-              <Link
-                to="/moissanite-guide"
-                className="inline-flex items-center gap-2 text-[0.6rem] uppercase tracking-[0.28em] lux-link text-muted-foreground hover:text-foreground transition-colors duration-350"
-              >
-                Learn about certification <ArrowRight className="h-3 w-3" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* ════════════════════════════════════════════════════════
           CRUELTY-FREE — enterprise comparison redesign
@@ -1365,202 +1312,143 @@ function Index() {
           }}
         />
 
-        <div className="relative mx-auto max-w-[1360px] px-5 lg:px-10 py-16 lg:py-28">
+        <div className="relative mx-auto max-w-[1600px] px-5 sm:px-8 lg:px-16 py-16 lg:py-20">
+          {/* Subtle grid background */}
+          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
+
           {/* Centered heading */}
-          <div className="text-center mb-14 lg:mb-20 reveal">
-            <Eyebrow>Lab-Created · Conflict-Free · GRA Certified</Eyebrow>
-            <h2 className="font-display leading-[0.95]" style={{ fontSize: "clamp(2.4rem, 5.5vw, 4.75rem)" }}>
-              Brilliance that never costs
-              <br className="hidden sm:block" />{" "}
-              <em className="italic gold-shimmer">the earth.</em>
-            </h2>
-          </div>
-
-          {/* 2-column layout: story + table */}
-          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-start">
-
-            {/* Left: story + impact numbers + stone specs + CTA */}
-            <div className="reveal">
-              <p className="text-muted-foreground text-[0.88rem] leading-[1.85] mb-8">
-                Every Qureshi moissanite is grown in a controlled lab environment — never blasted from the
-                earth, never linked to conflict financing, never produced through exploitative labor.
-                You receive the same optical fire and VVS1&nbsp;D&#8209;color clarity as diamond, without
-                the ethical and environmental cost embedded in every mined carat.
-              </p>
-
-              {/* 3 impact numbers */}
-              <div className="grid grid-cols-3 border border-border mb-8">
-                {[
-                  { num: "0", sub: "Acres of land\ndisturbed" },
-                  { num: "100%", sub: "Conflict-free\n& traceable" },
-                  { num: "~97%", sub: "Lower cost vs.\nequivalent diamond" },
-                ].map((s) => (
-                  <div key={s.sub} className="px-3 py-5 text-center border-r border-border last:border-r-0">
-                    <p
-                      className="font-display leading-none mb-2"
-                      style={{
-                        fontSize: "clamp(1.6rem, 3vw, 2.4rem)",
-                        background: "var(--gradient-gold)",
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                        backgroundClip: "text",
-                      }}
-                    >
-                      {s.num}
-                    </p>
-                    <p className="text-[0.48rem] uppercase tracking-[0.13em] text-muted-foreground leading-tight whitespace-pre-line">{s.sub}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Stone specification rows */}
-              <div className="border border-border overflow-hidden mb-9">
-                {[
-                  { label: "Stone type",    value: "Lab-created silicon carbide" },
-                  { label: "Clarity",       value: "VVS1 — virtually flawless, on every piece" },
-                  { label: "Color",         value: "D Colorless — top of the GIA scale" },
-                  { label: "Hardness",      value: "9.25 Mohs — second only to diamond" },
-                  { label: "Brilliance",    value: "RI 2.65–2.69 — exceeds diamond's 2.42" },
-                  { label: "Certification", value: "GRA certificate shipped with every order" },
-                ].map(({ label, value }, i) => (
-                  <div
-                    key={label}
-                    className={`flex gap-4 px-5 py-3 border-b border-border/60 last:border-0 ${
-                      i % 2 === 1 ? "bg-[oklch(0.97_0.004_80)]" : "bg-background/50"
-                    }`}
-                  >
-                    <span className="text-[0.54rem] uppercase tracking-[0.12em] text-muted-foreground w-24 shrink-0 mt-0.5">{label}</span>
-                    <span className="text-[0.72rem] font-medium text-foreground">{value}</span>
-                  </div>
-                ))}
-              </div>
-
-              <Link
-                to="/moissanite-guide"
-                className="group/cta relative inline-flex items-center gap-2.5 overflow-hidden rounded-full px-7 py-3 text-[0.58rem] uppercase tracking-[0.26em] font-semibold transition-colors duration-500"
-                style={{ border: "1.5px solid oklch(0.60 0.092 68 / 0.55)", color: "oklch(0.45 0.085 60)" }}
-              >
-                <span
-                  className="absolute inset-0 z-0 translate-x-[-101%] group-hover/cta:translate-x-0 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]"
-                  style={{ background: "var(--gradient-gold)" }}
-                />
-                <span className="relative z-10 group-hover/cta:text-white transition-colors duration-500">See the full comparison</span>
-                <ArrowRight className="relative z-10 h-3 w-3 transition-all duration-500 group-hover/cta:translate-x-1 group-hover/cta:text-white" />
-              </Link>
+          <div className="relative text-center mb-12 lg:mb-16 reveal">
+            <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-gradient-to-r from-gray-50 to-white border border-gray-200/80 shadow-sm mb-6">
+              <Sparkles className="h-4 w-4 text-gray-700" />
+              <span className="text-[0.42rem] uppercase tracking-[0.18em] font-semibold text-gray-800">Ethical Luxury · Lab-Created · GRA Certified</span>
             </div>
-
-            {/* Right: full moissanite vs diamond table */}
-            <div className="reveal" style={{ transitionDelay: "0.12s" }}>
-              <div className="border border-border overflow-hidden">
-                {/* Table header */}
-                <div className="grid grid-cols-[1.1fr_1fr_1fr] bg-foreground">
-                  <div className="px-4 py-3.5">
-                    <p className="text-[0.48rem] uppercase tracking-[0.16em] text-background/35">Property</p>
-                  </div>
-                  <div className="px-4 py-3.5 border-l border-background/10">
-                    <p
-                      className="text-[0.48rem] uppercase tracking-[0.16em] font-semibold"
-                      style={{
-                        background: "var(--gradient-gold)",
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                        backgroundClip: "text",
-                      }}
-                    >
-                      Our Moissanite
-                    </p>
-                  </div>
-                  <div className="px-4 py-3.5 border-l border-background/10">
-                    <p className="text-[0.48rem] uppercase tracking-[0.16em] text-background/30">Mined Diamond</p>
-                  </div>
-                </div>
-
-                {/* Comparison rows */}
-                {[
-                  { attr: "Origin",             mois: "Lab-grown, zero mining",   dia: "Earth-blasted" },
-                  { attr: "Land disturbed",      mois: "Zero acres",               dia: "250 tons per carat" },
-                  { attr: "Conflict risk",       mois: "None — fully traceable",   dia: "Varies by source" },
-                  { attr: "Carbon output",       mois: "Low (controlled lab)",     dia: "High (mining + transit)" },
-                  { attr: "Brilliance (RI)",     mois: "2.65–2.69 ✦",             dia: "2.42" },
-                  { attr: "Fire (dispersion)",   mois: "0.104 ✦",                  dia: "0.044" },
-                  { attr: "Hardness",            mois: "9.25 Mohs",                dia: "10 Mohs" },
-                  { attr: "Clarity",             mois: "VVS1 — always",            dia: "VVS1 costs $15k+" },
-                  { attr: "Color",               mois: "D Colorless — always",     dia: "D: extremely rare" },
-                  { attr: "Price (1ct equiv.)",  mois: "From ~$300",               dia: "$6,000–$15,000" },
-                  { attr: "Certification",       mois: "GRA cert included",        dia: "GIA (extra cost)" },
-                ].map(({ attr, mois, dia }, i) => (
-                  <div
-                    key={attr}
-                    className={`grid grid-cols-[1.1fr_1fr_1fr] border-b border-border/60 last:border-0 ${
-                      i % 2 === 0 ? "bg-background/70" : "bg-[oklch(0.985_0.003_80)]"
-                    }`}
-                  >
-                    <div className="px-4 py-2.5">
-                      <span className="text-[0.58rem] text-muted-foreground">{attr}</span>
-                    </div>
-                    <div className="px-4 py-2.5 border-l border-border/40">
-                      <span className="text-[0.60rem] font-semibold text-emerald-700 flex items-center gap-1">
-                        <Check className="h-2.5 w-2.5 shrink-0" />{mois}
-                      </span>
-                    </div>
-                    <div className="px-4 py-2.5 border-l border-border/40">
-                      <span className="text-[0.60rem] text-muted-foreground/65 flex items-center gap-1">
-                        <X className="h-2.5 w-2.5 shrink-0 text-red-400/50" />{dia}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-4 text-[0.56rem] text-muted-foreground/55 text-center italic">
-                All Qureshi stones graded VVS1 D Color — no upgrades, no guesswork.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ════════════════════════════════════════════════════════
-          CUSTOMER REVIEWS — social proof
-      ════════════════════════════════════════════════════════ */}
-      <section className="border-b border-border">
-        <div className="mx-auto max-w-[1360px] px-5 lg:px-10 py-16 lg:py-22">
-          <div className="text-center mb-11 reveal">
-            <Eyebrow>What Our Customers Say</Eyebrow>
-            <h2 className="font-display" style={{ fontSize: "clamp(2.2rem, 4.5vw, 4rem)" }}>
-              Trusted by thousands.
+            <h2 className="font-display leading-[0.90] mb-4" style={{ fontSize: "clamp(2.2rem, 5vw, 3.5rem)" }}>
+              Brilliance that never costs <span className="italic bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 bg-clip-text text-transparent">the earth.</span>
             </h2>
-            <p className="mt-4 text-muted-foreground text-[0.85rem] leading-[1.75] max-w-xl mx-auto">
-              Real reviews from real customers who chose brilliance over compromise.
+            <p className="max-w-2xl mx-auto text-muted-foreground text-sm sm:text-base leading-relaxed">
+              Experience the exceptional beauty of lab-created moissanite—superior brilliance, ethical sourcing, and extraordinary value without compromise.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 reveal" style={{ transitionDelay: "0.1s" }}>
-            <ReviewCard
-              name="Sarah M."
-              text="I was skeptical about moissanite, but the fire on this tennis bracelet is unreal. My friends think it's a $10K diamond. The GRA certificate sealed the deal."
-              rating={5}
-              location="New York, NY"
-            />
-            <ReviewCard
-              name="James T."
-              text="Bought the 3mm tennis chain in yellow gold for my wife's birthday. She hasn't taken it off since. The quality is incredible for the price. Will be buying more."
-              rating={5}
-              location="Los Angeles, CA"
-            />
-            <ReviewCard
-              name="Priya K."
-              text="The stud earrings are stunning. I've worn them every day for 3 months and they still look brand new. The e-coating really works. Best jewelry purchase I've made."
-              rating={5}
-              location="Chicago, IL"
-            />
+          {/* Certification trust banner */}
+          <div className="mb-10 reveal" style={{ transitionDelay: "0.08s" }}>
+            <div className="bg-gradient-to-r from-gray-50 via-white to-gray-50 border border-gray-200/80 rounded-2xl p-8 shadow-sm">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6 lg:gap-8">
+                <div className="flex items-start gap-4 flex-1">
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shrink-0 shadow-sm">
+                    <ShieldCheck className="h-7 w-7 text-gray-900" />
+                  </div>
+                  <div>
+                    <h3 className="font-display text-xl font-semibold text-foreground mb-2">Every stone, independently verified.</h3>
+                    <p className="text-muted-foreground text-sm leading-relaxed max-w-xl">
+                      Every Qureshi piece comes with a GRA (Gemological Research Academy) certificate. This is not a marketing claim — it's a third-party verification of clarity, color, cut, and carat weight.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 shrink-0">
+                  {[
+                    { icon: ShieldCheck, label: "GRA Certified" },
+                    { icon: Gem, label: "VVS Clarity" },
+                    { icon: Award, label: "D Color" },
+                    { icon: Check, label: "Verified" },
+                  ].map(({ icon: Icon, label }) => (
+                    <div key={label} className="flex flex-col items-center gap-2">
+                      <div className="w-12 h-12 rounded-lg bg-white border border-gray-200 flex items-center justify-center shadow-sm">
+                        <Icon className="h-5 w-5 text-gray-900" />
+                      </div>
+                      <span className="text-[0.40rem] uppercase tracking-[0.14em] font-semibold text-gray-700">{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="text-center mt-8 reveal" style={{ transitionDelay: "0.2s" }}>
+          {/* Key metrics */}
+          <div className="grid sm:grid-cols-3 gap-6 mb-10 reveal" style={{ transitionDelay: "0.12s" }}>
+            {[
+              { num: "0", label: "Land Disturbed", desc: "Zero environmental footprint", icon: Leaf },
+              { num: "100%", label: "Conflict-Free", desc: "Every stone traceable", icon: ShieldCheck },
+              { num: "~97%", label: "Cost Savings", desc: "Exceptional value", icon: TrendingUp },
+            ].map((stat, i) => (
+              <div key={i} className="group relative bg-white border border-gray-200/80 rounded-2xl p-8 hover:border-gray-900/50 hover:shadow-xl hover:shadow-black/5 transition-all duration-500">
+                <div className="flex items-start gap-4">
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-500">
+                    <stat.icon className="h-7 w-7 text-gray-900" />
+                  </div>
+                  <div className="flex-1">
+                    <p
+                      className="font-display leading-none mb-2"
+                      style={{
+                        fontSize: "clamp(2rem, 4.5vw, 2.8rem)",
+                        background: "linear-gradient(135deg, #0a0a0a, #3a3a3a)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        backgroundClip: "text",
+                      }}
+                    >
+                      {stat.num}
+                    </p>
+                    <h4 className="text-foreground font-semibold text-base mb-1">{stat.label}</h4>
+                    <p className="text-muted-foreground text-sm">{stat.desc}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Technical specifications */}
+          <div className="bg-white border border-gray-200/80 rounded-2xl p-8 mb-10 reveal" style={{ transitionDelay: "0.16s" }}>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                <Gem className="h-5 w-5 text-gray-900" />
+              </div>
+              <h3 className="font-display text-lg font-semibold text-foreground">Technical Specifications</h3>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[
+                { label: "Stone Type", value: "Lab-created silicon carbide", highlight: false, icon: Gem },
+                { label: "Clarity Grade", value: "VVS1 — virtually flawless", highlight: true, icon: Sparkles },
+                { label: "Color Grade", value: "D Colorless — top of GIA scale", highlight: true, icon: Sun },
+                { label: "Hardness", value: "9.25 Mohs — second only to diamond", highlight: false, icon: Shield },
+                { label: "Refractive Index", value: "2.65–2.69 — exceeds diamond's 2.42", highlight: true, icon: Zap },
+                { label: "Certification", value: "GRA certificate with every order", highlight: false, icon: Award },
+              ].map((spec, i) => (
+                <div
+                  key={i}
+                  className={`group flex items-start gap-3 p-4 rounded-xl border transition-all duration-300 ${
+                    spec.highlight 
+                      ? "bg-gradient-to-br from-gray-50 to-white border-gray-300/60 hover:border-gray-400" 
+                      : "bg-white border-gray-200/60 hover:border-gray-300"
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                    spec.highlight ? "bg-gray-200" : "bg-gray-100"
+                  }`}>
+                    <spec.icon className={`h-5 w-5 ${spec.highlight ? "text-gray-900" : "text-gray-600"}`} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[0.42rem] uppercase tracking-[0.14em] text-muted-foreground mb-1">{spec.label}</p>
+                    <p className={`text-sm font-medium ${spec.highlight ? "text-foreground" : "text-muted-foreground"}`}>{spec.value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Enterprise CTA */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center reveal" style={{ transitionDelay: "0.20s" }}>
+            <Link
+              to="/moissanite-guide"
+              className="inline-flex items-center justify-center gap-3 bg-foreground text-background px-10 py-4 rounded-xl text-[0.48rem] uppercase tracking-[0.22em] font-semibold hover:bg-gray-800 hover:shadow-xl hover:shadow-black/15 hover:-translate-y-0.5 transition-all duration-300"
+            >
+              Learn More <ArrowRight className="h-4 w-4" />
+            </Link>
             <Link
               to="/shop"
-              className="inline-flex items-center gap-2 text-[0.6rem] uppercase tracking-[0.28em] lux-link text-muted-foreground hover:text-foreground transition-colors duration-350"
+              className="inline-flex items-center justify-center gap-3 bg-white border-2 border-gray-300 text-foreground px-10 py-4 rounded-xl text-[0.48rem] uppercase tracking-[0.22em] font-semibold hover:border-gray-900 hover:bg-gray-50 hover:-translate-y-0.5 transition-all duration-300"
             >
-              Shop the collection <ArrowRight className="h-3 w-3" />
+              Shop Collection <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </div>
@@ -1579,13 +1467,115 @@ function Index() {
               { icon: Truck,       label: "Free Shipping $250+", sub: "Continental US" },
             ].map(({ icon: Icon, label, sub }) => (
               <div key={label} className="group flex flex-col items-center text-center px-6 py-7 gap-3">
-                <div className="qj-icon-ring w-10 h-10 rounded-full bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">
-                  <Icon className="h-4 w-4 text-amber-600" />
+                <div className="qj-icon-ring w-10 h-10 rounded-full bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">
+                  <Icon className="h-4 w-4 text-green-600" />
                 </div>
                 <p className="text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-foreground">{label}</p>
                 <p className="text-[0.58rem] uppercase tracking-[0.12em] text-muted-foreground">{sub}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════════════
+          SHOP BY CATEGORY — compact luxury grid
+      ════════════════════════════════════════════════════════ */}
+      <section className="border-b border-border bg-gradient-to-b from-background to-[oklch(0.985_0.003_75)]">
+        <div className="w-full px-5 sm:px-8 lg:px-16 pt-10 lg:pt-14 pb-8 lg:pb-10 reveal">
+          <div className="max-w-[1600px] mx-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <Eyebrow center={false}>Collections</Eyebrow>
+                <h2 className="font-display" style={{ fontSize: "clamp(1.8rem, 3vw, 2.8rem)" }}>
+                  Shop by Category
+                </h2>
+              </div>
+              <Link
+                to="/contact"
+                className="hidden sm:inline-flex items-center gap-2 text-[0.50rem] uppercase tracking-[0.20em] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Get Expert Help
+              </Link>
+            </div>
+
+            {/* Desktop: Equal-height grid */}
+            <div className="hidden sm:grid grid-cols-4 gap-4">
+              {[
+                { image: images.ring, label: "Rings", sub: "Engagement & Fashion", type: "ring" },
+                { image: images.tennischain, label: "Chains", sub: "Tennis & Rope", type: "necklace" },
+                { image: images.tennisBraceletYellowGold, label: "Bracelets", sub: "Tennis Bracelets", type: "bracelet" },
+                { image: images.earring2, label: "Earrings", sub: "Stud Earrings", type: "earring" },
+              ].map((cat) => (
+                <Link
+                  key={cat.label}
+                  to="/shop"
+                  search={{ type: cat.type as any }}
+                  className="group relative overflow-hidden rounded-sm aspect-[3/4]"
+                >
+                  <img
+                    src={cat.image}
+                    alt={cat.label}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-5">
+                    <h3 className="font-display text-white text-lg mb-1">{cat.label}</h3>
+                    <p className="text-white/70 text-xs mb-3">{cat.sub}</p>
+                    <span className="inline-flex items-center gap-1 text-green-300 text-[0.45rem] uppercase tracking-[0.18em] font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
+                      Shop <ArrowRight className="h-3 w-3" />
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            {/* Mobile: 2x2 grid */}
+            <div className="sm:hidden grid grid-cols-2 gap-3">
+              {[
+                { image: images.ring, label: "Rings", type: "ring" },
+                { image: images.tennischain, label: "Chains", type: "necklace" },
+                { image: images.tennisBraceletYellowGold, label: "Bracelets", type: "bracelet" },
+                { image: images.earring2, label: "Earrings", type: "earring" },
+              ].map((cat) => (
+                <Link
+                  key={cat.label}
+                  to="/shop"
+                  search={{ type: cat.type as any }}
+                  className="group relative overflow-hidden rounded-sm aspect-square"
+                >
+                  <img
+                    src={cat.image}
+                    alt={cat.label}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-4">
+                    <h3 className="font-display text-white text-base mb-1">{cat.label}</h3>
+                    <span className="inline-flex items-center gap-1 text-green-300 text-[0.40rem] uppercase tracking-[0.16em] font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
+                      Shop <ArrowRight className="h-3 w-3" />
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            {/* Mobile support CTA */}
+            <div className="sm:hidden mt-6 text-center">
+              <Link
+                to="/contact"
+                className="inline-flex items-center gap-2 text-[0.45rem] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Get Expert Help
+              </Link>
+            </div>
           </div>
         </div>
       </section>

@@ -144,7 +144,7 @@ function TagInput({ tags, onChange }: { tags: string[]; onChange: (t: string[]) 
 
 function CharCounter({ value, target, max }: { value: string; target: number; max: number }) {
   const len = value.length;
-  const color = len === 0 ? "text-gray-300" : len > max ? "text-red-500" : len >= target ? "text-emerald-600" : "text-amber-600";
+  const color = len === 0 ? "text-gray-300" : len > max ? "text-red-500" : len >= target ? "text-emerald-600" : "text-green-600";
   return <span className={`text-[0.58rem] tabular-nums ${color}`}>{len}/{target}–{max}</span>;
 }
 
@@ -687,7 +687,7 @@ function AdminNewProduct() {
           onClick={() => setIsFeatured(v => !v)}
           className={`flex items-center gap-2 px-4 py-2 border text-[0.65rem] uppercase tracking-[0.12em] transition-colors ${
             isFeatured
-              ? "bg-amber-50 text-amber-700 border-amber-200"
+              ? "bg-green-50 text-green-700 border-green-200"
               : "bg-gray-50 text-gray-500 border-gray-200 hover:border-gray-400"
           }`}
         >
@@ -986,7 +986,7 @@ function AdminNewProduct() {
                     </p>
                   )}
                   {isRing && (
-                    <p className="text-[0.6rem] text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded flex items-center gap-1.5">
+                    <p className="text-[0.6rem] text-green-700 bg-green-50 border border-green-200 px-3 py-2 rounded flex items-center gap-1.5">
                       <span>💍</span> Ring detected — use Ring Sizes below. Sizes &amp; Lengths are hidden for rings.
                     </p>
                   )}
@@ -1140,7 +1140,7 @@ function AdminNewProduct() {
                       <img src={url} alt="" className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
                         <button type="button" onClick={() => makeCover(url)} title="Make cover" className="p-1 bg-white/90 hover:bg-white rounded">
-                          <Crown className="h-3 w-3 text-amber-600" />
+                          <Crown className="h-3 w-3 text-green-600" />
                         </button>
                         <button type="button" onClick={() => removeImage(url)} title="Remove" className="p-1 bg-white/90 hover:bg-white rounded">
                           <Trash2 className="h-3 w-3 text-red-600" />

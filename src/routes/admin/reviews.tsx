@@ -185,7 +185,7 @@ function AdminReviews() {
                         <Check className="h-3 w-3" /> Published
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-[0.58rem] uppercase tracking-[0.10em] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                      <span className="inline-flex items-center gap-1 text-[0.58rem] uppercase tracking-[0.10em] font-semibold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-md">
                         Pending
                       </span>
                     )}

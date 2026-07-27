@@ -336,7 +336,7 @@ function AdminPromotions() {
                         <td className="px-4 py-3.5 text-xs font-semibold text-gray-900">
                           {c.discount_type === "percentage" ? `${c.discount_value}% off` : `${formatUSD(c.discount_value)} off`}
                           {c.free_shipping && (
-                            <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 text-[0.52rem] uppercase tracking-[0.06em] font-medium rounded-sm bg-amber-50 text-amber-700 border border-amber-200">
+                            <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 text-[0.52rem] uppercase tracking-[0.06em] font-medium rounded-sm bg-green-50 text-green-700 border border-green-200">
                               + Free ship
                             </span>
                           )}
@@ -408,7 +408,7 @@ function AdminPromotions() {
                         <p className="text-[0.50rem] uppercase tracking-[0.14em] text-gray-400 mb-0.5">Discount</p>
                         <p className="text-xs font-semibold text-gray-800">{c.discount_type === "percentage" ? `${c.discount_value}% off` : `${formatUSD(c.discount_value)} off`}</p>
                         {c.free_shipping && (
-                          <p className="mt-0.5 inline-flex items-center px-1.5 py-0.5 text-[0.52rem] uppercase tracking-[0.06em] font-medium rounded-sm bg-amber-50 text-amber-700 border border-amber-200">
+                          <p className="mt-0.5 inline-flex items-center px-1.5 py-0.5 text-[0.52rem] uppercase tracking-[0.06em] font-medium rounded-sm bg-green-50 text-green-700 border border-green-200">
                             + Free ship
                           </p>
                         )}

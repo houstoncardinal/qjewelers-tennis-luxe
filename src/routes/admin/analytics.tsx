@@ -21,7 +21,7 @@ const STATUS_HEX: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, { text: string; bar: string }> = {
-  pending:    { text: "text-amber-700",   bar: "bg-amber-400" },
+  pending:    { text: "text-green-700",   bar: "bg-green-400" },
   processing: { text: "text-blue-700",    bar: "bg-blue-400" },
   shipped:    { text: "text-violet-700",  bar: "bg-violet-400" },
   delivered:  { text: "text-emerald-700", bar: "bg-emerald-400" },

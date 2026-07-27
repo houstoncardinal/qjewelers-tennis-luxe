@@ -60,7 +60,7 @@ interface Message {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const TAG_COLORS: Record<string, string> = {
-  vip:          "bg-amber-100 text-amber-800 border-amber-200",
+  vip:          "bg-green-100 text-green-800 border-green-200",
   "early-access": "bg-purple-100 text-purple-800 border-purple-200",
   "high-value": "bg-emerald-100 text-emerald-800 border-emerald-200",
   wholesale:    "bg-blue-100 text-blue-800 border-blue-200",
@@ -231,7 +231,7 @@ function SubscriberPanel({
           {/* Message composer */}
           <div className="px-6 py-5 space-y-4">
             <div className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-amber-500" />
+              <MessageSquare className="h-4 w-4 text-green-500" />
               <p className="text-[0.62rem] uppercase tracking-[0.14em] font-semibold text-gray-500">Send Internal Message</p>
             </div>
             <p className="text-[0.62rem] text-gray-400 -mt-2">Appears in the subscriber's QJ account inbox when they log in.</p>
@@ -386,7 +386,7 @@ function CampaignComposer({
         {/* Header */}
         <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100" style={{ background: "#fafafa" }}>
           <div className="flex items-center gap-3">
-            <Mail className="h-4 w-4 text-amber-500" />
+            <Mail className="h-4 w-4 text-green-500" />
             <span className="font-semibold text-gray-900">New Campaign</span>
           </div>
           <div className="flex items-center gap-2">
@@ -408,7 +408,7 @@ function CampaignComposer({
               {QUICK_TEMPLATES.map(t => (
                 <button key={t.label} onClick={() => applyTemplate(t)}
                   className="flex flex-col items-center gap-1.5 p-3 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-all text-center group">
-                  <t.icon className="h-4 w-4 text-amber-500 group-hover:scale-110 transition-transform" />
+                  <t.icon className="h-4 w-4 text-green-500 group-hover:scale-110 transition-transform" />
                   <span className="text-[0.58rem] font-medium text-gray-700">{t.label}</span>
                 </button>
               ))}
@@ -418,7 +418,7 @@ function CampaignComposer({
           {preview ? (
             <div className="rounded-xl border border-gray-200 overflow-hidden">
               <div className="bg-[#faf9f7] px-6 py-4 border-b border-gray-100">
-                <p className="text-[0.55rem] uppercase tracking-widest text-amber-600 mb-1">The Inner Circle</p>
+                <p className="text-[0.55rem] uppercase tracking-widest text-green-600 mb-1">The Inner Circle</p>
                 <p className="font-semibold text-gray-900 text-sm">{subject || "(no subject)"}</p>
               </div>
               <div className="bg-white px-6 py-5">
@@ -575,7 +575,7 @@ function AdminSubscribers() {
       <div className="flex items-start justify-between gap-4 mb-7">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[0.52rem] uppercase tracking-[0.30em] text-amber-600 font-medium">Inner Circle</span>
+            <span className="text-[0.52rem] uppercase tracking-[0.30em] text-green-600 font-medium">Inner Circle</span>
           </div>
           <h1 className="text-2xl font-bold text-gray-900 leading-none">Subscriber Management</h1>
           <p className="text-[0.72rem] text-gray-400 mt-1.5">Your most valuable marketing asset — own the relationship.</p>
@@ -715,7 +715,7 @@ function AdminSubscribers() {
                           </span>
                         </td>
                         <td className="px-4 py-4">
-                          <button className="p-1.5 text-gray-300 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors">
+                          <button className="p-1.5 text-gray-300 hover:text-green-500 hover:bg-green-50 rounded-lg transition-colors">
                             <ArrowRight className="h-3.5 w-3.5" />
                           </button>
                         </td>
@@ -797,7 +797,7 @@ function AdminSubscribers() {
                         <div>
                           <div className="flex items-center gap-2 mb-0.5">
                             <p className="text-sm font-semibold text-gray-900">{c.title}</p>
-                            <span className={`text-[0.50rem] px-2 py-0.5 rounded-full font-semibold border ${c.status === "sent" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
+                            <span className={`text-[0.50rem] px-2 py-0.5 rounded-full font-semibold border ${c.status === "sent" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-green-50 text-green-700 border-green-200"}`}>
                               {c.status}
                             </span>
                           </div>
@@ -810,7 +810,7 @@ function AdminSubscribers() {
                               </>
                             )}
                             {c.status === "draft" && (
-                              <span className="flex items-center gap-1 text-amber-600"><Clock className="h-3 w-3" />Draft · {fmt(c.created_at)}</span>
+                              <span className="flex items-center gap-1 text-green-600"><Clock className="h-3 w-3" />Draft · {fmt(c.created_at)}</span>
                             )}
                             {(c.tag_filter ?? []).length > 0 && (
                               <span className="flex items-center gap-1">

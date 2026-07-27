@@ -12,7 +12,7 @@ export interface Product {
   slug: string;
   name: string;
   type: "necklace" | "bracelet" | "earring" | "ring";
-  color: "silver" | "gold" | "rose_gold" | "white_gold";
+  color: string;
   size: string | null;
   length: string | null;
   short_description: string;
@@ -363,6 +363,10 @@ const RING_STONE_SIZES: { key: string; slugKey: string; label: string; mult: num
   { key: "3ct",   slugKey: "3ct",   label: "3 Carat",   mult: 8.0 },
 ];
 
+const RING_OVAL_SIZES: { key: string; slugKey: string; label: string; mult: number }[] = [
+  { key: "1.5ct-2ct", slugKey: "1-5ct-2ct", label: "1.5-2 Carat", mult: 4.0 },
+];
+
 const RING_BASE_PRICES: Record<ColorKey, number> = {
   silver:     399,
   gold:       499,
@@ -381,6 +385,20 @@ What makes this ${stoneSize} solitaire different:
 . VVS clarity, D color moissanite center stone
 . GRA certificate of authenticity included
 . Classic 4-prong solitaire setting
+. Available in US ring sizes 4–12`;
+}
+
+function ovalRingDesc(colorLabel: string, plated: string, stoneSize: string): string {
+  return `Elegant oval-cut moissanite engagement ring featuring a hand-set VVS moissanite center stone, set in genuine S925 sterling silver with premium ${plated.toLowerCase()} applied in 5 layers and sealed with our proprietary e-coating. Each stone is independently GRA certified at VVS clarity, D color.
+
+Available in 1.5ct-2ct center stone sizes. Band width: 2mm. All rings are available in US sizes 4–12 — please specify your ring size in the order notes at checkout.
+
+What makes this ${stoneSize} oval ring different:
+. S925 sterling silver core
+. 5x ${colorLabel} plating with e-coating
+. VVS clarity, D color moissanite center stone
+. GRA certificate of authenticity included
+. Elegant oval-cut setting
 . Available in US ring sizes 4–12`;
 }
 
@@ -428,6 +446,33 @@ for (const color of COLORS) {
   });
 }
 
+// ── Oval Moissanite Rings ─────────────────────────────────────────────────────
+for (const color of COLORS) {
+  const basePrice = RING_BASE_PRICES[color.key];
+  for (const stone of RING_OVAL_SIZES) {
+    const price = Math.round(basePrice * stone.mult);
+    const slug = `${stone.slugKey}-${color.key}-oval-moissanite-ring`;
+    allProducts.push({
+      id: `r-oval-${color.key}-${stone.slugKey}`,
+      slug,
+      name: `${stone.label} Oval Moissanite Ring | 18K ${color.shortLabel} Plated S925 Sterling Silver`,
+      type: "ring",
+      color: color.key,
+      size: stone.key,
+      length: null,
+      short_description: `${stone.label} ${color.shortLabel} oval moissanite ring. S925 base with 5x plating and e-coating. VVS clarity, GRA certified. US sizes 4–12.`,
+      description: ovalRingDesc(color.shortLabel, color.plated, stone.label),
+      seo_title: `${stone.label} Oval Moissanite Engagement Ring | 18K ${color.shortLabel} | S925 VVS GRA | Qureshi Jewelers`,
+      seo_description: `Shop the ${stone.label} ${color.shortLabel} oval moissanite engagement ring. S925 sterling silver base with 5x precious metal plating and e-coating. VVS clarity, GRA certified. US sizes 4–12. Free US shipping over $250.`,
+      base_price: price,
+      image_url: "https://bstyuyzlhrkskeqpypka.supabase.co/storage/v1/object/public/product-images/site-assets/main.jpg",
+      is_featured: true,
+      is_active: true,
+      sort_order: sortOrder++,
+    });
+  }
+}
+
 // ── Unified Tennis Bracelet — static fallback ─────────────────────────────
 // Single listing page; size/length/metal selected by the user on the product page.
 // base_price = $99 (3mm at 8", the most popular config) for listing card display.
@@ -448,6 +493,30 @@ allProducts.unshift({
   is_featured:       true,
   is_active:         true,
   sort_order:        2,
+});
+
+// ── Lily Cut Moissanite Four Leaf Clover Tennis Bracelet ──────────────────
+// Special motif bracelet: fixed 12mm width, 7" and 8" lengths, gold and white gold.
+// MSRP: 7" = $495, 8" = $545 | Sale: 7" = $395, 8" = $445
+allProducts.unshift({
+  id:                "lily-cut-moissanite-four-leaf-clover-tennis-bracelet",
+  slug:              "12mm-vvs1-d-lily-cut-moissanite-four-leaf-clover-5-motif-tennis-bracelet-18k-gold-plated-925-sterling-silver",
+  name:              "12mm VVS1 D Lily Cut Moissanite Four Leaf Clover 5 Motif Tennis Bracelet | 18K Gold Plated 925 Sterling Silver",
+  type:              "bracelet",
+  color:             "gold,white_gold",
+  size:              "12mm",
+  length:            null,
+  short_description: '12mm VVS1 D lily cut moissanite four leaf clover 5 motif tennis bracelet. S925 sterling silver base, 5× 18K yellow or white gold plating with e-coating. GRA certified. Lengths 7"–8".',
+  description:       "Hand-set VVS1 D lily cut moissanite four leaf clover 5 motif tennis bracelet on genuine S925 sterling silver, finished with premium 5× 18K yellow or white gold plating and sealed with proprietary e-coating for tarnish resistance and lasting brilliance.\n\nEach lily cut moissanite stone is independently GRA certified at VVS1 clarity, D color — the highest grades available. The distinctive four leaf clover 5 motif design creates a stunning visual statement across the wrist.\n\nFixed 12mm width. Available in 7\" (standard) and 8\" (relaxed) lengths. Double-locking box clasp. Hypoallergenic — lead-free, nickel-free, cadmium-free.\n\nWhat sets this bracelet apart:\n· Genuine S925 sterling silver core\n· 5× 18K yellow or white gold plating with proprietary e-coat seal\n· VVS1 clarity, D color lily cut moissanite\n· Professional moissanite tester verified — every stone, every piece\n· GRA Moissanite Report included\n· Double-locking box clasp — engineered to never open by accident\n· Hypoallergenic: zero lead, nickel, or cadmium",
+  seo_title:         "12mm VVS1 D Lily Cut Moissanite Four Leaf Clover Tennis Bracelet | 18K Gold | GRA Certified | Qureshi Jewelers",
+  seo_description:   'Shop the 12mm VVS1 D lily cut moissanite four leaf clover 5 motif tennis bracelet. S925 sterling silver, 5× 18K gold plating, e-coat sealed. GRA certified. Lengths 7"–8". Free US shipping over $250.',
+  base_price:        495,
+  sale_price:        395,
+  sale_active:       true,
+  image_url:         "/TennisBracelet/yellowgoldmain.jpg",
+  is_featured:       true,
+  is_active:         true,
+  sort_order:        1,
 });
 
 export const ALL_PRODUCTS: Product[] = allProducts;

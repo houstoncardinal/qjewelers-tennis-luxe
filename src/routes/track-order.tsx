@@ -20,7 +20,7 @@ export const Route = createFileRoute("/track-order")({
 });
 
 const STATUS_CONFIG = {
-  pending:    { label: "Order Received", color: "text-amber-700",  bg: "bg-amber-50",  border: "border-amber-200",  icon: Clock },
+  pending:    { label: "Order Received", color: "text-green-700",  bg: "bg-green-50",  border: "border-green-200",  icon: Clock },
   processing: { label: "Processing",     color: "text-blue-700",   bg: "bg-blue-50",   border: "border-blue-200",   icon: Package },
   shipped:    { label: "Shipped",        color: "text-violet-700", bg: "bg-violet-50", border: "border-violet-200", icon: Truck },
   delivered:  { label: "Delivered",      color: "text-green-700",  bg: "bg-green-50",  border: "border-green-200",  icon: CheckCircle },

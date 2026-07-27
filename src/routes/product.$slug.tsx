@@ -665,7 +665,7 @@ function AccordionSection({
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center justify-between py-5 text-left group"
       >
-        <span className="text-[0.57rem] uppercase tracking-[0.30em] font-medium group-hover:text-gold transition-colors duration-200">
+        <span className="text-[0.57rem] uppercase tracking-[0.30em] font-medium group-hover:text-green-600 transition-colors duration-200">
           {title}
         </span>
         <span className="text-muted-foreground text-lg leading-none font-light ml-4 shrink-0 select-none">
@@ -913,6 +913,7 @@ function ProductPage() {
   const defaultSize: string = (() => {
     if (isAnklet) return "6mm";
     if (isTennisChain) return "3mm";
+    if (isTennis && slug.includes("lily-cut")) return "12mm";
     if (isRing) {
       if (ringCarats.length === 1) return ringCarats[0];
       const match = Object.entries(RING_SLUG_SIZE_MAP).find(([key]) => slug.includes(key));
@@ -943,6 +944,7 @@ function ProductPage() {
       return pendantSingleLength ?? '18"';
     if (isAnklet && ankletSingleLength) return ankletSingleLength;
     if (isTennisChain) return TENNIS_CHAIN_LENGTH_DEFAULT;
+    if (isTennis && slug.includes("lily-cut")) return '8"';
     if (isTennis) return TENNIS_BRACELET_LENGTH_DEFAULT;
     if (isBracelet) return LENGTH_BRACELET_DEFAULT;
     // Plain necklaces: same reasoning as defaultSize above — prefer a real
@@ -1020,7 +1022,7 @@ function ProductPage() {
     : isTennisChain
       ? ((variants ?? []).length ? [...new Set((variants ?? []).map((v) => v.size).filter((v): v is string => !!v))] : SIZES_TENNIS_CHAIN)
       : isTennis
-        ? ((variants ?? []).length ? [...new Set((variants ?? []).map((v) => v.size).filter((v): v is string => !!v))] : SIZES_TENNIS_BRACELET)
+        ? (slug.includes("lily-cut") ? ["12mm"] : ((variants ?? []).length ? [...new Set((variants ?? []).map((v) => v.size).filter((v): v is string => !!v))] : SIZES_TENNIS_BRACELET))
         : isEarring
           ? closureSizes
           : isRing
@@ -1980,23 +1982,24 @@ function ProductPage() {
               )}
 
               {/* ── Size selector ────────────────────────── */}
-              <div className="mb-6">
-                <div className="flex items-baseline justify-between mb-3.5">
-                  <p className="text-[0.52rem] uppercase tracking-[0.28em] font-semibold">
-                    {isEarring
-                      ? "Stone Size"
-                      : isRing
-                        ? ringUsesStoneSizes ? "Stone Size" : "Ring Size"
-                        : isPendant
-                          ? "Stone Size"
-                          : necklaceUsesStoneSizes
+              {!isTennis || !slug.includes("lily-cut") ? (
+                <div className="mb-6">
+                  <div className="flex items-baseline justify-between mb-3.5">
+                    <p className="text-[0.52rem] uppercase tracking-[0.28em] font-semibold">
+                      {isEarring
+                        ? "Stone Size"
+                        : isRing
+                          ? ringUsesStoneSizes ? "Stone Size" : "Ring Size"
+                          : isPendant
                             ? "Stone Size"
-                            : "Width"}
-                  </p>
-                  <span className="text-[0.57rem] italic text-muted-foreground">
-                    {sizeDescriptions[size]}
-                  </span>
-                </div>
+                            : necklaceUsesStoneSizes
+                              ? "Stone Size"
+                              : "Width"}
+                    </p>
+                    <span className="text-[0.57rem] italic text-muted-foreground">
+                      {sizeDescriptions[size]}
+                    </span>
+                  </div>
                 {/* Mobile: horizontal scroll strip — each button wide enough to breathe */}
                 {/* Desktop: compact grid, columns matched to actual option count
                     so a single-option product (e.g. a ring sold in one carat
@@ -2064,6 +2067,12 @@ function ProductPage() {
                   </div>
                 )}
               </div>
+              ) : (
+                <div className="mb-6 flex items-center justify-between px-4 py-3.5 bg-cream border border-border">
+                  <span className="text-[0.50rem] uppercase tracking-[0.16em] text-muted-foreground">Width</span>
+                  <span className="text-[0.66rem] font-semibold">12mm</span>
+                </div>
+              )}
 
               {/* Size-on-ear visual guide (earrings only) — proportional to real mm */}
               {isEarring &&
@@ -2269,14 +2278,14 @@ function ProductPage() {
                       isTennisChain
                         ? "grid grid-cols-5 gap-1.5 min-w-0"
                         : isTennis
-                          ? "grid grid-cols-4 sm:grid-cols-7 gap-1.5 min-w-0"
+                          ? (slug.includes("lily-cut") ? "grid grid-cols-2 gap-1.5 min-w-0" : "grid grid-cols-4 sm:grid-cols-7 gap-1.5 min-w-0")
                           : "grid gap-1.5 grid-cols-3"
                     }
                   >
                     {(isTennisChain
                       ? LENGTHS_TENNIS_CHAIN
                       : isTennis
-                        ? LENGTHS_TENNIS_BRACELET
+                        ? (slug.includes("lily-cut") ? ['7"', '8"'] : LENGTHS_TENNIS_BRACELET)
                         : isBracelet
                           ? LENGTHS_BRACELET
                           // Plain necklaces: prefer the product's real
@@ -2458,7 +2467,7 @@ function ProductPage() {
                     key={label}
                     className="bg-[#faf9f7] flex flex-col items-center justify-center gap-1 px-2 py-5 text-center"
                   >
-                    <Icon className="h-3.5 w-3.5 text-gold/70 mb-0.5" />
+                    <Icon className="h-3.5 w-3.5 text-green-600/70 mb-0.5" />
                     <span className="text-[0.42rem] uppercase tracking-[0.10em] font-semibold text-foreground leading-tight">
                       {label}
                     </span>
@@ -2943,7 +2952,7 @@ function ProductPage() {
                   const Icon = item.icon;
                   return (
                     <div key={item.label} className="p-4 bg-cream border border-border">
-                      <Icon className="h-3.5 w-3.5 text-gold/70 mb-3" />
+                      <Icon className="h-3.5 w-3.5 text-green-600/70 mb-3" />
                       <h4 className="text-[0.65rem] font-semibold tracking-wide mb-1.5">
                         {item.label}
                       </h4>
@@ -2982,7 +2991,7 @@ function ProductPage() {
                   },
                 ].map(({ icon: Icon, title, body }) => (
                   <div key={title} className="flex gap-4">
-                    <Icon className="h-3.5 w-3.5 text-gold/65 shrink-0 mt-0.5" />
+                    <Icon className="h-3.5 w-3.5 text-green-600/65 shrink-0 mt-0.5" />
                     <div>
                       <p className="text-[0.64rem] font-semibold mb-1">{title}</p>
                       <p className="text-[0.62rem] text-muted-foreground leading-relaxed">{body}</p>
@@ -3063,7 +3072,7 @@ function ProductPage() {
                   <Link
                     key={l.to}
                     to={l.to}
-                    className="text-[0.68rem] text-muted-foreground hover:text-gold underline underline-offset-4 decoration-border hover:decoration-gold transition-colors"
+                    className="text-[0.68rem] text-muted-foreground hover:text-green-600 underline underline-offset-4 decoration-border hover:decoration-green-600 transition-colors"
                   >
                     {l.label}
                   </Link>

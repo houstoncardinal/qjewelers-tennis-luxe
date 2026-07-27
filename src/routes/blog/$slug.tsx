@@ -136,7 +136,7 @@ function BlogArticle() {
         <nav className="flex items-center gap-1.5 text-[0.6rem] uppercase tracking-[0.14em] text-muted-foreground/60">
           <Link to="/blog" className="hover:text-foreground transition-colors">Blog</Link>
           <span>/</span>
-          <span className="text-gold">{CATEGORY_LABELS[post.category] ?? post.category}</span>
+          <span className="text-green-600">{CATEGORY_LABELS[post.category] ?? post.category}</span>
         </nav>
 
         <h1 className="mt-4 font-display text-3xl sm:text-5xl leading-[1.08]">{post.title}</h1>
@@ -172,8 +172,8 @@ function BlogArticle() {
             [&_ol]:mb-5 [&_ol]:pl-5 [&_ol]:list-decimal [&_ol]:space-y-2
             [&_li]:leading-relaxed
             [&_strong]:font-semibold [&_strong]:text-foreground
-            [&_a]:text-gold [&_a]:underline [&_a]:underline-offset-2
-            [&_blockquote]:border-l-2 [&_blockquote]:border-gold [&_blockquote]:pl-5 [&_blockquote]:my-6 [&_blockquote]:italic [&_blockquote]:text-muted-foreground
+            [&_a]:text-green-600 [&_a]:underline [&_a]:underline-offset-2
+            [&_blockquote]:border-l-2 [&_blockquote]:border-green-600 [&_blockquote]:pl-5 [&_blockquote]:my-6 [&_blockquote]:italic [&_blockquote]:text-muted-foreground
             [&_table]:w-full [&_table]:my-6 [&_table]:border-collapse [&_table]:text-sm
             [&_th]:text-left [&_th]:uppercase [&_th]:tracking-[0.08em] [&_th]:text-[0.68rem] [&_th]:text-muted-foreground [&_th]:font-medium [&_th]:border-b [&_th]:border-border [&_th]:py-2.5 [&_th]:pr-4
             [&_td]:border-b [&_td]:border-border/60 [&_td]:py-2.5 [&_td]:pr-4
@@ -199,7 +199,7 @@ function BlogArticle() {
         {/* Author box — E-E-A-T authorship signal */}
         <div className="mt-14 p-6 sm:p-8 bg-cream border border-border flex gap-4">
           <div className="w-12 h-12 rounded-full bg-foreground/10 flex items-center justify-center shrink-0">
-            <ShieldCheck className="h-5 w-5 text-gold" />
+            <ShieldCheck className="h-5 w-5 text-green-600" />
           </div>
           <div>
             <p className="text-[0.6rem] uppercase tracking-[0.14em] text-muted-foreground/70">Written by</p>
@@ -241,7 +241,7 @@ function BlogArticle() {
                       className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
                     />
                   </div>
-                  <h3 className="mt-3 font-display text-lg leading-tight line-clamp-2 group-hover:text-gold transition-colors">
+                  <h3 className="mt-3 font-display text-lg leading-tight line-clamp-2 group-hover:text-green-600 transition-colors">
                     {p.title}
                   </h3>
                 </Link>

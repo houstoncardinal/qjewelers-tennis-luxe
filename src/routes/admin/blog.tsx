@@ -328,7 +328,7 @@ function AdminBlog() {
       </div>
 
       {!authors.length && !isLoading && (
-        <p className="text-xs text-amber-600 mb-4">No blog author exists yet — create one in the database before adding posts.</p>
+        <p className="text-xs text-green-600 mb-4">No blog author exists yet — create one in the database before adding posts.</p>
       )}
 
       <div className="bg-white border border-gray-100 rounded-lg overflow-hidden">

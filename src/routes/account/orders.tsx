@@ -21,7 +21,7 @@ export const Route = createFileRoute("/account/orders")({
 });
 
 const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; cls: string }> = {
-  pending:    { label: "Pending",    icon: Clock,    cls: "bg-amber-50 text-amber-700 border-amber-200" },
+  pending:    { label: "Pending",    icon: Clock,    cls: "bg-green-50 text-green-700 border-green-200" },
   processing: { label: "Processing", icon: Clock,    cls: "bg-blue-50 text-blue-700 border-blue-200" },
   shipped:    { label: "Shipped",    icon: Truck,    cls: "bg-violet-50 text-violet-700 border-violet-200" },
   delivered:  { label: "Delivered",  icon: Check,    cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },

@@ -185,10 +185,10 @@ function BlogIndex() {
                   />
                 </div>
                 <div>
-                  <p className="text-[0.6rem] uppercase tracking-[0.2em] text-gold font-medium">
+                  <p className="text-[0.6rem] uppercase tracking-[0.2em] text-green-600 font-medium">
                     {CATEGORY_LABELS[featured.category] ?? featured.category}
                   </p>
-                  <h2 className="mt-3 font-display text-3xl sm:text-4xl leading-[1.08] group-hover:text-gold transition-colors duration-300">
+                  <h2 className="mt-3 font-display text-3xl sm:text-4xl leading-[1.08] group-hover:text-green-600 transition-colors duration-300">
                     {featured.title}
                   </h2>
                   <p className="mt-4 text-sm sm:text-base text-muted-foreground leading-relaxed max-w-xl">
@@ -201,7 +201,7 @@ function BlogIndex() {
                     <span>·</span>
                     <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {featured.read_time_minutes} min read</span>
                   </div>
-                  <span className="mt-6 inline-flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.22em] border-b border-foreground pb-1 group-hover:text-gold group-hover:border-gold transition-colors">
+                  <span className="mt-6 inline-flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.22em] border-b border-foreground pb-1 group-hover:text-green-600 group-hover:border-green-600 transition-colors">
                     Read the Guide <ArrowRight className="h-3 w-3" />
                   </span>
                 </div>
@@ -219,10 +219,10 @@ function BlogIndex() {
                       className="h-full w-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.04]"
                     />
                   </div>
-                  <p className="mt-4 text-[0.56rem] uppercase tracking-[0.18em] text-gold font-medium">
+                  <p className="mt-4 text-[0.56rem] uppercase tracking-[0.18em] text-green-600 font-medium">
                     {CATEGORY_LABELS[post.category] ?? post.category}
                   </p>
-                  <h3 className="mt-2 font-display text-xl leading-tight line-clamp-2 min-h-[2.4em] group-hover:text-gold transition-colors duration-300">
+                  <h3 className="mt-2 font-display text-xl leading-tight line-clamp-2 min-h-[2.4em] group-hover:text-green-600 transition-colors duration-300">
                     {post.title}
                   </h3>
                   <p className="mt-2 text-sm text-muted-foreground leading-relaxed line-clamp-2">

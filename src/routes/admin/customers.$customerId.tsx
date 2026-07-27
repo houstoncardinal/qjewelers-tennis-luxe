@@ -25,7 +25,7 @@ export const Route = createFileRoute("/admin/customers/$customerId")({
 // ─── Shared status badge helpers ─────────────────────────────────────────────
 
 const STATUS_COLORS: Record<string, string> = {
-  pending:    "bg-amber-50 text-amber-700 border border-amber-200",
+  pending:    "bg-green-50 text-green-700 border border-green-200",
   processing: "bg-blue-50 text-blue-700 border border-blue-200",
   shipped:    "bg-violet-50 text-violet-700 border border-violet-200",
   delivered:  "bg-emerald-50 text-emerald-700 border border-emerald-200",
@@ -652,7 +652,7 @@ function AdminCustomerDetail() {
             ].map(({ label, value, icon: Icon, gold }) => (
               <div key={label} className="text-center">
                 <p className="text-[0.52rem] uppercase tracking-[0.16em] text-gray-400 mb-1">{label}</p>
-                <p className={`text-xl font-semibold leading-none ${gold ? "text-amber-600" : "text-gray-900"}`}>{value}</p>
+                <p className={`text-xl font-semibold leading-none ${gold ? "text-green-600" : "text-gray-900"}`}>{value}</p>
               </div>
             ))}
           </div>
@@ -669,7 +669,7 @@ function AdminCustomerDetail() {
             Last order: <span className="text-gray-600 ml-1">{new Date(customer.lastOrder).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
           </span>
           {!hasAccount && (
-            <span className="flex items-center gap-1.5 text-amber-500">
+            <span className="flex items-center gap-1.5 text-green-500">
               <AlertCircle className="h-3 w-3" />
               Guest checkout — no account
             </span>

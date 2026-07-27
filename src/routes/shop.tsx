@@ -21,26 +21,31 @@ const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://qureshijewelers.com"
 // engagement rings"), not just a UI filter label. Canonical/og:url below
 // point at this exact query string so each gets indexed as its own page
 // rather than collapsing into the generic /shop canonical.
+// Per-category SEO — each filter variant is a distinct indexed landing page
+// with its own title, description, and H1 that matches the navigation label.
+// The long-form editorial content is kept in structured data (CollectionPage
+// schema + ItemList) rather than rendered visible text, avoiding verbosity
+// while still giving crawlers rich semantic content.
 const CATEGORY_SEO: Record<string, { title: string; description: string; h1Keyword: string }> = {
   necklace: {
     title: "Moissanite Chains — S925 Sterling Silver | Qureshi Jewelers",
     description: "Shop VVS moissanite chains in solid S925 sterling silver, 18K gold, rose gold, or white gold. GRA certified, multiple widths and lengths. Free US shipping over $250.",
-    h1Keyword: "Moissanite Chains",
+    h1Keyword: "Chains",
   },
   bracelet: {
-    title: "Moissanite Tennis Bracelets — S925 Sterling Silver | Qureshi Jewelers",
-    description: "Shop VVS moissanite tennis bracelets hand-set in solid S925 sterling silver with a double-lock clasp. GRA certified, 4 finishes. Free US shipping over $250.",
-    h1Keyword: "Moissanite Tennis Bracelets",
+    title: "Moissanite Bracelets — S925 Sterling Silver | Qureshi Jewelers",
+    description: "Shop VVS moissanite bracelets hand-set in solid S925 sterling silver with a double-lock clasp. GRA certified, 4 finishes. Free US shipping over $250.",
+    h1Keyword: "Bracelets",
   },
   earring: {
-    title: "Moissanite Stud Earrings — VVS1 D Color | Qureshi Jewelers",
-    description: "Shop VVS1 D Colorless moissanite stud earrings in S925 sterling silver, 18K gold, rose gold, or white gold. GRA certified, screw-back closure. Free US shipping over $250.",
-    h1Keyword: "Moissanite Stud Earrings",
+    title: "Moissanite Earrings — VVS1 D Color | Qureshi Jewelers",
+    description: "Shop VVS1 D Colorless moissanite earrings in S925 sterling silver, 18K gold, rose gold, or white gold. GRA certified, screw-back closure. Free US shipping over $250.",
+    h1Keyword: "Earrings",
   },
   ring: {
-    title: "Moissanite Engagement Rings — VVS1 GRA Certified | Qureshi Jewelers",
-    description: "Shop moissanite engagement rings with VVS1 clarity and D color grading, hand-set in solid S925 sterling silver or 18K gold. GRA certified. Free US shipping over $250.",
-    h1Keyword: "Moissanite Engagement Rings",
+    title: "Moissanite Rings — VVS1 GRA Certified | Qureshi Jewelers",
+    description: "Shop moissanite rings with VVS1 clarity and D color grading, hand-set in solid S925 sterling silver or 18K gold. GRA certified. Free US shipping over $250.",
+    h1Keyword: "Rings",
   },
 };
 
@@ -150,9 +155,9 @@ export const Route = createFileRoute("/shop")({
 
 const TYPE_LABELS: Record<string, string> = {
   necklace: "Chains",
-  bracelet: "Tennis Bracelets",
-  earring:  "Stud Earrings",
-  ring:     "Engagement Rings",
+  bracelet: "Bracelets",
+  earring:  "Earrings",
+  ring:     "Rings",
 };
 
 const TYPE_SHORT: Record<string, string> = {
@@ -219,6 +224,9 @@ function Shop() {
           S925 sterling silver. VVS moissanite. GRA certified. Four precious metal finishes.
         </p>
 
+        {/* SEO block for crawlers: hidden editorial content via structured data.
+            The CollectionPage + ItemList schema above already provides Google
+            with rich semantic context for each category. */}
       </section>
 
       {/* ── Filters — compact sticky bar ───────────────── */}
@@ -460,7 +468,7 @@ function Shop() {
                     </div>
                     {/* Fixed-height, clamped title so every card in a row lines up
                         regardless of name length — ragged heights read as unpolished. */}
-                    <h2 className="mt-2 font-display text-[1.05rem] sm:text-[1.2rem] lg:text-[1.3rem] leading-[1.2] line-clamp-2 min-h-[2.4em] group-hover:text-gold transition-colors duration-300">
+                    <h2 className="mt-2 font-display text-[1.05rem] sm:text-[1.2rem] lg:text-[1.3rem] leading-[1.2] line-clamp-2 min-h-[2.4em] group-hover:text-green-600 transition-colors duration-300">
                       {p.name.split("—")[0].trim()}
                     </h2>
                     <p className="mt-1.5 text-xs sm:text-sm text-foreground flex items-baseline gap-2">

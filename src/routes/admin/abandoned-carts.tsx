@@ -24,7 +24,7 @@ export const Route = createFileRoute("/admin/abandoned-carts")({
 });
 
 const STATUS_STYLES: Record<string, string> = {
-  pending:    "bg-amber-50 text-amber-700 border-amber-200",
+  pending:    "bg-green-50 text-green-700 border-green-200",
   email_sent: "bg-blue-50 text-blue-700 border-blue-200",
   recovered:  "bg-emerald-50 text-emerald-700 border-emerald-200",
   expired:    "bg-gray-50 text-gray-500 border-gray-200",

@@ -64,8 +64,8 @@
   --primary: oklch(0.14 0.006 50);
   --primary-foreground: oklch(1.0 0 0);
 
-  --gold: oklch(0.60 0.092 68);
-  --gold-foreground: oklch(0.14 0.006 50);
+  --gold: oklch(0.45 0.12 145);
+  --gold-foreground: oklch(0.98 0.005 145);
 
   /* Third accent — a rich, muted taupe (warm light brown/grey), distinct from the
      metallic gold above. Used for quiet emphasis: dividers, icon tints, active
@@ -85,13 +85,13 @@
 
   --border: oklch(0.932 0.004 75);
   --input: oklch(0.932 0.004 75);
-  --ring: oklch(0.60 0.092 68);
+  --ring: oklch(0.45 0.12 145);
 
   --shadow-soft: 0 1px 2px oklch(0.14 0.006 50 / 0.03), 0 6px 20px oklch(0.14 0.006 50 / 0.05);
   --shadow-lift: 0 4px 12px oklch(0.14 0.006 50 / 0.07), 0 20px 44px oklch(0.14 0.006 50 / 0.09);
-  --shadow-gold: 0 4px 20px oklch(0.60 0.092 68 / 0.18), 0 12px 40px oklch(0.60 0.092 68 / 0.08);
-  --gradient-gold: linear-gradient(135deg, oklch(0.72 0.085 76), oklch(0.52 0.100 64));
-  --gradient-gold-h: linear-gradient(90deg, oklch(0.72 0.085 76), oklch(0.52 0.100 64));
+  --shadow-gold: 0 4px 20px oklch(0.45 0.12 145 / 0.18), 0 12px 40px oklch(0.45 0.12 145 / 0.08);
+  --gradient-gold: linear-gradient(135deg, oklch(0.55 0.14 145), oklch(0.40 0.13 145));
+  --gradient-gold-h: linear-gradient(90deg, oklch(0.55 0.14 145), oklch(0.40 0.13 145));
   --gradient-ivory: linear-gradient(180deg, oklch(1.0 0 0), oklch(0.978 0.005 80));
 }
 
@@ -186,13 +186,13 @@
   width: 100%;
 }
 
-/* ===== GOLD SHIMMER TEXT ===== */
+/* ===== GREEN SHIMMER TEXT ===== */
 .gold-shimmer {
   background: linear-gradient(90deg,
-    oklch(0.60 0.092 68),
-    oklch(0.80 0.08 80),
-    oklch(0.60 0.092 68),
-    oklch(0.50 0.11 62));
+    oklch(0.45 0.12 145),
+    oklch(0.55 0.14 145),
+    oklch(0.45 0.12 145),
+    oklch(0.38 0.13 145));
   background-size: 300% auto;
   -webkit-background-clip: text;
   background-clip: text;
@@ -218,13 +218,13 @@
               border-color 0.55s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .qj-compare-card--winner {
-  border: 1.5px solid oklch(0.60 0.092 68 / 0.42);
-  box-shadow: 0 10px 32px oklch(0.60 0.092 68 / 0.12);
+  border: 1.5px solid oklch(0.45 0.12 145 / 0.42);
+  box-shadow: 0 10px 32px oklch(0.45 0.12 145 / 0.12);
 }
 .qj-compare-card--winner:hover {
   transform: translateY(-10px);
-  border-color: oklch(0.60 0.092 68 / 0.95);
-  box-shadow: 0 32px 64px oklch(0.60 0.092 68 / 0.30), 0 0 0 1px oklch(0.60 0.092 68 / 0.18) inset;
+  border-color: oklch(0.45 0.12 145 / 0.95);
+  box-shadow: 0 32px 64px oklch(0.45 0.12 145 / 0.30), 0 0 0 1px oklch(0.45 0.12 145 / 0.18) inset;
 }
 .qj-compare-card--muted {
   border: 1px solid var(--color-border);
@@ -241,7 +241,7 @@
   transform: scale(1.12) rotate(8deg);
 }
 .qj-compare-card--winner:hover .qj-icon-ring {
-  box-shadow: 0 0 0 7px oklch(0.60 0.092 68 / 0.10);
+  box-shadow: 0 0 0 7px oklch(0.45 0.12 145 / 0.10);
 }
 .qj-compare-row {
   transition: background 0.35s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
@@ -251,7 +251,7 @@
   transform: translateX(4px);
 }
 .qj-compare-card--winner .qj-compare-row:hover {
-  background: oklch(0.60 0.092 68 / 0.07);
+  background: oklch(0.45 0.12 145 / 0.07);
 }
 .qj-compare-card--muted .qj-compare-row:hover {
   background: oklch(0.14 0.006 50 / 0.035);
@@ -278,7 +278,7 @@
 .qj-stat-tile:hover {
   transform: translateY(-6px);
   background: oklch(0.995 0.003 80);
-  box-shadow: 0 18px 38px oklch(0.60 0.092 68 / 0.16);
+  box-shadow: 0 18px 38px oklch(0.45 0.12 145 / 0.16);
 }
 .qj-stat-icon {
   transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -302,15 +302,15 @@
 }
 .qj-premium-card:hover {
   transform: translateY(-7px);
-  border-color: oklch(0.60 0.092 68 / 0.35);
-  box-shadow: 0 26px 50px oklch(0.14 0.006 50 / 0.10), 0 6px 16px oklch(0.60 0.092 68 / 0.12);
+  border-color: oklch(0.45 0.12 145 / 0.35);
+  box-shadow: 0 26px 50px oklch(0.14 0.006 50 / 0.10), 0 6px 16px oklch(0.45 0.12 145 / 0.12);
 }
 .qj-premium-card .qj-icon-ring {
   transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.5s ease;
 }
 .qj-premium-card:hover .qj-icon-ring {
   transform: scale(1.12) rotate(8deg);
-  box-shadow: 0 0 0 7px oklch(0.60 0.092 68 / 0.10);
+  box-shadow: 0 0 0 7px oklch(0.45 0.12 145 / 0.10);
 }
 
 /* ===== DECORATIVE LINES ===== */
@@ -321,7 +321,7 @@
 
 .gold-hairline {
   height: 1px;
-  background: linear-gradient(90deg, transparent, oklch(0.67 0.115 74 / 0.45), transparent);
+  background: linear-gradient(90deg, transparent, oklch(0.45 0.12 145 / 0.45), transparent);
 }
 
 /* Thin ornamental divider with centred diamond */
@@ -465,7 +465,7 @@
 
   /* Selection styling */
   ::selection {
-    background: oklch(0.67 0.115 74 / 0.18);
+    background: oklch(0.45 0.12 145 / 0.18);
   }
 
   /* Scrollbar (webkit) */
@@ -501,7 +501,7 @@
 /* ===== SECTION DIVIDER ===== */
 .divider-gold {
   height: 1px;
-  background: linear-gradient(90deg, transparent, oklch(0.60 0.092 68 / 0.35), transparent);
+  background: linear-gradient(90deg, transparent, oklch(0.45 0.12 145 / 0.35), transparent);
 }
 
 /* Diamond sparkle effect on hover */

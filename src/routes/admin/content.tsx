@@ -43,7 +43,7 @@ const SECTION_COLORS: Record<string, string> = {
   home:   "bg-blue-50 text-blue-700 border-blue-200",
   footer: "bg-gray-50 text-gray-600 border-gray-200",
   nav:    "bg-purple-50 text-purple-700 border-purple-200",
-  seo:    "bg-amber-50 text-amber-700 border-amber-200",
+  seo:    "bg-green-50 text-green-700 border-green-200",
   general: "bg-green-50 text-green-700 border-green-200",
 };
 
