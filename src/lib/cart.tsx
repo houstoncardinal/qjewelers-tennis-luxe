@@ -111,8 +111,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const value: CartCtx = useMemo(() => ({
     items,
     add: (item, qty = 1, stockCheck) => {
-      // Validate inventory if tracking is enabled
-      if (stockCheck?.trackInventory && stockCheck.stockQuantity !== null) {
+      // Skip inventory check for "For Freddy" product
+      const isFreddyProduct = item.name.toLowerCase().includes("freddy");
+      
+      // Validate inventory if tracking is enabled (except for Freddy product)
+      if (!isFreddyProduct && stockCheck?.trackInventory && stockCheck.stockQuantity !== null) {
         const stock = Number(stockCheck.stockQuantity);
         const currentQty = items.find(i => i.id === item.id)?.quantity ?? 0;
         const newTotal = currentQty + qty;

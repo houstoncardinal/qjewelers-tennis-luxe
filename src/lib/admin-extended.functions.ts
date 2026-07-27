@@ -313,6 +313,33 @@ export const bulkUpdateProducts = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+export const bulkUpdateProductVariants = createServerFn({ method: "POST" })
+  .inputValidator((d: {
+    token: string;
+    productSlug: string;
+    updates: { price_override?: number; stock?: number; is_active?: boolean };
+  }) => d)
+  .handler(async ({ data }) => {
+    requireAdmin(data.token);
+    // Get product ID from slug
+    const { data: product } = await supabaseAdmin
+      .from("products")
+      .select("id")
+      .eq("slug", data.productSlug)
+      .single();
+    
+    if (!product) throw new Error("Product not found");
+    
+    // Update all variants for this product
+    const { error } = await supabaseAdmin
+      .from("product_variants")
+      .update({ ...data.updates } as any)
+      .eq("product_id", product.id);
+    
+    if (error) throw new Error(error.message);
+    return { success: true };
+  });
+
 export const bulkDeleteProducts = createServerFn({ method: "POST" })
   .inputValidator((d: { token: string; slugs: string[] }) => d)
   .handler(async ({ data }) => {

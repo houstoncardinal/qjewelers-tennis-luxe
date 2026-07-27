@@ -1109,9 +1109,13 @@ function ProductPage() {
   });
   const hasConfiguredVariants = (variants ?? []).length > 0;
 
+  // Special case: "For Freddy" product is always available regardless of stock
+  const isFreddyProduct = product.name.toLowerCase().includes("freddy");
+
   // Check availability based on variants OR product-level inventory
-  const selectedVariantAvailable =
-    !hasConfiguredVariants
+  const selectedVariantAvailable = isFreddyProduct
+    ? true // Always available for Freddy product
+    : !hasConfiguredVariants
       ? // No variants: check product-level inventory
         !product.track_inventory ||
         product.stock_quantity === null ||
