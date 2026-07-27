@@ -779,7 +779,8 @@ function Index() {
                 {/* Headline */}
                 <h1 className="font-display leading-[0.92] mb-6 sm:mb-7" style={{ letterSpacing: "-0.02em" }}>
                   <span className="block text-white animate-fade-up" style={{ fontSize: "clamp(2.4rem, 6vw, 5.2rem)", animationDelay: "0.12s", textShadow: "0 4px 32px rgba(0,0,0,0.65)" }}>
-                    Certified Moissanite Brilliance, Set in Fine Gold
+                    VVS1 Moissanite<br />
+                    Hand-Set in 18K Gold
                   </span>
                 </h1>
 
@@ -788,14 +789,14 @@ function Index() {
                   className="text-white/90 text-[0.95rem] sm:text-[1rem] leading-[1.85] mb-8 sm:mb-10 animate-fade-up"
                   style={{ animationDelay: "0.34s", maxWidth: "58ch", textShadow: "0 2px 16px rgba(0,0,0,0.50)" }}
                 >
-                  Hand-set in 18K gold-plated sterling silver. Includes official GRA certification and lifetime shine guarantee.
+                  Expertly crafted VVS1 moissanite set in precious 18K gold. Curated for those who demand quality that lasts — backed by GRA certification and a lifetime shine guarantee.
                 </p>
 
                 {/* Premium CTAs */}
-                <div className="flex flex-col sm:flex-row gap-3.5 sm:gap-4 mb-2 sm:mb-3 animate-fade-up" style={{ animationDelay: "0.44s" }}>
+                <div className="flex flex-row flex-wrap gap-3 sm:gap-4 mb-2 sm:mb-3 animate-fade-up" style={{ animationDelay: "0.44s" }}>
                   <Link
                     to="/shop"
-                    className="group relative overflow-hidden inline-flex items-center justify-center gap-3 bg-white text-black px-10 sm:px-12 py-[15px] sm:py-[16px] text-[0.58rem] uppercase tracking-[0.24em] font-bold transition-all duration-300 hover:bg-gray-50 hover:shadow-2xl hover:shadow-black/20 hover:-translate-y-0.5"
+                    className="group relative overflow-hidden inline-flex items-center justify-center gap-3 bg-white text-black px-7 sm:px-12 py-[13px] sm:py-[16px] text-[0.55rem] sm:text-[0.58rem] uppercase tracking-[0.24em] font-bold transition-all duration-300 hover:bg-gray-50 hover:shadow-2xl hover:shadow-black/20 hover:-translate-y-0.5"
                     style={{ boxShadow: "0 8px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.15)" }}
                   >
                     <span className="relative z-10 flex items-center gap-3">
@@ -806,7 +807,7 @@ function Index() {
                   </Link>
                   <Link
                     to="/moissanite-guide"
-                    className="group inline-flex items-center justify-center gap-3 text-white/90 px-10 sm:px-12 py-[15px] sm:py-[16px] text-[0.58rem] uppercase tracking-[0.24em] font-semibold transition-all duration-300 hover:text-white hover:bg-white/12 hover:-translate-y-0.5"
+                    className="group inline-flex items-center justify-center gap-3 text-white/90 px-7 sm:px-12 py-[13px] sm:py-[16px] text-[0.55rem] sm:text-[0.58rem] uppercase tracking-[0.24em] font-semibold transition-all duration-300 hover:text-white hover:bg-white/12 hover:-translate-y-0.5"
                     style={{ border: "1.5px solid rgba(255,255,255,0.30)", backdropFilter: "blur(8px)" }}
                     onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.55)")}
                     onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.30)")}
@@ -817,7 +818,7 @@ function Index() {
                 </div>
 
                 {/* Premium trust row */}
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-3 mb-20 animate-fade-in" style={{ animationDelay: "0.56s" }}>
+                <div className="flex flex-row items-center gap-x-4 sm:gap-x-6 gap-y-0 mb-20 animate-fade-in" style={{ animationDelay: "0.56s" }}>
                   {[
                     { icon: ShieldCheck, text: "GRA Certified"   },
                     { icon: Gem,         text: "VVS1 · D Color"  },
