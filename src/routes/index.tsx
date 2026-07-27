@@ -656,37 +656,6 @@ function Index() {
 
   const [heroType, setHeroType] = useState("all");
   const [isDockPaused, setIsDockPaused] = useState(false);
-  const [metalPrices, setMetalPrices] = useState<{ gold: number; silver: number; platinum: number } | null>(null);
-  
-  // Fetch real-time precious metals prices
-  useEffect(() => {
-    const fetchMetalPrices = async () => {
-      try {
-        // Using a free metals API - in production, you'd want to use a paid API with better reliability
-        const response = await fetch('https://api.metals.live/v1/spot/all');
-        const data = await response.json();
-        
-        if (data && data.length > 0) {
-          const gold = data.find((m: any) => m.symbol === 'XAU')?.price || 0;
-          const silver = data.find((m: any) => m.symbol === 'XAG')?.price || 0;
-          const platinum = data.find((m: any) => m.symbol === 'XPT')?.price || 0;
-          
-          setMetalPrices({ gold, silver, platinum });
-        }
-      } catch (error) {
-        console.error('Failed to fetch metal prices:', error);
-        // Fallback to static prices if API fails
-        setMetalPrices({ gold: 2340, silver: 28.5, platinum: 1020 });
-      }
-    };
-
-    fetchMetalPrices();
-    
-    // Update every 60 seconds
-    const interval = setInterval(fetchMetalPrices, 60000);
-    
-    return () => clearInterval(interval);
-  }, []);
   const heroProducts = useMemo(() => {
     const pool = heroType === "all" ? sig : sig.filter((p: any) => p.type === heroType);
     const colorOrder: Record<string, number> = { gold: 0, rose_gold: 1, silver: 2, white_gold: 3 };
@@ -774,7 +743,7 @@ function Index() {
           {/* ── Premium editorial content ─────────────────────── */}
           <div className="absolute inset-0 flex items-center">
             <div className="w-full px-5 sm:px-8 lg:px-16 xl:px-20 pt-60 sm:pt-64 lg:pt-68 pb-32 sm:pb-36 lg:pb-40">
-              <div className="w-[95vw] sm:w-auto sm:max-w-[680px] lg:max-w-[950px]">
+              <div className="w-full sm:max-w-[680px] lg:max-w-[950px]">
 
                 {/* Headline */}
                 <h1 className="font-display leading-[0.92] mb-6 sm:mb-7" style={{ letterSpacing: "-0.02em" }}>
@@ -818,7 +787,7 @@ function Index() {
                 </div>
 
                 {/* Premium trust row */}
-                <div className="flex flex-row items-center gap-x-4 sm:gap-x-6 gap-y-0 mb-20 animate-fade-in" style={{ animationDelay: "0.56s" }}>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-x-6 mb-10 sm:mb-20 animate-fade-in" style={{ animationDelay: "0.56s" }}>
                   {[
                     { icon: ShieldCheck, text: "GRA Certified"   },
                     { icon: Gem,         text: "VVS1 · D Color"  },
@@ -836,29 +805,7 @@ function Index() {
                   ))}
                 </div>
 
-                {/* Real-time precious metals ticker */}
-                {metalPrices && (
-                  <div className="mt-6 animate-fade-in" style={{ animationDelay: "0.68s" }}>
-                    <div className="inline-flex items-center gap-4 px-5 py-3 rounded-full bg-white/5 backdrop-blur-md border border-white/10">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[0.46rem] uppercase tracking-[0.18em] text-white/70">Gold</span>
-                        <span className="text-[0.58rem] font-semibold text-white">${metalPrices.gold.toFixed(2)}/oz</span>
-                      </div>
-                      <span className="w-px h-3 bg-white/20" />
-                      <div className="flex items-center gap-2">
-                        <span className="text-[0.46rem] uppercase tracking-[0.18em] text-white/70">Silver</span>
-                        <span className="text-[0.58rem] font-semibold text-white">${metalPrices.silver.toFixed(2)}/oz</span>
-                      </div>
-                      <span className="w-px h-3 bg-white/20" />
-                      <div className="flex items-center gap-2">
-                        <span className="text-[0.46rem] uppercase tracking-[0.18em] text-white/70">Platinum</span>
-                        <span className="text-[0.58rem] font-semibold text-white">${metalPrices.platinum.toFixed(2)}/oz</span>
-                      </div>
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse ml-1" />
-                    </div>
-                  </div>
-                )}
-
+                {/* Real-time precious metals ticker — moved to header */}
               </div>
             </div>
           </div>
