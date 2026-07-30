@@ -69,52 +69,6 @@ function UserAvatar({ user, size = 22 }: { user: SupabaseUser; size?: number }) 
   );
 }
 
-function MetalTicker() {
-  const [prices, setPrices] = useState<{ gold: number; silver: number; platinum: number } | null>(null);
-
-  useEffect(() => {
-    const fetchPrices = async () => {
-      try {
-        const res = await fetch('https://api.metals.live/v1/spot/all');
-        const data = await res.json();
-        if (data && data.length > 0) {
-          setPrices({
-            gold: data.find((m: any) => m.symbol === 'XAU')?.price || 2340,
-            silver: data.find((m: any) => m.symbol === 'XAG')?.price || 28.5,
-            platinum: data.find((m: any) => m.symbol === 'XPT')?.price || 1020,
-          });
-        }
-      } catch {
-        setPrices({ gold: 2340, silver: 28.5, platinum: 1020 });
-      }
-    };
-    fetchPrices();
-    const interval = setInterval(fetchPrices, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  if (!prices) return null;
-
-  return (
-    <div className="flex items-center gap-3 mr-3 pl-3 border-l border-border/50">
-      <div className="flex items-center gap-2">
-        <span className="text-[0.40rem] uppercase tracking-[0.18em] text-muted-foreground/80">Gold</span>
-        <span className="text-[0.55rem] font-semibold text-foreground">${prices.gold.toFixed(0)}</span>
-      </div>
-      <span className="w-px h-2.5 bg-border/40" />
-      <div className="flex items-center gap-2">
-        <span className="text-[0.40rem] uppercase tracking-[0.18em] text-muted-foreground/80">Silver</span>
-        <span className="text-[0.55rem] font-semibold text-foreground">${prices.silver.toFixed(1)}</span>
-      </div>
-      <span className="w-px h-2.5 bg-border/40" />
-      <div className="flex items-center gap-2">
-        <span className="text-[0.40rem] uppercase tracking-[0.18em] text-muted-foreground/80">Plat</span>
-        <span className="text-[0.55rem] font-semibold text-foreground">${prices.platinum.toFixed(0)}</span>
-      </div>
-    </div>
-  );
-}
-
 export function Header() {
   const { count } = useCart();
   const [open, setOpen] = useState(false);
@@ -181,7 +135,6 @@ export function Header() {
 
           {/* Desktop icon cluster */}
           <div className="hidden md:flex items-center gap-1 shrink-0">
-            <MetalTicker />
             <Link
               to="/account"
               className="shrink-0 p-1.5 text-muted-foreground hover:text-foreground transition-colors duration-250 relative"
